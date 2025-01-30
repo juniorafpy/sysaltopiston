@@ -37,10 +37,13 @@ class PedidoDetalleRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make(),
+                // Tables\Actions\CreateAction::make()->modal(false), // 🔴 Desactiva modal para agregar
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+
+
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

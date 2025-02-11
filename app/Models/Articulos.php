@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Articulos extends Model
@@ -57,6 +58,10 @@ class Articulos extends Model
 
         }
 
+        public function detalle_art()
+    {
+        return $this->belongsTo(PedidoDetalle::class, 'cod_articulo','cod_pedido'); // 'factura_id' es la clave foránea en la tabla articulos
+    }
 }
 
 

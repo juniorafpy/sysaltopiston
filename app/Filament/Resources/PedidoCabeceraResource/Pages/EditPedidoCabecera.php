@@ -10,10 +10,7 @@ class EditPedidoCabecera extends EditRecord
 {
     protected static string $resource = PedidoCabeceraResource::class;
 
-    protected function getHeaderActions(): array
-    {
-        return [
-            Actions\DeleteAction::make(),
-        ];
-    }
+    protected  static bool $canCreateAnother =  false;
+
+
 }

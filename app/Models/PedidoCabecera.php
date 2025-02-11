@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PedidoCabecera extends Model
@@ -20,8 +21,10 @@ class PedidoCabecera extends Model
     protected $fillable = [
         'fec_pedido',
         'cod_empleado',
+        'cod_sucursal',
         'usuario_alta',
-        'fec_alta'
+        'fec_alta',
+        'estado'
     ]; //campos para visualizar
 
 
@@ -34,4 +37,6 @@ class PedidoCabecera extends Model
     {
         return $this->belongsTo(Empleados::class, 'cod_empleado', 'cod_empleado');
     }
+
+
 }

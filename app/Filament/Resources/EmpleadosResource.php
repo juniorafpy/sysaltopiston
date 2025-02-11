@@ -17,6 +17,9 @@ class EmpleadosResource extends Resource
 {
     protected static ?string $model = Empleados::class;
 
+    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?int $navigationSort = 6;
+
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function form(Form $form): Form
@@ -29,7 +32,7 @@ class EmpleadosResource extends Resource
                 Forms\Components\TextInput::make('cod_cargo')
                     ->numeric(),
                     Forms\Components\TextInput::make('nombre'),
-                   
+
             ]);
     }
 

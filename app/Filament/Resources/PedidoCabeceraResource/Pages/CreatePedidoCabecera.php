@@ -9,4 +9,8 @@ use Filament\Resources\Pages\CreateRecord;
 class CreatePedidoCabecera extends CreateRecord
 {
     protected static string $resource = PedidoCabeceraResource::class;
+
+    protected  static bool $canCreateAnother =  false;
+
+
 }

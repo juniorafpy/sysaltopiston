@@ -33,5 +33,9 @@ class Empleados extends Model
         return $this->hasMany(PedidoCabecera::class, 'cod_empleado', 'cod_empleado');
     }
 
+    public function personas()
+    {
+        return $this->belongsTo(Personas::class, 'cod_persona', 'cod_persona');
+    }
 
 }

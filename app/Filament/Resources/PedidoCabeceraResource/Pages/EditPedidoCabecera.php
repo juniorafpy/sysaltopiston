@@ -12,5 +12,13 @@ class EditPedidoCabecera extends EditRecord
 
     protected  static bool $canCreateAnother =  false;
 
+    protected function getActions(): array
+    {
+        return [
+            Actions\DeleteAction::make()
+                ->disabled(fn ($record) => $record->estado === 'A'),
+        ];
+    }
+
 
 }

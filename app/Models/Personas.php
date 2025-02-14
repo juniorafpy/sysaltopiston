@@ -17,8 +17,10 @@ class Personas extends Model
     public $timestamps = false;
 
     protected $fillable =[
-     'cod_persona',
-     'nombres',
-     'apellidos'
+    'nombres', 'apellidos', 'razon_social', 'sexo', 'email', 'fec_nacimiento',
+    'direccion', 'cod_estado_civil','edad',
+    'cod_pais', 'cod_departamento', 'ind_activo',
+    'ind_juridica', 'ind_fisica', 'usuario_alta', 'fec_alta', 'nro_documento'
+
     ]; //campos para visualizar
 }

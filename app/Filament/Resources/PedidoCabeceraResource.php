@@ -22,8 +22,11 @@ class PedidoCabeceraResource extends Resource
     protected static ?string $model = PedidoCabecera::class;
 
     protected static ?string $navigationGroup = 'Compras';
+    protected static ?string $navigationLabel = 'Pedidos Compra';
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $title = 'Pedidos Compra';
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-check';
 
     public static function form(Form $form): Form
     {
@@ -126,8 +129,9 @@ class PedidoCabeceraResource extends Resource
 
             ])
 
-        ->actions([Tables\Actions\EditAction::make()
-        ->disabled(fn ($record) => $record->estado === 'A'),
+        ->actions([
+            Tables\Actions\EditAction::make()
+            ->disabled(fn ($record) => $record->estado === 'A'),
 
                 //anular Pedido
             Tables\Actions\Action::make('estado')
@@ -148,8 +152,8 @@ class PedidoCabeceraResource extends Resource
             ->color('info')
             ->url(fn ($record) => PedidoCabeceraResource::getUrl('show', ['record' => $record]))
             ->disabled(fn ($record) => $record->estado === 'A'),
-
         ]);
+
     }
 
     public static function getRelations(): array
@@ -166,6 +170,15 @@ class PedidoCabeceraResource extends Resource
             'show' => Pages\ShowPedidoCabecera::route('/{record}'),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+{
+    if ($data['estado'] === 'A') {
+        abort(403, 'No puedes editar un pedido anulado.');
+    }
+
+    return $data;
+}
 
     /* public static function getEloquentQuery(): Builder
 {

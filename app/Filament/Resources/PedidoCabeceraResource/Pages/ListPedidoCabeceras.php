@@ -2,13 +2,21 @@
 
 namespace App\Filament\Resources\PedidoCabeceraResource\Pages;
 
-use App\Filament\Resources\PedidoCabeceraResource;
+
+
 use Filament\Actions;
+
 use Filament\Resources\Pages\ListRecords;
+
+use App\Filament\Resources\PedidoCabeceraResource;
+
+
 
 class ListPedidoCabeceras extends ListRecords
 {
     protected static string $resource = PedidoCabeceraResource::class;
+
+    protected static ?string $title = 'Listado de Pedidos';
 
     protected function getHeaderActions(): array
     {

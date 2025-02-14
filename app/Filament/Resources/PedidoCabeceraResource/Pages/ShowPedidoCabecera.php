@@ -14,6 +14,8 @@ class ShowPedidoCabecera extends ViewRecord
 {
     protected static string $resource = PedidoCabeceraResource::class;
 
+    protected static ?string $title = 'Visualizar Pedidos';
+
     // Personalizar el formulario en la vista de detalles
     protected function getFormSchema(): array
     {
@@ -22,7 +24,7 @@ class ShowPedidoCabecera extends ViewRecord
                 ->label('Código del Pedido')
                 ->disabled(), // Solo lectura
 
-            Forms\Components\TextInput::make('nom_empleado')
+         /*   Forms\Components\TextInput::make('nom_empleado')
                 ->label('Nombre del Empleado')
                 ->disabled(), // Solo lectura
 
@@ -32,7 +34,7 @@ class ShowPedidoCabecera extends ViewRecord
 
             Forms\Components\DateTimePicker::make('fec_pedido')
                 ->label('Fecha del Pedido')
-                ->disabled(), // Solo lectura
+                ->disabled(), // Solo lectura*/
 
             // Puedes agregar más campos según sea necesario
         ];
@@ -41,13 +43,13 @@ class ShowPedidoCabecera extends ViewRecord
     // Acciones del registro
     protected function getActions(): array
     {
-        return [
+      /*  return [
             Actions\Action::make('editar')
                 ->label('Editar Pedido')
                 //->url(fn($record) => route('filament.resources.pedido-cabeceras.edit', $record))
                 ->icon('heroicon-o-pencil')
                 ->color('primary'),
-        ];
+        ];*/
     }
 
     // Acciones de cabecera (por ejemplo, volver a la lista)

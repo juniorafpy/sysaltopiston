@@ -12,5 +12,7 @@ class CreatePedidoCabecera extends CreateRecord
 
     protected  static bool $canCreateAnother =  false;
 
+    protected static ?string $title = 'Pedidos Compra';
+
 
 }

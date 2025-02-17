@@ -10,6 +10,7 @@ use App\Models\Personas;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\PersonasResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -90,6 +91,22 @@ class PersonasResource extends Resource
                                         $set('div', null);
                                     }
                                 })
+                                ->live(debounce: 500)
+                                ->rule(function ($record) {
+                                    return function (string $attribute, $value, Closure $fail) use ($record) {
+                                        $personas = \App\Models\Personas::where('nro_documento', $value)
+                                            ->where('cod_persona', '!=', optional($record)->cod_persona)
+                                            ->get(); // Obtener registros en lugar de exists()
+
+                                            Log::info('Validación nro_documento:', ['documento' => $value, 'resultado' => $personas]);
+
+
+                                        if ($personas->isNotEmpty()) {
+                                            $fail('El número de documento ya está registrado.');
+                                        }
+                                    };
+                                })
+
                                 ->columnSpan(3), // Ocupa 3 columnas en el grid
 
                             Forms\Components\TextInput::make('div')

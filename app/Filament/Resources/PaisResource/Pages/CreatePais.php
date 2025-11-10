@@ -14,9 +14,10 @@ class CreatePais extends CreateRecord
     {
         return [
             Actions\CreateAction::make()
+
                 ->disableCreateAnother(), // Desactiva la opción "Crear otro"
         ];
     }
-    
-    
+
+
 }

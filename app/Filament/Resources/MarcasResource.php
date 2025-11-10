@@ -19,7 +19,7 @@ class MarcasResource extends Resource
 
     protected static ?string $navigationGroup = 'Definiciones';
     protected static ?int $navigationSort = 3;
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-tag';
 
     public static function form(Form $form): Form
     {
@@ -29,7 +29,7 @@ class MarcasResource extends Resource
                 ->label('Marca')
                     ->maxLength(50)
                     ->required(),
-                    
+
                     Forms\Components\Hidden::make('usuario_alta')
                     ->default(fn () =>auth()->user()->name)  //asigna automaticamente el usuario
                    ->label('Usuario Alta'),
@@ -43,24 +43,24 @@ class MarcasResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('cod_marca') 
+                Tables\Columns\TextColumn::make('cod_marca')
                 ->label('Cod Marca')
                 ->width('1%')
                 ->alignment('center'), // Agregar la columna para 'cod_pais'
                 Tables\Columns\TextColumn::make('descripcion')
                     ->searchable(),
-               
+
                     Tables\Columns\TextColumn::make('usuario_alta')
                     ->searchable(),
                     Tables\Columns\TextColumn::make('fec_alta')
                     ->dateTime()
-                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y H:i:s')), 
+                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y H:i:s')),
             ])
-           
+
             ->actions([
                 Tables\Actions\EditAction::make(),
             ]);
-            
+
     }
 
     public static function getRelations(): array

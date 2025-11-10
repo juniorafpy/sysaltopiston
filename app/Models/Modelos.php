@@ -10,7 +10,7 @@ class Modelos extends Model
 {
     use HasFactory;
 
-    protected $table = 'modelos'; //definicion de la tabla
+    protected $table = 'st_modelos'; //definicion de la tabla
 
     protected $primaryKey = 'cod_modelo'; // Clave primaria
 
@@ -23,7 +23,7 @@ class Modelos extends Model
         'cod_marca',
         'usuario_alta',
         'fec_alta'
-    
+
     ]; //campos para visualizar
 
     // En el modelo Pais.php

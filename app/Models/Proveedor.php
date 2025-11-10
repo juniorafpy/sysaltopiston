@@ -26,6 +26,14 @@ class Proveedor extends Model
         return $this->belongsTo(Personas::class, 'cod_persona', 'cod_persona');
     }
 
+    public function getNombreAttribute()
+    {
+        if ($this->personas_pro) {
+            return $this->personas_pro->razon_social ?: trim($this->personas_pro->nombres . ' ' . $this->personas_pro->apellidos);
+        }
+        return null;
+    }
+
 }
 
 

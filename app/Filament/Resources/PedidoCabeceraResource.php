@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Forms;
-
 use Filament\Tables;
 use App\Models\Sucursal;
 use Filament\Forms\Form;
@@ -11,154 +11,189 @@ use App\Models\Empleados;
 use Filament\Tables\Table;
 use App\Models\PedidoCabecera;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Repeater;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Model;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Forms\Components\Placeholder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\PedidoCabeceraResource\Pages;
-use Filament\Resources\RelationManagers\RelationManager;
+use App\Filament\Resources\PedidoCabeceraResource\RelationManagers;
+use App\Models\PedidoCabeceras;
+use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
+
 
 class PedidoCabeceraResource extends Resource
 {
-    protected static ?string $model = PedidoCabecera::class;
+   // protected static ?string $model = PedidoCabeceras::class;
+    protected static ?string $model = PedidoCabeceras::class;
+  //  protected static ?string $model = PedidoCabecera::class;
+    protected static ?string $navigationLabel = 'Pedido de Compra';
 
-    protected static ?string $navigationGroup = 'Compras';
-    protected static ?string $navigationLabel = 'Pedidos Compra';
+    protected static ?string $title = 'Lista de Compra';
+    protected static ?int $navigationSort = 1;
 
-    protected static ?string $title = 'Pedidos Compra';
-
-    protected static ?string $navigationIcon = 'heroicon-o-document-check';
+    protected static ?string $navidngationIcon = 'heroicon-o-rectangle-stack';
 
     public static function form(Form $form): Form
     {
-        $user = Auth::user();
-        $empleado = Empleados::where('cod_persona', $user->cod_persona)
-            ->with('personas') // Asegurar que se carga la relación
-            ->first();
-
-        return $form->schema([
-            Forms\Components\DateTimePicker::make('fec_pedido')->default(now())
-            ->readOnly(), // Fecha actual,
-
-            /*  Forms\Components\Select::make('cod_empleado')
-
-                    ->relationship('ped_empleados', 'nombre') // Nombre de la relación en el modelo PedidoCabecera
-                    ->searchable()
-                    ->required()
-                    ->preload()
-
-                    ->createOptionForm([
-                        Forms\Components\DatePicker::make('fec_alta'),
-                        Forms\Components\TextInput::make('cod_persona'),
-
-                        Forms\Components\TextInput::make('cod_cargo'),
-
-                        Forms\Components\TextInput::make('nombre'),
-                    ]),*/
-
-
-                    Forms\Components\Hidden::make('usuario_alta')
-                ->default(fn() => auth()->user()->name) //asigna automaticamente el usuario
-                ->label('Usuario Alta'),
-
-            Forms\Components\Hidden::make('fec_alta')->default(now()->toDateTimeString()), // Fecha actual,
-
-
-            Forms\Components\Hidden::make('cod_empleado') // Sin "empleado."
-                ->label('Código Empleado')
-                ->default(fn() => old('cod_empleado') ?? Empleados::where('cod_persona', Auth::user()->cod_persona)->value('cod_empleado'))
-                ->dehydrated(true),
-
-
-                Forms\Components\TextInput::make('nom_empleado')
-                ->label('Nombre del Empleado')
-                ->formatStateUsing(function ($state, $record) {
-                    // Si el registro ya tiene un valor, úsalo (en caso de edición)
-                    if ($record && $record->id_empleado) {
-                        return optional($record->empleado?->personas)->nombres . ' ' . optional($record->empleado?->personas)->apellidos ?? 'No disponible';
-                    }
-
-                    // Si es un nuevo registro, obtener el empleado relacionado con el usuario autenticado
-                    return optional(
-                        Empleados::where('cod_persona', Auth::user()->cod_persona)
-                            ->with('personas')
-                            ->first()
-                    )->personas?->nombres . ' ' .
-                        optional(
-                            Empleados::where('cod_persona', Auth::user()->cod_persona)
-                                ->with('personas')
-                                ->first()
-                        )->personas?->apellidos ?? 'No disponible';
-                })
-                ->disabled(), // Hace que el campo sea solo lectura
 
 
 
-                Forms\Components\Hidden::make('cod_sucursal') // Sin "empleado."
-                ->label('Cod Sucursal')
-                ->formatStateUsing(fn() => Auth::user()->cod_sucursal)
-                ->dehydrated(true),
+        return $form
+            ->schema([
+               // 🧾 CABECERA
+            Section::make('Datos del Pedido')
+                ->schema([
+
+            Forms\Components\Hidden::make('cod_empleado'),
+            Forms\Components\TextInput::make('nombre_empleado')
+                ->label('Empleado')
+                ->disabled()
+                ->dehydrated(false),
+
+            Forms\Components\Hidden::make('cod_sucursal'),
+
+             // Campo de TEXTO para mostrar el nombre
+            Forms\Components\TextInput::make('nombre_sucursal')
+                ->label('Sucursal')
+                ->disabled()
+                ->dehydrated(false),
+
+           DatePicker::make('fec_pedido')
+    ->label('Fecha Pedido')
+
+    // Aquí está el cambio: usamos Carbon explícitamente
+    ->default(Carbon::now('America/Asuncion'))
+    ->displayFormat('d/m/Y') // Muestra en formato dd/mm/yyyy
+    ->native(false)          // Usa el picker de Filament para asegurar el formato
+    ->required(),         // Requerido para que displayFormat funcione en todos los navegadores
+
+                    TextInput::make('usuario_alta')
+                        ->disabled()
+                        ->label('Usuario Alta'),
+
+           Placeholder::make('fec_alta_display') // Dale un nombre único que no sea de una columna
+    ->label('Fecha Alta')
+    ->content(function () {
+        // Formateamos la fecha actual de Paraguay como un string
+        return Carbon::now('America/Asuncion')->format('d/m/Y');
+    }),
 
 
-                Forms\Components\TextInput::make('nombre_sucursal') // Campo para mostrar el nombre de la sucursal
-                ->label('Nombre de Sucursal')
-                ->formatStateUsing(fn() => optional(Sucursal::find(Auth::user()->cod_sucursal))->descripcion ?? 'No disponible') // Obtener el nombre de la sucursal relacionada al usuario
-                ->disabled(),
+
+                ])
 
 
+                ->columns(2),
 
+Section::make('Detalle de Pedido')
+    ->schema([
+       TableRepeater::make('detalles')->label('')
+       ->relationship('detalles')
+                ->schema([
+                    Select::make('cod_articulo')
+                        ->label('Producto')
+                        ->relationship('articulos_det', 'descripcion')
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                         ->columns(2),
 
-        ]);
+                    TextInput::make('cantidad')
+                        ->label('Cantidad')
+                        ->numeric()
+                        ->default(1)
+                        ->minValue(1)
+                        ->required()
+                        ->columns(1),
+
+                ]) ->required()
+
+            ->columns(3)
+            //->defaultItems(1),
+    ])
+
+    ->compact(),
+ ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-            Tables\Columns\TextColumn::make('cod_pedido'),
-            Tables\Columns\TextColumn::make('cod_empleado'),
-            Tables\Columns\TextColumn::make('ped_empleados.personas.nombres')->label('Nombre')
-            ->getStateUsing(fn ($record) => $record->ped_empleados->personas->nombres . ', ' . $record->ped_empleados->personas->apellidos),
-            Tables\Columns\TextColumn::make('fec_pedido')->dateTime('d/m/Y H:i:s'),
-            Tables\Columns\TextColumn::make('usuario_alta'),
-            //Tables\Columns\TextColumn::make('fec_alta'),
-            Tables\Columns\TextColumn::make('estado')->label('Estado')
-            ->label('Estado')
-            ->getStateUsing(fn ($record) => $record->estado === 'A' ? 'Anulado' : 'Activo') // Traduce 'A' a 'Anulado'
-            ->badge() // Hace que se muestre como un badge
-            ->color(fn ($record) => $record->estado === 'A' ? 'danger' : 'success'),
+                Tables\Columns\TextColumn::make('cod_pedido')->label('Nº Pedido'),
+                Tables\Columns\TextColumn::make('fec_pedido')->label('Fecha Pedido')->date('d/m/Y'),
+                Tables\Columns\TextColumn::make('ped_empleados.personas_emp.nombre_completo')->label('Empleado'),
+                Tables\Columns\TextColumn::make('sucursal_ped.descripcion')->label('Sucursal'),
+                Tables\Columns\TextColumn::make('estado')
 
             ])
 
-        ->actions([
-            Tables\Actions\EditAction::make()
-            ->disabled(fn ($record) => $record->estado === 'A'),
-
-                //anular Pedido
-            Tables\Actions\Action::make('estado')
-            ->label('Anular') // Nombre del botón
-           ->icon('heroicon-o-x-circle') // Ícono opcional
-            ->color('danger') // Color amarillo para indicar advertencia
-            ->requiresConfirmation() // Pide confirmación antes de anular
-            ->modalHeading('Anular Pedido') // Personaliza el título del modal
-            ->modalDescription('¿Estás seguro de que deseas anular este pedido? Esta acción no se puede deshacer.') // Mensaje de confirmación
-            ->modalButton('Sí, anular') // Personaliza el botón de confirmación
-            ->action(fn ($record) => $record->update(['estado' => 'A']))
-            ->disabled(fn ($record) => $record->estado === 'A'),
+            ->filters([
+                //
+            ])
 
 
-            Tables\Actions\Action::make('ver_pedido')
-            ->label('Ver')
-            ->icon('heroicon-o-eye')
-            ->color('info')
-            ->url(fn ($record) => PedidoCabeceraResource::getUrl('show', ['record' => $record]))
-            ->disabled(fn ($record) => $record->estado === 'A'),
-        ]);
+            ->actions([
+                Tables\Actions\EditAction::make(),
 
+                // --- NUESTRA NUEVA ACCIÓN DE ANULAR ---
+            Action::make('anular')
+                ->label('Anular')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger') // Color rojo para indicar una acción importante
+                ->requiresConfirmation() // Pide confirmación antes de ejecutar
+                ->modalHeading('Anular Pedido')
+                ->modalDescription('¿Estás seguro de que deseas anular este pedido? Esta acción no se puede deshacer.')
+                ->modalSubmitActionLabel('Sí, anular')
+                ->action(function (Model $record) {
+                    // La lógica que se ejecuta al confirmar
+                    $record->update(['estado' => 'ANULADO']);
+                    Notification::make()
+                        ->title('Pedido Anulado')
+                        ->success()
+                        ->send();
+                })
+                // Hacemos que el botón de Anular solo sea visible si el estado NO es "Anulado"
+                ->visible(fn (Model $record): bool => $record->estado !== 'Anulado'),
+
+                Action::make('aprobar')
+                ->label('Aprobar')
+                ->icon('heroicon-o-x-circle')
+                ->color('success') // Color rojo para indicar una acción importante
+                ->requiresConfirmation() // Pide confirmación antes de ejecutar
+                ->modalHeading('Aprobar Pedido')
+                ->modalDescription('¿Estás seguro de que deseas aprobar este pedido? Esta acción no se puede deshacer.')
+                ->modalSubmitActionLabel('Sí, aprobar')
+                ->action(function (Model $record) {
+                    // La lógica que se ejecuta al confirmar
+                    $record->update(['estado' => 'APROBADO']);
+                    Notification::make()
+                        ->title('Pedido Aprobado')
+                        ->success()
+                        ->send();
+                })
+            ]);
+            /*->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);*/
     }
 
     public static function getRelations(): array
     {
-        return [\App\Filament\Resources\PedidoCabeceraResource\RelationManagers\PedidoDetalleRelationManager::class];
+        return [
+            //
+        ];
     }
 
     public static function getPages(): array
@@ -167,23 +202,6 @@ class PedidoCabeceraResource extends Resource
             'index' => Pages\ListPedidoCabeceras::route('/'),
             'create' => Pages\CreatePedidoCabecera::route('/create'),
             'edit' => Pages\EditPedidoCabecera::route('/{record}/edit'),
-            'show' => Pages\ShowPedidoCabecera::route('/{record}'),
         ];
     }
-
-    protected function mutateFormDataBeforeFill(array $data): array
-{
-    if ($data['estado'] === 'A') {
-        abort(403, 'No puedes editar un pedido anulado.');
-    }
-
-    return $data;
-}
-
-    /* public static function getEloquentQuery(): Builder
-{
-    return parent::getEloquentQuery()->whereHas('empleado', function ($query) {
-        $query->where('cod_persona', Auth::user()->id_persona);
-    });
-}*/
 }

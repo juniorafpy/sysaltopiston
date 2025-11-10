@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Sucursal extends Model
 {
@@ -21,4 +22,9 @@ class Sucursal extends Model
         'descripcion',
 
     ]; //campos para visualizar
+
+     public function usuario_suc (): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cod_sucursal', 'cod_sucursal');
+    }
 }

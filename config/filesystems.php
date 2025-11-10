@@ -28,21 +28,19 @@ return [
     |
     */
 
-    'disks' => [
-
-        'local' => [
-            'driver' => 'local',
-            'root' => storage_path('app'),
-            'throw' => false,
-        ],
-
-        'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
-            'visibility' => 'public',
-            'throw' => false,
-        ],
+   'disks' => [
+    'public' => [
+        'driver' => 'local',
+        'root' => storage_path('app/public'),
+        'url' => env('APP_URL') . '/storage',
+        'visibility' => 'public',
+    ],
+    'media' => [
+        'driver' => 'local',
+        'root' => storage_path('app/public/media'),
+        'url' => env('APP_URL') . '/storage/media',
+        'visibility' => 'public',
+    ],
 
         's3' => [
             'driver' => 's3',

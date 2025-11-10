@@ -11,31 +11,43 @@ class Empleados extends Model
 {
     use HasFactory;
 
-    protected $table = 'empleados'; //definicion de la tabla
-
-    protected $primaryKey = 'cod_empleado'; // Clave primaria
-
+    protected $table = 'empleados';
+    protected $primaryKey = 'cod_empleado';
     public $timestamps = false;
 
-    use HasFactory;
-
-    protected $fillable =[
-        'cod_empleado',
+    protected $fillable = [
         'fec_alta',
-        'cod_presona',
+        'cod_persona',
         'cod_cargo',
         'nombre'
-    ]; //campos para visualizar
+    ];
 
+    protected $casts = [
+        'fec_alta' => 'date',
+    ];
 
-    public function empleados (): HasMany
-    {
-        return $this->hasMany(PedidoCabecera::class, 'cod_empleado', 'cod_empleado');
-    }
-
-    public function personas()
+    /**
+     * Relación con Persona
+     */
+    public function persona(): BelongsTo
     {
         return $this->belongsTo(Personas::class, 'cod_persona', 'cod_persona');
     }
 
+    /**
+     * Relación con Usuario (inversa)
+     */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cod_empleado', 'cod_empleado');
+    }
+
+    /**
+     * Relación con Aperturas de Caja
+     */
+    public function aperturasCaja(): HasMany
+    {
+        return $this->hasMany(AperturaCaja::class, 'cod_cajero', 'cod_empleado');
+    }
 }
+

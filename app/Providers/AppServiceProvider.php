@@ -6,6 +6,10 @@ use Illuminate\Support\ServiceProvider;
 
 use App\Models\Pais;
 use App\Observers\PaisObserver;
+use App\Models\PresupuestoVenta;
+use App\Observers\PresupuestoVentaObserver;
+use App\Models\OrdenServicioDetalle;
+use App\Observers\OrdenServicioDetalleObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,5 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Pais::observe(PaisObserver::class);
+        PresupuestoVenta::observe(PresupuestoVentaObserver::class);
+        OrdenServicioDetalle::observe(OrdenServicioDetalleObserver::class);
     }
 }

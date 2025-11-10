@@ -15,6 +15,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 
@@ -23,10 +24,13 @@ class AdminPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
+
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login( )
+            ->login()
+            ->registration()
+
 
             ->plugins([
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
@@ -44,6 +48,18 @@ class AdminPanelProvider extends PanelProvider
                 Widgets\AccountWidget::class,
              //   Widgets\FilamentInfoWidget::class,
             ])
+            ->navigationGroups([
+                NavigationGroup::make()
+                    ->label('Principal')
+                    ->icon('heroicon-o-home'),
+                   NavigationGroup::make()
+                    ->label('Compras'),
+                NavigationGroup::make()
+                    ->label('Servicios'),
+                NavigationGroup::make()
+                    ->label('Ventas'),
+
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -55,6 +71,9 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+
+            //->theme(asset('css/filament-admin.css'))
+
             ->authMiddleware([
                 Authenticate::class,
             ]);

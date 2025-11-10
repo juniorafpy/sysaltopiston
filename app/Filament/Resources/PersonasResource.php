@@ -22,7 +22,10 @@ class PersonasResource extends Resource
 
     protected static ?string $navigationGroup = 'Definiciones';
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-identification';
+
+    protected static ?string $navigationBadge = '<span class="group-hover:text-blue-500 transition-colors">👤</span>';
+
 
     public static function form(Form $form): Form
     {

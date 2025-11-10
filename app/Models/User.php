@@ -11,8 +11,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class User extends Authenticatable { 
+class User extends Authenticatable {
 
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -25,6 +26,8 @@ class User extends Authenticatable {
         'name',
         'email',
         'password',
+        'cod_sucursal',
+        'cod_empleado',
     ];
 
     /**
@@ -46,5 +49,21 @@ class User extends Authenticatable {
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Relación con la sucursal del usuario
+     */
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class, 'cod_sucursal', 'cod_sucursal');
+    }
+
+    /**
+     * Relación con el empleado del usuario
+     */
+    public function empleado(): BelongsTo
+    {
+        return $this->belongsTo(Empleados::class, 'cod_empleado', 'cod_empleado');
+    }
 
 }

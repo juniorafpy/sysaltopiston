@@ -9,9 +9,11 @@ class PresupuestoDetalle extends Model
 {
     use HasFactory;
 
-    protected $table = 'presupuesto_detalle'; //definicion de la tabla
+    protected $table = 'presupuesto_detalles'; //definicion de la tabla
 
-    protected $primaryKey = 'nro_presupuesto'; // Clave primaria
+    protected $primaryKey = 'id_detalle'; // Clave primaria
+     public $incrementing = true;
+       protected $keyType = 'int';
 
     public $timestamps = false;
 
@@ -21,11 +23,28 @@ class PresupuestoDetalle extends Model
         'nro_presupuesto',
         'cod_articulo',
         'cantidad',
-        'precio'
+        'precio',
+        'total',
+        'total_iva'
     ]; //campos para v
 
-    public function presupuesto()
+    public function presupuestoCabecera()
+{
+    return $this->belongsTo(PresupuestoCabecera::class, 'nro_presupuesto', 'nro_presupuesto');
+}
+
+public function articulo()
+{
+    return $this->belongsTo(Articulos::class, 'cod_articulo');
+}
+
+  /*  protected static function boot()
     {
-        return $this->belongsTo(PresupuestoCabecera::class, 'nro_presupuesto', 'nro_presupuesto');
-    }
+        parent::boot();
+
+        static::saving(function ($detalle) {
+            $detalle->total = $detalle->cantidad * $detalle->precio;
+            $detalle->total_iva = (($detalle->cantidad * $detalle->precio) / 11) ;
+        });
+    }*/
 }

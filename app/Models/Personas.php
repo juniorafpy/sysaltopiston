@@ -31,7 +31,17 @@ class Personas extends Model
     parent::boot();
 
     static::saving(function ($model) {
-        if (self::where('nro_documento', $model->nro_documento)->where('id', '!=', $model->id)->exists()) {
+        // Use the model's primary key name instead of hard-coded 'id',
+        // because this model uses 'cod_persona' as primary key.
+        $keyName = $model->getKeyName();
+        $keyValue = $model->{$keyName} ?? null;
+
+        $query = self::where('nro_documento', $model->nro_documento);
+        if (!is_null($keyValue)) {
+            $query->where($keyName, '!=', $keyValue);
+        }
+
+        if ($query->exists()) {
             throw ValidationException::withMessages(['nro_documento' => 'El número de documento ya está registrado.']);
         }
     });
@@ -39,9 +49,12 @@ class Personas extends Model
 
 public function getNombreCompletoAttribute(): string
 {
-    return "{$this->nombres} {$this->apellidos}";
+    return "{$this->nombres}, {$this->apellidos}";
 }
 
-
+public function facturas()
+{
+    return $this->hasMany(Factura::class, 'cod_cliente', 'cod_persona');
+}
 
 }

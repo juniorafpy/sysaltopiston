@@ -14,7 +14,7 @@ class ListPresupuestoCabeceras extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('Crear Presupuesto'),
+            Actions\CreateAction::make()->label('Crear Presupuesto')->createAnother(false),
 
         ];
     }

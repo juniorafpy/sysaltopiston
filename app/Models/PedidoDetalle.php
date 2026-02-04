@@ -13,13 +13,13 @@ class PedidoDetalle extends Model
 
     protected $table = 'pedidos_detalle';
 
-    protected $primaryKey = 'id_detalle';
-
+    protected $primaryKey = 'id_pedido';
 
     public $timestamps = false;
 
 
     protected $fillable = [
+        'cod_pedido',
         'cod_articulo',
         'cantidad'
     ];

@@ -9,4 +9,6 @@ use Filament\Resources\Pages\CreateRecord;
 class CreatePromocion extends CreateRecord
 {
     protected static string $resource = PromocionResource::class;
+
+    protected static bool $canCreateAnother = false;
 }

@@ -15,7 +15,8 @@ class ListReclamos extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-                ->label('Crear Reclamo'),
+                ->label('Crear Reclamo')
+                ->createAnother(false),
         ];
     }
 }

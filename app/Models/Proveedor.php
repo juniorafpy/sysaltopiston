@@ -16,7 +16,12 @@ class Proveedor extends Model
     public $timestamps = false;
 
     protected $fillable =[
-    'cod_persona'
+        'cod_persona',
+        'estado',
+        'usuario_alta',
+        'fec_alta',
+        'usuario_mod',
+        'fec_mod'
     ];
 
 

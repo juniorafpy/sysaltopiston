@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ArticuloResource\Pages;
 
 use App\Filament\Resources\ArticuloResource;
 use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
@@ -15,6 +16,7 @@ class EditArticulo extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\ViewAction::make(),
             Actions\DeleteAction::make(),
         ];
     }
@@ -34,5 +36,26 @@ class EditArticulo extends EditRecord
             ->success()
             ->title('Artículo actualizado')
             ->body('Los cambios han sido guardados exitosamente.');
+    }
+
+    /**
+     * Botones personalizados del formulario
+     */
+    protected function getFormActions(): array
+    {
+        return [
+            Action::make('save')
+                ->label('Guardar')
+                ->action('save')
+                ->keyBindings(['mod+s'])
+                ->color('warning')
+                ->icon('heroicon-o-check'),
+
+            Action::make('cancel')
+                ->label('Cancelar')
+                ->url($this->getResource()::getUrl('index'))
+                ->color('danger')
+                ->icon('heroicon-o-x-mark'),
+        ];
     }
 }

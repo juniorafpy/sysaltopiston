@@ -9,14 +9,14 @@ class CondicionCompra extends Model
 {
     use HasFactory;
 
-    protected $table = 'condicion_compra'; //definicion de la tabla
+    protected $table = 'condicion'; //definicion de la tabla
 
-    protected $primaryKey = 'cod_condicion_compra'; // Clave primaria
+    protected $primaryKey = 'cod_condicion'; // Clave primaria
 
     public $timestamps = false;
 
     protected $fillable =[
         'descripcion',
-        'dias_cuotas'
+        'cant_cuota'
     ];
 }

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Factories\Relationship;
 use App\Filament\Resources\PresupuestoCabeceraResource\Pages;
 use App\Filament\Resources\PresupuestoCabeceraResource\RelationManagers;
 use App\Models\PedidoCabeceras;
+use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class PresupuestoCabeceraResource extends Resource
 {
@@ -54,15 +55,23 @@ public static function form(Form $form): Form
 
                             // Si el nombre visible está en proveedor->personas_pro
 
-                             Forms\Components\Hidden::make('cod_sucursal'),
-                         Forms\Components\TextInput::make('nombre_sucursal')
-                ->label('Sucursal')
-                ->disabled()
-                ->dehydrated(false),
+                             Forms\Components\Select::make('cod_sucursal')
+                                ->label('Sucursal')
+                                ->relationship('sucursal', 'descripcion')
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->disabled(fn ($context) => $context === 'view' || $context === 'edit'),
 
-                 TextInput::make('usuario_alta')
-                        ->disabled()
-                        ->label('Usuario Alta'),
+                 Placeholder::make('usuario_display')
+                        ->label('Usuario Alta')
+                        ->content(function ($record) {
+                            if ($record && $record->usuario_alta) {
+                                return $record->usuario_alta;
+                            }
+                            $currentUser = auth()->user();
+                            return $currentUser->username ?? $currentUser->name ?? $currentUser->email ?? 'N/A';
+                        }),
 
                         Placeholder::make('fec_alta_display') // Dale un nombre único que no sea de una columna
                         ->label('Fecha Alta')
@@ -96,35 +105,49 @@ public static function form(Form $form): Form
 
 
 
-                            //pone como default 1 = Pendiente
+                            //pone como default PENDIENTE
                             Forms\Components\Hidden::make('estado')
-                                ->default(1)          // ← Pendiente
-                                ->dehydrated(true)    // lo envía al guardar
-                                ->visibleOn('create'), // solo en crear
+                                ->default('PENDIENTE')  // ← Estado PENDIENTE como string
+                                ->dehydrated(true)      // lo envía al guardar
+                                ->visibleOn('create'),  // solo en crear
 
                                 // ... dentro del schema de Cabecera (Grid de 3 columnas) agrega:
                         Forms\Components\Select::make('nro_pedido_ref')
                         ->label('Pedido de Referencia')
-                        ->relationship('pedido', 'cod_pedido')
-                        ->getOptionLabelFromRecordUsing(
-                            fn (PedidoCabeceras $record) => // 👈 TIPAR el parámetro
-                                ($record->cod_pedido ?? '') .
-                                (isset($record->fec_pedido) ? ' — ' . (
-                                    $record->fec_pedido instanceof \Carbon\Carbon
-                                        ? $record->fec_pedido->format('d/m/Y')
-                                        : (string) $record->fec_pedido
-                                ) : '')
-                        )
+                        ->options(function () {
+                            // Solo pedidos APROBADOS que NO estén cargados en ningún presupuesto
+                            $pedidosYaCargados = PresupuestoCabecera::whereNotNull('nro_pedido_ref')
+                                ->pluck('nro_pedido_ref')
+                                ->toArray();
+
+                            return PedidoCabeceras::where('estado', 'APROBADO')
+                                ->whereNotIn('cod_pedido', $pedidosYaCargados)
+                                ->get()
+                                ->mapWithKeys(function ($pedido) {
+                                    $label = $pedido->cod_pedido;
+                                    if ($pedido->fec_pedido) {
+                                        $fecha = $pedido->fec_pedido instanceof \Carbon\Carbon
+                                            ? $pedido->fec_pedido->format('d/m/Y')
+                                            : $pedido->fec_pedido;
+                                        $label .= ' — ' . $fecha;
+                                    }
+                                    return [$pedido->cod_pedido => $label];
+                                });
+                        })
                         ->searchable()
                         ->preload()
                         ->reactive()
                         ->afterStateUpdated(function ($state, \Filament\Forms\Set $set, \Filament\Forms\Get $get) {
                             if (!$state) return;
                             static::cargarDetallesDesdePedido($state, $set, $get);
-                        }),
+                        })
+                        ->disabled(fn ($context) => $context === 'edit'), // Deshabilitar al editar
 
 
-                        Textarea::make('Observacion')->maxLength(500) ->columnSpan(3),
+                        Textarea::make('observacion')
+                            ->label('Observación')
+                            ->maxLength(500)
+                            ->columnSpan(3),
 
                     /*    Forms\Components\Select::make('cod_estado')
                         ->label('Estado')
@@ -146,113 +169,106 @@ public static function form(Form $form): Form
             // SEGUNDA SECCIÓN: DETALLES
             Forms\Components\Section::make('Detalles del Presupuesto')
                 ->schema([
-                    Forms\Components\Repeater::make('presupuestoDetalles')
-                        ->relationship() // hasMany presupuestoDetalles()
+                    TableRepeater::make('presupuestoDetalles')
+                        // QUITAMOS ->relationship() para manejar el guardado manualmente
+                        ->label('')
                         ->schema([
                             Forms\Components\Select::make('cod_articulo')
                                 ->label('Artículo')
-                                ->relationship('articulo', 'descripcion')
+                                ->options(\App\Models\Articulos::pluck('descripcion', 'cod_articulo'))
                                 ->searchable()
                                 ->preload()
                                 ->required()
-                                ->columnSpan(1)
-                                ->reactive()
-                                ->afterStateUpdated(function ($state, Set $set) {
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                     if ($state) {
                                         $articulo = Articulos::find($state);
                                         if ($articulo) {
-                                            $precio = (float) $articulo->precio;
-                                            $set('precio', $precio);
-                                            $cantidad = 1;
-                                            $total = $cantidad * $precio;
-                                            $iva   = max(0, $total) * 0.10;
-                                            $set('total', number_format($total, 2, '.', ''));
-                                            $set('total_iva', number_format($iva, 2, '.', ''));
+                                            $set('precio', round($articulo->precio));
+                                            // Calcular totales
+                                            $cantidad = (float) ($get('cantidad') ?? 1);
+                                            $precio = round($articulo->precio);
+                                            $total = round($cantidad * $precio);
+                                            $iva = round($total * 0.10);
+                                            $set('total', $total);
+                                            $set('total_iva', $iva);
                                         }
                                     }
                                 }),
 
-                                 Forms\Components\TextInput::make('precio')
-                                ->numeric()->minValue(0)->required()
-                                ->reactive()
+                            Forms\Components\TextInput::make('precio')
+                                ->label('Precio')
+                                ->numeric()
+                                ->minValue(0)
+                                ->required()
+                                ->step(1)
+                                ->suffix('₲')
+                                ->live(onBlur: true)
                                 ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                    $cantidad = (float) ($get('cantidad') ?? 0);
-                                    $precio   = (float) $state;
-                                    $exenta   = (float) ($get('exenta') ?? 0);
-                                    $total    = $cantidad * $precio;
-                                    $iva      = max(0, ($total - $exenta)) * 0.10;
-                                    $set('total', number_format($total, 2, '.', ''));
-                                    $set('total_iva', number_format($iva, 2, '.', ''));
+                                    $cantidad = (float) ($get('cantidad') ?? 1);
+                                    $precio = (float) ($state ?? 0);
+                                    $total = round($cantidad * $precio);
+                                    $iva = round($total * 0.10);
+                                    $set('total', $total);
+                                    $set('total_iva', $iva);
                                 }),
 
                             Forms\Components\TextInput::make('cantidad')
-                                ->numeric()->minValue(0.01)->default(1)->required()
-                                ->reactive()
-                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                    $cantidad = (float) $state;
-                                    $precio   = (float) $get('precio');
-                                    $exenta   = (float) ($get('exenta') ?? 0);
-                                    $total    = $cantidad * $precio;
-                                    $iva      = max(0, ($total - $exenta)) * 0.10;
-                                    $set('total', number_format($total, 2, '.', ''));
-                                    $set('total_iva', number_format($iva, 2, '.', ''));
-                                }),
-
-
-
-                            Forms\Components\TextInput::make('Porc Impuesto')
-                                ->numeric()->minValue(0)->default(0)
-                                ->reactive()
-                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                    $cantidad = (float) ($get('cantidad') ?? 0);
-                                    $precio   = (float) ($get('precio') ?? 0);
-                                    $exenta   = (float) $state;
-                                    $total    = $cantidad * $precio;
-                                    $iva      = max(0, ($total - $exenta)) * 0.10;
-                                    $set('total', number_format($total, 2, '.', ''));
-                                    $set('total_iva', number_format($iva, 2, '.', ''));
-                                }),
-
-                            Forms\Components\TextInput::make('total_iva')
-                                ->label('Total IVA')
+                                ->label('Cantidad')
                                 ->numeric()
-                                ->readOnly()
-                                ->dehydrated(false),
+                                ->minValue(0.01)
+                                ->default(1)
+                                ->required()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                    $cantidad = (float) ($state ?? 1);
+                                    $precio = (float) ($get('precio') ?? 0);
+                                    $total = round($cantidad * $precio);
+                                    $iva = round($total * 0.10);
+                                    $set('total', $total);
+                                    $set('total_iva', $iva);
+                                }),
 
-                                 Forms\Components\TextInput::make('Monto Total')
+                            Forms\Components\TextInput::make('total')
                                 ->label('Total')
                                 ->numeric()
                                 ->readOnly()
-                                ->dehydrated(false),
+                                ->dehydrated(true)
+                                ->suffix('₲'),
+
+                            Forms\Components\TextInput::make('total_iva')
+                                ->label('IVA 10%')
+                                ->numeric()
+                                ->readOnly()
+                                ->dehydrated(true)
+                                ->suffix('₲'),
                         ])
-                        ->columns(6)
                         ->addActionLabel('+ Agregar Artículo')
                         ->defaultItems(0)
-                        ->reorderable(false)
                         ->live()
                         ->afterStateUpdated(function (Get $get, Set $set) {
                             $detalles = $get('presupuestoDetalles') ?? [];
-                            $grav = 0.0; $iva = 0.0;
+                            $grav = 0; $iva = 0;
                             foreach ($detalles as $d) {
-                                $grav += (float) str_replace(',', '', $d['total'] ?? 0);
-                                $iva  += (float) str_replace(',', '', $d['total_iva'] ?? 0);
+                                $grav += (float) ($d['total'] ?? 0);
+                                $iva  += (float) ($d['total_iva'] ?? 0);
                             }
-                            $set('total_gravada', number_format($grav, 2, '.', ''));
-                            $set('tot_iva', number_format($iva, 2, '.', ''));
-                            $set('total_general', number_format($grav + $iva, 2, '.', ''));
+                            $set('monto_gravado', round($grav));
+                            $set('monto_tot_impuesto', round($iva));
+                            $set('monto_general', round($grav + $iva));
                         })
                         ->deleteAction(
                             fn (Forms\Components\Actions\Action $action) => $action->after(
                                 fn (Get $get, Set $set) => (function () use ($get, $set) {
                                     $detalles = $get('presupuestoDetalles') ?? [];
-                                    $grav = 0.0; $iva = 0.0;
+                                    $grav = 0; $iva = 0;
                                     foreach ($detalles as $d) {
-                                        $grav += (float) str_replace(',', '', $d['total'] ?? 0);
-                                        $iva  += (float) str_replace(',', '', $d['total_iva'] ?? 0);
+                                        $grav += (float) ($d['total'] ?? 0);
+                                        $iva  += (float) ($d['total_iva'] ?? 0);
                                     }
-                                    $set('total_gravada', number_format($grav, 2, '.', ''));
-                                    $set('tot_iva', number_format($iva, 2, '.', ''));
-                                    $set('total_general', number_format($grav + $iva, 2, '.', ''));
+                                    $set('monto_gravado', round($grav));
+                                    $set('monto_tot_impuesto', round($iva));
+                                    $set('monto_general', round($grav + $iva));
                                 })()
                             ),
                         ),
@@ -263,23 +279,52 @@ public static function form(Form $form): Form
                 ->schema([
                     Forms\Components\Grid::make(3)
                         ->schema([
-                            Forms\Components\TextInput::make('total_gravada')
+                            Forms\Components\TextInput::make('monto_gravado')
                                 ->label('Total Gravada')
                                 ->numeric()
                                 ->readOnly()
-                                ->dehydrated(false),
+                                ->dehydrated(true)
+                                ->suffix('₲')
+                                ->afterStateHydrated(function (Set $set, Get $get) {
+                                    $detalles = $get('presupuestoDetalles') ?? [];
+                                    $total = 0;
+                                    foreach ($detalles as $d) {
+                                        $total += (float) ($d['total'] ?? 0);
+                                    }
+                                    $set('monto_gravado', round($total));
+                                }),
 
-                            Forms\Components\TextInput::make('tot_iva')
+                            Forms\Components\TextInput::make('monto_tot_impuesto')
                                 ->label('Total IVA')
                                 ->numeric()
                                 ->readOnly()
-                                ->dehydrated(false),
+                                ->dehydrated(true)
+                                ->suffix('₲')
+                                ->afterStateHydrated(function (Set $set, Get $get) {
+                                    $detalles = $get('presupuestoDetalles') ?? [];
+                                    $total = 0;
+                                    foreach ($detalles as $d) {
+                                        $total += (float) ($d['total_iva'] ?? 0);
+                                    }
+                                    $set('monto_tot_impuesto', round($total));
+                                }),
 
-                            Forms\Components\TextInput::make('total_general')
+                            Forms\Components\TextInput::make('monto_general')
                                 ->label('Total General')
                                 ->numeric()
                                 ->readOnly()
-                                ->dehydrated(false),
+                                ->dehydrated(true)
+                                ->suffix('₲')
+                                ->afterStateHydrated(function (Set $set, Get $get) {
+                                    $detalles = $get('presupuestoDetalles') ?? [];
+                                    $gravada = 0;
+                                    $iva = 0;
+                                    foreach ($detalles as $d) {
+                                        $gravada += (float) ($d['total'] ?? 0);
+                                        $iva += (float) ($d['total_iva'] ?? 0);
+                                    }
+                                    $set('monto_general', round($gravada + $iva));
+                                }),
                         ]),
                 ]),
             ]);
@@ -337,9 +382,9 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
         $iva  += (float) str_replace(',', '', $d['total_iva'] ?? 0);
     }
 
-    $set('total_gravada', number_format($grav, 2, '.', ''));
-    $set('tot_iva', number_format($iva, 2, '.', ''));
-    $set('total_general', number_format($grav + $iva, 2, '.', ''));
+    $set('monto_gravado', number_format($grav, 2, '.', ''));
+    $set('monto_tot_impuesto', number_format($iva, 2, '.', ''));
+    $set('monto_general', number_format($grav + $iva, 2, '.', ''));
 }
 
     public static function table(Table $table): Table
@@ -359,14 +404,26 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
                     //->sortable(),
 
                 Tables\Columns\TextColumn::make('condicionCompra.descripcion')
-                 ->label('Condicion'),
+                 ->label('Condición')
+                 ->searchable()
+                 ->sortable(),
                    // ->searchable(),
 
-                Tables\Columns\TextColumn::make('estadoRel.descripcion')
+                Tables\Columns\TextColumn::make('estado')
                 ->label('Estado')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'PENDIENTE' => 'warning',
+                    'APROBADO' => 'success',
+                    'ANULADO' => 'danger',
+                    default => 'gray',
+                })
                 ->sortable(),
 
             ])
+
+        // Deshabilitar clic en las filas
+        ->recordUrl(null)
 
         // 👇 Título de la columna de acciones
         ->actionsColumnLabel('Acciones')
@@ -379,7 +436,21 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
         Tables\Actions\ViewAction::make()
             ->label('Ver')
             ->color('info')
-            ->icon('heroicon-m-eye'),
+            ->icon('heroicon-m-eye')
+            ->mutateRecordDataUsing(function (array $data, PresupuestoCabecera $record): array {
+                // Cargar los detalles para el modal de ver
+                $data['presupuestoDetalles'] = $record->presupuestoDetalles->map(function ($detalle) {
+                    return [
+                        'id_detalle' => $detalle->id_detalle,
+                        'cod_articulo' => $detalle->cod_articulo,
+                        'cantidad' => $detalle->cantidad,
+                        'precio' => $detalle->precio,
+                        'total' => $detalle->total,
+                        'total_iva' => $detalle->total_iva,
+                    ];
+                })->toArray();
+                return $data;
+            }),
 
         Tables\Actions\EditAction::make()
             ->label('Editar')
@@ -390,16 +461,16 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
             ->icon('heroicon-m-no-symbol')
             ->color('danger')
             ->requiresConfirmation()
-            ->visible(fn (PresupuestoCabecera $record) => $record->estado !== 'A')
-            ->action(fn (PresupuestoCabecera $record) => $record->update(['estado' => 'A'])),
+            ->visible(fn (PresupuestoCabecera $record) => $record->estado !== 'ANULADO')
+            ->action(fn (PresupuestoCabecera $record) => $record->update(['estado' => 'ANULADO'])),
 
         Tables\Actions\Action::make('aprobar')
             ->label('Aprobar')
-            ->icon('heroicon-m-no-symbol')
+            ->icon('heroicon-m-check-circle')
             ->color('success')
-            ->requiresConfirmation(),
-            //->visible(fn (PresupuestoCabecera $record) => $record->estado !== 'A')
-           // ->action(fn (PresupuestoCabecera $record) => $record->update(['estado' => 'A'])),
+            ->requiresConfirmation()
+            ->visible(fn (PresupuestoCabecera $record) => $record->estado === 'PENDIENTE')
+            ->action(fn (PresupuestoCabecera $record) => $record->update(['estado' => 'APROBADO'])),
     ])
         ->label('Opciones')                      // texto del botón (opcional)
         ->icon('heroicon-m-ellipsis-vertical'),  // ícono de “tres puntitos”

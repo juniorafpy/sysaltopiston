@@ -260,16 +260,7 @@ class FacturaResource extends Resource
                         // Condición de Compra
                         Forms\Components\Select::make('cod_condicion_compra')
                             ->label('Condición de Compra')
-                            ->options(function () {
-                                return CondicionCompra::where('ind_activo', 'S')
-                                    ->get()
-                                    ->mapWithKeys(function ($condicion) {
-                                        $diasInfo = $condicion->dias_cuotas > 0
-                                            ? " ({$condicion->dias_cuotas} días)"
-                                            : '';
-                                        return [$condicion->cod_condicion_compra => "{$condicion->descripcion}{$diasInfo}"];
-                                    });
-                            })
+                            ->relationship('condicionCompra', 'descripcion')
                             ->required()
                             ->searchable()
                             ->preload()
@@ -278,8 +269,8 @@ class FacturaResource extends Resource
                                 if ($state) {
                                     $condicion = CondicionCompra::find($state);
                                     if ($condicion) {
-                                        // Establecer condicion_venta según dias_cuotas
-                                        $set('condicion_venta', $condicion->dias_cuotas == 0 ? 'Contado' : 'Crédito');
+                                        // Establecer condicion_venta según cant_cuota
+                                        $set('condicion_venta', $condicion->cant_cuota == 0 ? 'Contado' : 'Crédito');
                                     }
                                 }
                             })

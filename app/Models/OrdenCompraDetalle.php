@@ -23,7 +23,7 @@ class OrdenCompraDetalle extends Model
         'precio',
         'total',
         'total_iva'
-    ]; //campos para v
+    ];
 
 
  public function cabecera()

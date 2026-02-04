@@ -10,6 +10,8 @@ class CreateOrdenServicio extends CreateRecord
 {
     protected static string $resource = OrdenServicioResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Asignar campos de sistema
@@ -44,4 +46,13 @@ class CreateOrdenServicio extends CreateRecord
                 ->send();
         }
     }
+
+     protected function getFormActions(): array{
+    return [
+        $this->getCreateFormAction()->label('Guardar'),
+
+
+        $this->getCancelFormAction()->color('danger'),
+    ];
+}
 }

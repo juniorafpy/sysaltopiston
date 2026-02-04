@@ -26,7 +26,7 @@ class PedidoCabeceras extends Model
         'usuario_alta',
         'fec_alta',
         'estado'
-    ]; //campos para visualizar
+    ];
 
     protected static function booted(): void
     {

@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Articulos extends Model implements HasMedia
+class Articulos extends Model
 {
     use HasFactory;
 
@@ -20,27 +18,40 @@ class Articulos extends Model implements HasMedia
 
     public $timestamps = false;
 
-    use InteractsWithMedia;
-
     protected $fillable = [
         'descripcion',
+        'codigo_oem',
+        'codigo_barras',
         'cod_marca',
         'cod_modelo',
         'precio',
         'cod_medida',
+        'ubicacion',
+        'stock_minimo',
+        'stock_maximo',
+        'peso',
         'cod_tip_articulo',
+        'cod_tipo_repuesto',
+        'cod_impuesto',
+        'notas',
+        'garantia',
+        'es_importado',
         'activo',
         'costo',
         'usuario_alta',
         'fec_alta',
         'usuario_mod',
         'fec_mod',
-        'image',
     ];
 
     protected $casts = [
         'precio' => 'float',
         'costo' => 'float',
+        'peso' => 'float',
+        'stock_minimo' => 'integer',
+        'stock_maximo' => 'integer',
+        'es_importado' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     /**
@@ -159,13 +170,7 @@ class Articulos extends Model implements HasMedia
         return $this->belongsTo(Modelos::class, 'cod_modelo', 'cod_modelo');
     }
 
-    /**
-     * Relación con Medidas
-     */
-    public function medida_ar(): BelongsTo
-    {
-        return $this->belongsTo(Medidas::class, 'cod_medida', 'cod_medida');
-    }
+
 
     /**
      * Relación con Tipo de Artículos
@@ -175,16 +180,32 @@ class Articulos extends Model implements HasMedia
         return $this->belongsTo(TipoArticulos::class, 'cod_tip_articulo', 'cod_tip_articulo');
     }
 
+    /**
+     * Relación con Impuesto
+     */
+    public function impuesto(): BelongsTo
+    {
+        return $this->belongsTo(Impuesto::class, 'cod_impuesto', 'cod_impuesto');
+
+
+    }
+
+        public function medidas_ar (): BelongsTo
+    {
+        return $this->belongsTo(Medidas::class, 'cod_medida', 'cod_medida');
+    }
+
+    /**
+     * Relación con Tipo de Repuesto
+     */
+    public function tipoRepuesto(): BelongsTo
+    {
+        return $this->belongsTo(TipoRepuesto::class, 'cod_tipo_repuesto', 'cod_tipo_repuesto');
+    }
+
         public function detalle_art()
     {
         return $this->belongsTo(PedidoDetalle::class, 'cod_articulo','cod_pedido'); // 'factura_id' es la clave foránea en la tabla articulos
-    }
-
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('imagenes') // Define la colección "imagenes"
-            ->useDisk('public') // Puedes cambiar el disco si lo deseas
-            ->singleFile(); // Opcional: si solo quieres una imagen por artículo
     }
 }
 

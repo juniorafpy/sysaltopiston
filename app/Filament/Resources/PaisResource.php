@@ -37,10 +37,16 @@ class PaisResource extends Resource
                 ->maxLength(3)
                 ->length(3)
                 ->required(),
-            Forms\Components\Hidden::make('usuario_alta')
-                ->default(fn () => auth()->user()?->name ?? 'sistema'),
-            Forms\Components\Hidden::make('fec_alta')
-                ->default(now()),
+            Forms\Components\TextInput::make('usuario_alta')
+                ->label('Usuario Alta')
+                ->default(fn () => auth()->user()->name)
+                ->disabled()
+                ->dehydrateStateUsing(fn ($state) => $state ?? auth()->user()->name),
+            Forms\Components\TextInput::make('fec_alta')
+                ->label('Fecha Alta')
+                ->default(fn () => now()->format('d/m/Y H:i'))
+                ->disabled()
+                ->dehydrateStateUsing(fn ($state) => now()),
         ]);
     }
 

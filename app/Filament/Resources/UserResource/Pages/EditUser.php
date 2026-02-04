@@ -14,7 +14,6 @@ class EditUser extends EditRecord
     {
         return [
             Actions\DeleteAction::make(),
-            Actions\CreateAction::make()->label('Crear otro'),
         ];
     }
 }

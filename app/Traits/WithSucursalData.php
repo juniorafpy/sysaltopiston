@@ -44,11 +44,21 @@ trait WithSucursalData
 
     public function initEmpleadoData(): void
     {
-        // 1. Obtenemos el código de la sucursal del usuario
-        $this->cod_empleado = Empleados::where('cod_persona', Auth::user()->cod_persona)->value('cod_empleado');
-        $empleado = Empleados::find($this->cod_empleado);
-        // 3. Asignamos el nombre para usarlo en el
-        $this->nombre_empleado = $empleado ? $empleado->nombre : 'Empleado no encontrado';
+        // 1. Obtenemos el código del empleado directamente del usuario
+        $this->cod_empleado = Auth::user()->cod_empleado;
 
+        if ($this->cod_empleado) {
+            // 2. Buscamos el empleado con su relación a persona
+            $empleado = Empleados::with('persona')->find($this->cod_empleado);
+
+            if ($empleado && $empleado->persona) {
+                // 3. Asignamos el nombre completo desde la relación persona
+                $this->nombre_empleado = $empleado->persona->nombre_completo;
+            } else {
+                $this->nombre_empleado = 'Sin nombre registrado';
+            }
+        } else {
+            $this->nombre_empleado = 'No es empleado';
+        }
     }
 }

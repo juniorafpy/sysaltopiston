@@ -10,6 +10,8 @@ class CreateRecepcionVehiculo extends CreateRecord
 {
     protected static string $resource = RecepcionVehiculoResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     protected function getFormActions(): array{
         return [
             $this->getCreateFormAction()->label('Guardar'),

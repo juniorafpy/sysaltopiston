@@ -10,7 +10,9 @@ class ExisteStock extends Model
 {
     use HasFactory;
 
-    protected $table = 'existe_stock';
+    protected $table = 'existencia_articulo';
+
+    public $timestamps = false;
 
     protected $fillable = [
         'cod_articulo',

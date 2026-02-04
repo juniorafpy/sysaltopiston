@@ -15,7 +15,7 @@ class ListPedidoCabeceras extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('Crear Pedido'),
+            Actions\CreateAction::make()->label('Crear Pedido')->createAnother(false),
         ];
     }
 }

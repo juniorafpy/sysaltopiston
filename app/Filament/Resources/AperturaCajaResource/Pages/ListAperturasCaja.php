@@ -15,7 +15,8 @@ class ListAperturasCaja extends ListRecords
         return [
             Actions\CreateAction::make()
                 ->label('Nueva Apertura')
-                ->icon('heroicon-o-plus-circle'),
+                ->icon('heroicon-o-plus-circle')
+                ->createAnother(false),
         ];
     }
 }

@@ -1,0 +1,68 @@
+{
+    "cod_apertura": 29,
+    "fecha_apertura": "2025-11-10",
+    "hora_apertura": "2025-11-10T04:02:00.000000Z",
+    "monto_inicial": 500000,
+    "total_ingresos_movimientos": 200000,
+    "total_egresos_movimientos": 0,
+    "saldo_esperado_calculado": 700000,
+    "efectivo_real": null,
+    "diferencia": null,
+    "breakdown_formas_pago": [],
+    "movimientos": [
+        {
+            "cod_movimiento": 275,
+            "tipo_movimiento": "Ingreso",
+            "concepto": "Factura Nro: 001-001-0000001",
+            "tipo_documento": "Factura",
+            "documento_id": 3,
+            "monto": 0,
+            "fecha_movimiento": "2025-11-10 01:07:27"
+        },
+        {
+            "cod_movimiento": 276,
+            "tipo_movimiento": "Ingreso",
+            "concepto": "Factura Nro: 001-001-0000002",
+            "tipo_documento": "Factura",
+            "documento_id": 4,
+            "monto": 0,
+            "fecha_movimiento": "2025-11-10 01:09:15"
+        },
+        {
+            "cod_movimiento": 277,
+            "tipo_movimiento": "Ingreso",
+            "concepto": "Factura Nro: 001-001-0000003",
+            "tipo_documento": "Factura",
+            "documento_id": 5,
+            "monto": 0,
+            "fecha_movimiento": "2025-11-10 01:13:46"
+        },
+        {
+            "cod_movimiento": 278,
+            "tipo_movimiento": "Ingreso",
+            "concepto": "Factura Nro: 001-001-0000004",
+            "tipo_documento": "Factura",
+            "documento_id": 6,
+            "monto": 0,
+            "fecha_movimiento": "2025-11-10 01:16:21"
+        },
+        {
+            "cod_movimiento": 279,
+            "tipo_movimiento": "Ingreso",
+            "concepto": "Cobro de Factura 001-001-0000015 - Efectivo",
+            "tipo_documento": null,
+            "documento_id": null,
+            "monto": 100000,
+            "fecha_movimiento": "2025-11-10 02:08:53"
+        },
+        {
+            "cod_movimiento": 280,
+            "tipo_movimiento": "Ingreso",
+            "concepto": "Cobro N° 1 - ",
+            "tipo_documento": null,
+            "documento_id": null,
+            "monto": 100000,
+            "fecha_movimiento": "2025-11-10 03:16:28"
+        }
+    ]
+}

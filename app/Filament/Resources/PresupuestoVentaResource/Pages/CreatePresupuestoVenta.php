@@ -11,6 +11,8 @@ class CreatePresupuestoVenta extends CreateRecord
 {
     protected static string $resource = PresupuestoVentaResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $diagnosticoId = request()->integer('diagnostico_id');

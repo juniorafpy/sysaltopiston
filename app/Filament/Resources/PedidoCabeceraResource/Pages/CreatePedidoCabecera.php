@@ -12,7 +12,9 @@ class CreatePedidoCabecera extends CreateRecord
 {
     use WithSucursalData;
     protected static string $resource = PedidoCabeceraResource::class;
-     protected static ?string $title = 'Pedido de Compra';
+    protected static ?string $title = 'Pedido de Compra';
+
+    protected static bool $canCreateAnother = false;
 
     public function mount(): void
     {
@@ -33,13 +35,29 @@ class CreatePedidoCabecera extends CreateRecord
         ]);
     }
 
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        // Asegurarse de que cod_empleado se guarde
+        $data['cod_empleado'] = $this->cod_empleado;
+        $data['cod_sucursal'] = $this->cod_sucursal;
+        $data['usuario_alta'] = $this->usuario_alta;
+
+        return $data;
+    }
+
     protected function getFormActions(): array
-{
-    return [
-        // Esto crea un único botón que utiliza la acción de crear por defecto.
-        $this->getCreateFormAction()->label('Guardar Pedido'),
-    ];
-}
+    {
+        return [
+            $this->getCreateFormAction()
+                ->label('Guardar')
+                ->color('success'),
+
+            \Filament\Actions\Action::make('cancel')
+                ->label('Cancelar')
+                ->color('gray')
+                ->url(static::getResource()::getUrl('index')),
+        ];
+    }
 
 protected function getRedirectUrl(): string
     {

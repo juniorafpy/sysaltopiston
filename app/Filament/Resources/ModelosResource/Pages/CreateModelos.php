@@ -9,4 +9,6 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateModelos extends CreateRecord
 {
     protected static string $resource = ModelosResource::class;
+
+    protected static bool $canCreateAnother = false;
 }

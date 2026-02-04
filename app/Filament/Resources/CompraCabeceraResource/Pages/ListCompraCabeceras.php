@@ -13,7 +13,7 @@ protected static ?string $title = 'Listado Facturas de Compra';
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->createAnother(false),
         ];
     }
 }

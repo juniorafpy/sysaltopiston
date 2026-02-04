@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DiagnosticoPdfController;
+use App\Http\Controllers\OrdenCompraPDFController;
 use App\Models\OrdenServicio;
 
 /*
@@ -30,3 +31,8 @@ Route::get('/diagnosticos/{record}/imprimir', [DiagnosticoPdfController::class, 
 Route::get('/orden-servicio/{ordenServicio}/pdf', function (OrdenServicio $ordenServicio) {
     return $ordenServicio->generarPDF('stream');
 })->name('orden-servicio.pdf')->middleware(['auth']);
+
+// PDF de orden de compra
+Route::get('/orden-compra/{ordenCompra}/pdf', function (\App\Models\OrdenCompraCabecera $ordenCompra) {
+    return $ordenCompra->generarPDF('stream');
+})->name('orden-compra.pdf')->middleware(['auth']);

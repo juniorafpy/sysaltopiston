@@ -19,11 +19,14 @@ class Empleados extends Model
         'fec_alta',
         'cod_persona',
         'cod_cargo',
-        'nombre'
+        'nombre',
+        'email',
+        'activo'
     ];
 
     protected $casts = [
         'fec_alta' => 'date',
+        'activo' => 'boolean',
     ];
 
     /**
@@ -32,6 +35,14 @@ class Empleados extends Model
     public function persona(): BelongsTo
     {
         return $this->belongsTo(Personas::class, 'cod_persona', 'cod_persona');
+    }
+
+    /**
+     * Relación con Cargo
+     */
+    public function cargo(): BelongsTo
+    {
+        return $this->belongsTo(Cargo::class, 'cod_cargo', 'cod_cargo');
     }
 
     /**

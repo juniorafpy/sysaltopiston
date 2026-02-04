@@ -12,6 +12,8 @@ class CreateAperturaCaja extends CreateRecord
 {
     protected static string $resource = AperturaCajaResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $user = Auth::user();

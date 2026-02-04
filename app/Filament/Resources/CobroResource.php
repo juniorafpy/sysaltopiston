@@ -76,7 +76,7 @@ class CobroResource extends Resource
                                         ->where('condicion_venta', 'Crédito')
                                         ->where('estado', 'Emitida')
                                         ->get()
-                                        ->filter(fn ($factura) => $factura->getSaldoPendiente() > 0)
+                                        ->filter(fn ($factura) => $factura->getSaldoConNotas() > 0)
                                         ->count() > 0;
                                 })
                                 ->mapWithKeys(function ($cliente) {
@@ -118,11 +118,11 @@ class CobroResource extends Resource
                                             ->with('condicionCompra')
                                             ->get()
                                             ->filter(function ($factura) {
-                                                return $factura->getSaldoPendiente() > 0;
+                                                return $factura->getSaldoConNotas() > 0;
                                             })
                                             ->mapWithKeys(function ($factura) {
-                                                $saldo = $factura->getSaldoPendiente();
-                                                $diasCuota = $factura->condicionCompra->dias_cuotas ?? 0;
+                                                $saldo = $factura->getSaldoConNotas();
+                                                $diasCuota = $factura->condicionCompra->cant_cuota ?? 0;
                                                 $cuotasInfo = $diasCuota > 0 ? " ({$diasCuota} días)" : "";
 
                                                 return [
@@ -139,7 +139,7 @@ class CobroResource extends Resource
                                         if ($state) {
                                             $factura = Factura::with('condicionCompra')->find($state);
                                             if ($factura) {
-                                                $diasCuota = $factura->condicionCompra->dias_cuotas ?? 0;
+                                                $diasCuota = $factura->condicionCompra->cant_cuota ?? 0;
                                                 $numeroCuotas = $diasCuota > 0 ? ($diasCuota / 30) : 1;
                                                 $montoPorCuota = $numeroCuotas > 0 ? ($factura->total_general / $numeroCuotas) : $factura->total_general;
 
@@ -161,7 +161,7 @@ class CobroResource extends Resource
                                         if ($get('cod_factura') && $state) {
                                             $factura = Factura::with('condicionCompra')->find($get('cod_factura'));
                                             if ($factura) {
-                                                $diasCuota = $factura->condicionCompra->dias_cuotas ?? 0;
+                                                $diasCuota = $factura->condicionCompra->cant_cuota ?? 0;
                                                 $numeroCuotas = $diasCuota > 0 ? ($diasCuota / 30) : 1;
                                                 $montoPorCuota = $numeroCuotas > 0 ? ($factura->total_general / $numeroCuotas) : $factura->total_general;
 

@@ -11,13 +11,23 @@ class GuiaRemisionCabecera extends Model
 {
     use HasFactory;
 
-    protected $table = 'guia_remision_cabecera';
+    protected $table = 'remision_cabecera';
 
     protected $fillable = [
         'compra_cabecera_id',
         'almacen_id',
+        'tipo_comprobante',
+        'ser_remision',
         'numero_remision',
         'fecha_remision',
+        'cod_empleado',
+        'cod_sucursal',
+        'usuario_alta',
+        'fec_alta',
+        'usuario_mod',
+        'fec_mod',
+        'estado',
+        'observacion',
     ];
 
     public function compraCabecera(): BelongsTo
@@ -25,9 +35,15 @@ class GuiaRemisionCabecera extends Model
         return $this->belongsTo(CompraCabecera::class, 'compra_cabecera_id', 'id_compra_cabecera');
     }
 
-    public function almacen(): BelongsTo
+    // almacen_id es realmente el cod_sucursal (depósito destino)
+    // public function almacen(): BelongsTo
+    // {
+    //     return $this->belongsTo(Almacen::class, 'almacen_id');
+    // }
+
+    public function sucursal(): BelongsTo
     {
-        return $this->belongsTo(Almacen::class, 'almacen_id');
+        return $this->belongsTo(Sucursal::class, 'cod_sucursal', 'cod_sucursal');
     }
 
     public function detalles(): HasMany

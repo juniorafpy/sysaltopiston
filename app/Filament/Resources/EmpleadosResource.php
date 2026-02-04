@@ -36,7 +36,7 @@ class EmpleadosResource extends Resource
                             ->getOptionLabelFromRecordUsing(fn ($record) =>
                                 "{$record->nombre_completo} - {$record->nro_documento}"
                             )
-                            ->searchable(['nombre', 'apellido', 'nro_documento'])
+                            ->searchable(['nombres', 'apellidos', 'nro_documento'])
                             ->preload()
                             ->required()
                             ->createOptionForm([
@@ -78,6 +78,12 @@ class EmpleadosResource extends Resource
                             ->maxLength(255)
                             ->helperText('Nombre alternativo o alias del empleado'),
 
+                        Forms\Components\TextInput::make('email')
+                            ->label('Correo Electrónico')
+                            ->email()
+                            ->maxLength(100)
+                            ->helperText('Email corporativo del empleado'),
+
                         Forms\Components\DatePicker::make('fec_alta')
                             ->label('Fecha de Alta')
                             ->default(now())
@@ -85,10 +91,43 @@ class EmpleadosResource extends Resource
                             ->displayFormat('d/m/Y')
                             ->native(false),
 
-                        Forms\Components\TextInput::make('cod_cargo')
-                            ->label('Código Cargo')
-                            ->numeric()
-                            ->helperText('Código del cargo/puesto del empleado'),
+                        Forms\Components\Select::make('cod_cargo')
+                            ->label('Cargo')
+                            ->relationship('cargo', 'descripcion')
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('descripcion')
+                                    ->label('Descripción del Cargo')
+                                    ->required()
+                                    ->maxLength(100),
+                                Forms\Components\Textarea::make('responsabilidades')
+                                    ->label('Responsabilidades')
+                                    ->rows(3)
+                                    ->maxLength(500),
+                                Forms\Components\Select::make('area')
+                                    ->label('Área')
+                                    ->options([
+                                        'Gerencia' => 'Gerencia',
+                                        'Administrativa' => 'Administrativa',
+                                        'Técnica' => 'Técnica',
+                                        'Ventas' => 'Ventas',
+                                        'Logística' => 'Logística',
+                                        'Servicios Generales' => 'Servicios Generales',
+                                    ])
+                                    ->required(),
+                                Forms\Components\Toggle::make('activo')
+                                    ->label('Activo')
+                                    ->default(true),
+                            ])
+                            ->createOptionModalHeading('Crear Nuevo Cargo')
+                            ->helperText('Selecciona el cargo o crea uno nuevo'),
+
+                        Forms\Components\Toggle::make('activo')
+                            ->label('Activo')
+                            ->default(true)
+                            ->inline(false)
+                            ->helperText('Desactivar para dar de baja al empleado'),
                     ])
                     ->columns(2),
             ]);
@@ -105,7 +144,7 @@ class EmpleadosResource extends Resource
 
                 Tables\Columns\TextColumn::make('persona.nombre_completo')
                     ->label('Nombre Completo')
-                    ->searchable(['personas.nombre', 'personas.apellido'])
+                    ->searchable(['personas.nombres', 'personas.apellidos'])
                     ->sortable()
                     ->description(fn (Empleados $record): string =>
                         $record->persona->nro_documento ?? ''
@@ -117,11 +156,12 @@ class EmpleadosResource extends Resource
                     ->default('Sin alias')
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('persona.email')
+                Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->searchable()
                     ->toggleable()
-                    ->copyable(),
+                    ->copyable()
+                    ->icon('heroicon-o-envelope'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
@@ -129,19 +169,35 @@ class EmpleadosResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('cod_cargo')
+                Tables\Columns\TextColumn::make('cargo.descripcion')
                     ->label('Cargo')
-                    ->numeric()
+                    ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->badge()
+                    ->color('info')
+                    ->default('Sin cargo'),
+
+                Tables\Columns\IconColumn::make('activo')
+                    ->label('Estado')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger')
+                    ->sortable(),
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\EditAction::make()
+                        ->label('Editar')
+                        ->icon('heroicon-m-pencil-square')
+                        ->color('warning'),
+                ])
+                ->icon('heroicon-m-ellipsis-horizontal')
+                ->tooltip('Acciones')
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -162,7 +218,7 @@ class EmpleadosResource extends Resource
     {
         return [
             'index' => Pages\ListEmpleados::route('/'),
-            'create' => Pages\CreateEmpleados::route('/create'),
+            // 'create' => Pages\CreateEmpleados::route('/create'), // Deshabilitado - usando modal en ListEmpleados
             'view' => Pages\ViewEmpleados::route('/{record}'),
             'edit' => Pages\EditEmpleados::route('/{record}/edit'),
         ];

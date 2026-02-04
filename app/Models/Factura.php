@@ -59,7 +59,7 @@ class Factura extends Model
 
     public function condicionCompra()
     {
-        return $this->belongsTo(CondicionCompra::class, 'cod_condicion_compra', 'cod_condicion_compra');
+        return $this->belongsTo(CondicionCompra::class, 'cod_condicion_compra', 'cod_condicion');
     }
 
     public function detalles()
@@ -90,6 +90,34 @@ class Factura extends Model
     public function vencimientos()
     {
         return $this->hasMany(FacturaVencimiento::class, 'cod_factura', 'cod_factura');
+    }
+
+    /**
+     * Notas de crédito y débito asociadas a esta factura
+     */
+    public function notas()
+    {
+        return $this->hasMany(Nota::class, 'cod_factura', 'cod_factura');
+    }
+
+    /**
+     * Solo notas de crédito emitidas
+     */
+    public function notasCredito()
+    {
+        return $this->hasMany(Nota::class, 'cod_factura', 'cod_factura')
+            ->where('tipo_nota', 'credito')
+            ->where('estado', 'Emitida');
+    }
+
+    /**
+     * Solo notas de débito emitidas
+     */
+    public function notasDebito()
+    {
+        return $this->hasMany(Nota::class, 'cod_factura', 'cod_factura')
+            ->where('tipo_nota', 'debito')
+            ->where('estado', 'Emitida');
     }
 
     /**
@@ -208,9 +236,9 @@ class Factura extends Model
         }
 
         $condicionCompra = CondicionCompra::findOrFail($this->cod_condicion_compra);
-        $diasCuota = $condicionCompra->dias_cuotas ?? 0;
+        $diasCuota = $condicionCompra->cant_cuota ?? 0;
 
-        // Si dias_cuotas es 0, es contado, no genera vencimientos
+        // Si cant_cuota es 0, es contado, no genera vencimientos
         if ($diasCuota == 0) {
             return;
         }
@@ -289,7 +317,7 @@ class Factura extends Model
             if (isset($data['cod_condicion_compra'])) {
                 $condicionCompra = CondicionCompra::find($data['cod_condicion_compra']);
                 if ($condicionCompra) {
-                    $condicionVenta = ($condicionCompra->dias_cuotas == 0) ? 'Contado' : 'Crédito';
+                    $condicionVenta = ($condicionCompra->cant_cuota == 0) ? 'Contado' : 'Crédito';
                 }
             } elseif (isset($data['condicion_venta'])) {
                 // Fallback si viene condicion_venta directamente
@@ -440,11 +468,62 @@ class Factura extends Model
     }
 
     /**
+     * Calcula el saldo de la factura considerando notas de crédito y débito
+     * Este es el saldo real que debe usar el sistema de cobros
+     */
+    public function getSaldoConNotas(): float
+    {
+        $totalFactura = floatval($this->total_general);
+
+        // Restar notas de crédito emitidas
+        $totalNotasCredito = $this->notasCredito()->sum('monto_total');
+
+        // Sumar notas de débito emitidas
+        $totalNotasDebito = $this->notasDebito()->sum('monto_total');
+
+        // Restar cobros realizados
+        $totalCobrado = CobroDetalle::where('cod_factura', $this->cod_factura)
+            ->sum('monto_cuota');
+
+        $saldo = $totalFactura - $totalNotasCredito + $totalNotasDebito - $totalCobrado;
+
+        return max(0, $saldo);
+    }
+
+    /**
+     * Obtiene el total de notas de crédito emitidas
+     */
+    public function getTotalNotasCredito(): float
+    {
+        return $this->notasCredito()->sum('monto_total');
+    }
+
+    /**
+     * Obtiene el total de notas de débito emitidas
+     */
+    public function getTotalNotasDebito(): float
+    {
+        return $this->notasDebito()->sum('monto_total');
+    }
+
+    /**
+     * Calcula el monto ajustado de la factura (incluyendo efecto de notas)
+     */
+    public function getMontoAjustado(): float
+    {
+        $totalFactura = floatval($this->total_general);
+        $totalNotasCredito = $this->getTotalNotasCredito();
+        $totalNotasDebito = $this->getTotalNotasDebito();
+
+        return $totalFactura - $totalNotasCredito + $totalNotasDebito;
+    }
+
+    /**
      * Verifica si la factura está completamente pagada
      */
     public function estaPagada(): bool
     {
-        return $this->getSaldoPendiente() <= 0;
+        return $this->getSaldoConNotas() <= 0;
     }
 
     /**

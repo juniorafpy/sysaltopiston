@@ -10,6 +10,8 @@ class CreateDiagnostico extends CreateRecord
 {
     protected static string $resource = DiagnosticoResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['usuario_alta'] = auth()->id();

@@ -12,6 +12,8 @@ class CreateFactura extends CreateRecord
 {
     protected static string $resource = FacturaResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     /**
      * Mutate form data before creating the record
      */
@@ -36,7 +38,7 @@ class CreateFactura extends CreateRecord
         if (isset($data['cod_condicion_compra'])) {
             $condicionCompra = \App\Models\CondicionCompra::find($data['cod_condicion_compra']);
             if ($condicionCompra) {
-                $data['condicion_venta'] = ($condicionCompra->dias_cuotas == 0) ? 'Contado' : 'Crédito';
+                $data['condicion_venta'] = ($condicionCompra->cant_cuota == 0) ? 'Contado' : 'Crédito';
             }
         }
 

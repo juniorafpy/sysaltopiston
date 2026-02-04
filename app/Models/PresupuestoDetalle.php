@@ -9,7 +9,7 @@ class PresupuestoDetalle extends Model
 {
     use HasFactory;
 
-    protected $table = 'presupuesto_detalles'; //definicion de la tabla
+    protected $table = 'cm_presupuesto_detalles'; //definicion de la tabla
 
     protected $primaryKey = 'id_detalle'; // Clave primaria
      public $incrementing = true;
@@ -28,7 +28,7 @@ class PresupuestoDetalle extends Model
         'total_iva'
     ]; //campos para v
 
-    public function presupuestoCabecera()
+public function presupuestoCabecera()
 {
     return $this->belongsTo(PresupuestoCabecera::class, 'nro_presupuesto', 'nro_presupuesto');
 }

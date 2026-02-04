@@ -13,6 +13,8 @@ class CreateCobro extends CreateRecord
 {
     protected static string $resource = CobroResource::class;
 
+    protected static bool $canCreateAnother = false;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Validar que los totales coincidan
@@ -37,7 +39,7 @@ class CreateCobro extends CreateRecord
         // Validar que no se superen los saldos pendientes
         foreach ($detalles as $detalle) {
             $factura = \App\Models\Factura::find($detalle['cod_factura']);
-            $saldoPendiente = $factura->getSaldoPendiente();
+            $saldoPendiente = $factura->getSaldoConNotas();
 
             if ($detalle['monto_cuota'] > $saldoPendiente) {
                 Notification::make()
@@ -118,7 +120,7 @@ class CreateCobro extends CreateRecord
         // Verificar si alguna factura quedó cancelada
         foreach ($detalles->pluck('cod_factura')->unique() as $codFactura) {
             $factura = \App\Models\Factura::find($codFactura);
-            $saldoPendiente = $factura->getSaldoPendiente();
+            $saldoPendiente = $factura->getSaldoConNotas();
 
             if ($saldoPendiente <= 0) {
                 Notification::make()

@@ -10,6 +10,7 @@ use Filament\Forms\Form;
 use App\Models\Empleados;
 use Filament\Tables\Table;
 use App\Models\PedidoCabecera;
+use App\Models\ExisteStock;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,8 @@ use App\Filament\Resources\PedidoCabeceraResource\Pages;
 use App\Filament\Resources\PedidoCabeceraResource\RelationManagers;
 use App\Models\PedidoCabeceras;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
+use Filament\Forms\Set;
+use Filament\Forms\Get;
 
 
 class PedidoCabeceraResource extends Resource
@@ -35,12 +38,13 @@ class PedidoCabeceraResource extends Resource
    // protected static ?string $model = PedidoCabeceras::class;
     protected static ?string $model = PedidoCabeceras::class;
   //  protected static ?string $model = PedidoCabecera::class;
-    protected static ?string $navigationLabel = 'Pedido de Compra';
 
-    protected static ?string $title = 'Lista de Compra';
+    protected static ?string $navigationGroup = 'Compras';
+    protected static ?string $navigationLabel = 'Pedido de Compra';
+    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navidngationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $title = 'Lista de Compra';
 
     public static function form(Form $form): Form
     {
@@ -49,63 +53,82 @@ class PedidoCabeceraResource extends Resource
 
         return $form
             ->schema([
-               // 🧾 CABECERA
-            Section::make('Datos del Pedido')
-                ->schema([
+                // 🧾 CABECERA
+                Section::make('Datos del Pedido')
+                    ->schema([
+                        Select::make('cod_empleado')
+                            ->label('Empleado')
+                            ->options(function () {
+                                return Empleados::with('persona')
+                                    ->where('activo', true)
+                                    ->get()
+                                    ->mapWithKeys(function ($empleado) {
+                                        $nombre = $empleado->persona
+                                            ? $empleado->persona->nombre_completo
+                                            : 'Sin nombre';
+                                        return [$empleado->cod_empleado => $nombre];
+                                    });
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->disabled(fn ($context) => $context === 'view'),
 
-            Forms\Components\Hidden::make('cod_empleado'),
-            Forms\Components\TextInput::make('nombre_empleado')
-                ->label('Empleado')
-                ->disabled()
-                ->dehydrated(false),
+                        Select::make('cod_sucursal')
+                            ->label('Sucursal')
+                            ->options(fn () => Sucursal::pluck('descripcion', 'cod_sucursal'))
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->disabled(fn ($context) => $context === 'view'),
 
-            Forms\Components\Hidden::make('cod_sucursal'),
+                        DatePicker::make('fec_pedido')
+                            ->label('Fecha Pedido')
+                            ->default(Carbon::now('America/Asuncion'))
+                            ->displayFormat('d/m/Y')
+                            ->native(false)
+                            ->required()
+                            ->disabled(fn ($context) => $context === 'view'),
+                    ])
+                    ->columns(3),
 
-             // Campo de TEXTO para mostrar el nombre
-            Forms\Components\TextInput::make('nombre_sucursal')
-                ->label('Sucursal')
-                ->disabled()
-                ->dehydrated(false),
-
-           DatePicker::make('fec_pedido')
-    ->label('Fecha Pedido')
-
-    // Aquí está el cambio: usamos Carbon explícitamente
-    ->default(Carbon::now('America/Asuncion'))
-    ->displayFormat('d/m/Y') // Muestra en formato dd/mm/yyyy
-    ->native(false)          // Usa el picker de Filament para asegurar el formato
-    ->required(),         // Requerido para que displayFormat funcione en todos los navegadores
-
-                    TextInput::make('usuario_alta')
-                        ->disabled()
-                        ->label('Usuario Alta'),
-
-           Placeholder::make('fec_alta_display') // Dale un nombre único que no sea de una columna
-    ->label('Fecha Alta')
-    ->content(function () {
-        // Formateamos la fecha actual de Paraguay como un string
-        return Carbon::now('America/Asuncion')->format('d/m/Y');
-    }),
-
-
-
-                ])
-
-
-                ->columns(2),
-
-Section::make('Detalle de Pedido')
+                Section::make('Detalle de Pedido')
     ->schema([
        TableRepeater::make('detalles')->label('')
        ->relationship('detalles')
                 ->schema([
                     Select::make('cod_articulo')
                         ->label('Producto')
-                        ->relationship('articulos_det', 'descripcion')
+                        ->relationship('articulo', 'descripcion')
                         ->searchable()
                         ->preload()
                         ->required()
-                         ->columns(2),
+                        ->live()
+                        ->afterStateUpdated(function ($state, Set $set) {
+                            if ($state) {
+                                $sucursalId = auth()->user()->cod_sucursal ?? 1;
+                                $stock = ExisteStock::where('cod_articulo', $state)
+                                    ->where('cod_sucursal', $sucursalId)
+                                    ->first();
+
+                                if ($stock) {
+                                    $stockDisponible = $stock->stock_actual - $stock->stock_reservado;
+                                    $set('stock_disponible', number_format($stockDisponible, 2));
+                                } else {
+                                    $set('stock_disponible', '0');
+                                }
+                            } else {
+                                $set('stock_disponible', '');
+                            }
+                        })
+                        ->columnSpan(2),
+
+                    TextInput::make('stock_disponible')
+                        ->label('Stock Disp.')
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->placeholder('--')
+                        ->columnSpan(1),
 
                     TextInput::make('cantidad')
                         ->label('Cantidad')
@@ -113,15 +136,30 @@ Section::make('Detalle de Pedido')
                         ->default(1)
                         ->minValue(1)
                         ->required()
-                        ->columns(1),
+                        ->columnSpan(1),
 
                 ]) ->required()
 
-            ->columns(3)
+            ->columns(4)
             //->defaultItems(1),
     ])
 
     ->compact(),
+
+                Section::make('Información del Sistema')
+                    ->schema([
+                        TextInput::make('usuario_alta')
+                            ->label('Usuario')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->prefixIcon('heroicon-m-user'),
+
+                        Placeholder::make('fec_alta_display')
+                            ->label('Fecha')
+                            ->content(fn () => Carbon::now('America/Asuncion')->format('d/m/Y H:i')),
+                    ])
+                    ->columns(2)
+                    ->collapsed(),
  ]);
     }
 
@@ -130,12 +168,22 @@ Section::make('Detalle de Pedido')
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('cod_pedido')->label('Nº Pedido'),
-                Tables\Columns\TextColumn::make('fec_pedido')->label('Fecha Pedido')->date('d/m/Y'),
-                Tables\Columns\TextColumn::make('ped_empleados.personas_emp.nombre_completo')->label('Empleado'),
+                Tables\Columns\TextColumn::make('fec_pedido')
+                    ->label('Fecha Pedido')
+                    ->date('d/m/Y')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('ped_empleados.persona.nombre_completo')->label('Empleado'),
                 Tables\Columns\TextColumn::make('sucursal_ped.descripcion')->label('Sucursal'),
                 Tables\Columns\TextColumn::make('estado')
-
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'PENDIENTE' => 'info',
+                        'APROBADO' => 'success',
+                        'ANULADO' => 'danger',
+                        default => 'gray',
+                    })
             ])
+            ->defaultSort('fec_pedido', 'desc')
 
             ->filters([
                 //
@@ -143,44 +191,56 @@ Section::make('Detalle de Pedido')
 
 
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make()
+                        ->label('Ver')
+                        ->icon('heroicon-o-eye')
+                        ->color('info')
+                        ->modalHeading(fn ($record) => 'Pedido N° ' . $record->cod_pedido)
+                        ->modalWidth('7xl'),
 
-                // --- NUESTRA NUEVA ACCIÓN DE ANULAR ---
-            Action::make('anular')
-                ->label('Anular')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger') // Color rojo para indicar una acción importante
-                ->requiresConfirmation() // Pide confirmación antes de ejecutar
-                ->modalHeading('Anular Pedido')
-                ->modalDescription('¿Estás seguro de que deseas anular este pedido? Esta acción no se puede deshacer.')
-                ->modalSubmitActionLabel('Sí, anular')
-                ->action(function (Model $record) {
-                    // La lógica que se ejecuta al confirmar
-                    $record->update(['estado' => 'ANULADO']);
-                    Notification::make()
-                        ->title('Pedido Anulado')
-                        ->success()
-                        ->send();
-                })
-                // Hacemos que el botón de Anular solo sea visible si el estado NO es "Anulado"
-                ->visible(fn (Model $record): bool => $record->estado !== 'Anulado'),
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn (Model $record): bool => $record->estado !== 'ANULADO' && $record->estado !== 'APROBADO'),
 
-                Action::make('aprobar')
-                ->label('Aprobar')
-                ->icon('heroicon-o-x-circle')
-                ->color('success') // Color rojo para indicar una acción importante
-                ->requiresConfirmation() // Pide confirmación antes de ejecutar
-                ->modalHeading('Aprobar Pedido')
-                ->modalDescription('¿Estás seguro de que deseas aprobar este pedido? Esta acción no se puede deshacer.')
-                ->modalSubmitActionLabel('Sí, aprobar')
-                ->action(function (Model $record) {
-                    // La lógica que se ejecuta al confirmar
-                    $record->update(['estado' => 'APROBADO']);
-                    Notification::make()
-                        ->title('Pedido Aprobado')
-                        ->success()
-                        ->send();
-                })
+                    Action::make('aprobar')
+                        ->label('Aprobar')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Aprobar Pedido')
+                        ->modalDescription('¿Estás seguro de que deseas aprobar este pedido? Esta acción no se puede deshacer.')
+                        ->modalSubmitActionLabel('Sí, aprobar')
+                        ->action(function (Model $record) {
+                            $record->update(['estado' => 'APROBADO']);
+                            Notification::make()
+                                ->title('Pedido Aprobado')
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (Model $record): bool => $record->estado === 'PENDIENTE'),
+
+                    Action::make('anular')
+                        ->label('Anular')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Anular Pedido')
+                        ->modalDescription('¿Estás seguro de que deseas anular este pedido? Esta acción no se puede deshacer.')
+                        ->modalSubmitActionLabel('Sí, anular')
+                        ->action(function (Model $record) {
+                            $record->update(['estado' => 'ANULADO']);
+                            Notification::make()
+                                ->title('Pedido Anulado')
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (Model $record): bool => $record->estado === 'PENDIENTE'),
+                ])
+                ->label('Acciones')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->size('sm')
+                ->color('primary')
+                ->button(),
             ]);
             /*->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

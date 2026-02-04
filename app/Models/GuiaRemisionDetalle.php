@@ -10,7 +10,7 @@ class GuiaRemisionDetalle extends Model
 {
     use HasFactory;
 
-    protected $table = 'guia_remision_detalle';
+    protected $table = 'remision_detalle';
 
     protected $fillable = [
         'guia_remision_cabecera_id',

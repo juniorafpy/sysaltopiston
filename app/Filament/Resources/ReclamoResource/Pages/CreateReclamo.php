@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Auth;
 class CreateReclamo extends CreateRecord
 {
     protected static string $resource = ReclamoResource::class;
+    
+    protected static bool $canCreateAnother = false;
 
     protected function getRedirectUrl(): string
     {

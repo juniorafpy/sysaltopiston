@@ -52,8 +52,9 @@ class AperturaCajaResource extends Resource
                                     ->disabled(fn (?AperturaCaja $record) => $record !== null)
                                     ->helperText(fn (?AperturaCaja $record) => $record === null ? 'Seleccione la caja a abrir' : null)
                                     ->rules([
-                                        fn (): \Closure => function (string $attribute, $value, \Closure $fail) {
-                                            if (AperturaCaja::cajaEstaAbierta($value)) {
+                                        fn (?AperturaCaja $record): \Closure => function (string $attribute, $value, \Closure $fail) use ($record) {
+                                            // Solo validar si estamos creando (no editando)
+                                            if ($record === null && AperturaCaja::cajaEstaAbierta($value)) {
                                                 $fail('Esta caja ya está abierta. Debe cerrarse primero.');
                                             }
                                         },

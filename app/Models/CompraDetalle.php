@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class CompraDetalle extends Model
 {
@@ -63,5 +64,26 @@ class CompraDetalle extends Model
     {
         $this->monto_total_linea = $this->cantidad * $this->precio_unitario;
         return $this;
+    }
+
+    /**
+     * Obtiene la cantidad total recibida en remisiones
+     */
+    public function getCantidadRecibidaAttribute()
+    {
+        return DB::table('remision_detalle')
+            ->join('remision_cabecera', 'remision_detalle.guia_remision_cabecera_id', '=', 'remision_cabecera.id')
+            ->where('remision_cabecera.compra_cabecera_id', $this->id_compra_cabecera)
+            ->where('remision_detalle.articulo_id', $this->cod_articulo)
+            ->where('remision_cabecera.estado', '!=', 'N') // Excluir anuladas
+            ->sum('remision_detalle.cantidad_recibida') ?? 0;
+    }
+
+    /**
+     * Obtiene la cantidad pendiente de recibir
+     */
+    public function getCantidadPendienteAttribute()
+    {
+        return max(0, $this->cantidad - $this->cantidad_recibida);
     }
 }

@@ -10,6 +10,8 @@ use App\Models\PresupuestoVenta;
 use App\Observers\PresupuestoVentaObserver;
 use App\Models\OrdenServicioDetalle;
 use App\Observers\OrdenServicioDetalleObserver;
+use App\Models\NotaCreditoDebitoCompraDetalle;
+use App\Observers\NotaCreditoDebitoCompraDetalleObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +31,6 @@ class AppServiceProvider extends ServiceProvider
         Pais::observe(PaisObserver::class);
         PresupuestoVenta::observe(PresupuestoVentaObserver::class);
         OrdenServicioDetalle::observe(OrdenServicioDetalleObserver::class);
+        NotaCreditoDebitoCompraDetalle::observe(NotaCreditoDebitoCompraDetalleObserver::class);
     }
 }

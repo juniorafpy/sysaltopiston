@@ -4,20 +4,17 @@ namespace App\Filament\Resources\GuiaRemisionResource\Pages;
 
 use App\Filament\Resources\GuiaRemisionResource;
 use Filament\Actions;
-use Filament\Resources\Pages\ListRecords;
+use Filament\Resources\Pages\ViewRecord;
 
-class ListGuiasRemision extends ListRecords
+class ViewGuiaRemision extends ViewRecord
 {
     protected static string $resource = GuiaRemisionResource::class;
-
-    protected ?string $heading = 'Listado Nota de Remisión';
 
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
-                ->label('Crear Nota de Remisión')
-                ->createAnother(false),
+            Actions\EditAction::make()
+                ->visible(fn ($record) => $record->estado !== 'N'),
         ];
     }
 }

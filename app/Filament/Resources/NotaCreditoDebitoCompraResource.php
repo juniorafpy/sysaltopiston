@@ -31,39 +31,56 @@ class NotaCreditoDebitoCompraResource extends Resource
                     Forms\Components\Grid::make(4)->schema([
                         Forms\Components\Select::make('id_compra_cabecera')
                             ->label('Buscar Factura de Compra')
-                            ->relationship('compraCabecera', 'nro_comprobante')
+                            ->options(function () {
+                                return \App\Models\CompraCabecera::with('proveedor')
+                                    ->get()
+                                    ->mapWithKeys(function ($compra) {
+                                        $label = sprintf(
+                                            '%s-%s-%s | %s | %s',
+                                            $compra->tip_comprobante,
+                                            $compra->ser_comprobante,
+                                            $compra->nro_comprobante,
+                                            $compra->proveedor->nombre ?? 'Sin proveedor',
+                                            $compra->fec_comprobante->format('d/m/Y')
+                                        );
+                                        return [$compra->id_compra_cabecera => $label];
+                                    })
+                                    ->toArray();
+                            })
                             ->searchable()
                             ->reactive()
+                            ->required()
                             ->columnSpan(2)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if (empty($state)) {
-                                    $set('proveedor_id', null);
+                                    $set('cod_proveedor', null);
                                     $set('proveedor_name', null);
                                     $set('detalles', []);
                                     return;
                                 }
 
                                 $compra = \App\Models\CompraCabecera::find($state);
-                                if (!$compra || !$compra->nro_oc_ref) {
-                                    $set('proveedor_id', null);
+                                if (!$compra) {
+                                    $set('cod_proveedor', null);
                                     $set('proveedor_name', null);
                                     $set('detalles', []);
                                     return;
                                 }
 
-                                $set('proveedor_id', $compra->cod_proveedor);
+                                // Establecer proveedor desde la compra
+                                $set('cod_proveedor', $compra->cod_proveedor);
                                 $set('proveedor_name', $compra->proveedor ? $compra->proveedor->nombre : null);
+                                $set('ser_comprobante', $compra->ser_comprobante);
+                                $set('timbrado', $compra->timbrado);
 
-                                $ordenCompra = \App\Models\OrdenCompraCabecera::where('nro_orden_compra', $compra->nro_oc_ref)->first();
-                                if (!$ordenCompra) {
-                                    return;
-                                }
-
-                                $detalles = $ordenCompra->ordenCompraDetalles->map(function ($detalle) {
+                                // Cargar detalles de la compra
+                                $detalles = $compra->detalles->map(function ($detalle) {
                                     return [
-                                        'articulo_id' => $detalle->cod_articulo,
+                                        'cod_articulo' => $detalle->cod_articulo,
                                         'cantidad' => $detalle->cantidad,
-                                        'precio_unitario' => $detalle->precio,
+                                        'precio_unitario' => $detalle->precio_unitario,
+                                        'porcentaje_iva' => $detalle->porcentaje_iva,
+                                        'monto_total_linea' => $detalle->monto_total_linea,
                                     ];
                                 })->toArray();
 
@@ -75,14 +92,67 @@ class NotaCreditoDebitoCompraResource extends Resource
                             ->columnSpan(2),
                         Forms\Components\Select::make('tip_comprobante')
                             ->label('Tipo de Nota')
-                            ->options(['NC' => 'Crédito', 'ND' => 'Débito'])
-                            ->required(),
-                        Forms\Components\DatePicker::make('fec_comprobante')
-                            ->label('Fecha')->default(now())->required(),
-                        Forms\Components\Textarea::make('observacion')
-                            ->label('Motivo o Descripción')->rows(2)
+                            ->options(['NC' => 'Nota de Crédito', 'ND' => 'Nota de Débito'])
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $set('cod_motivo', null); // Limpiar motivo al cambiar tipo
+                            }),
+                        Forms\Components\Select::make('cod_motivo')
+                            ->label('Motivo')
+                            ->options(function (callable $get) {
+                                $tipoNota = $get('tip_comprobante');
+                                if (!$tipoNota) {
+                                    return [];
+                                }
+                                return \App\Models\MotivoNotaCreditoDebito::activos()
+                                    ->where('tipo_nota', $tipoNota)
+                                    ->pluck('descripcion', 'cod_motivo')
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->required()
+                            ->reactive()
+                            ->helperText(function (callable $get) {
+                                $motivoId = $get('cod_motivo');
+                                if (!$motivoId) {
+                                    return null;
+                                }
+                                $motivo = \App\Models\MotivoNotaCreditoDebito::find($motivoId);
+                                if (!$motivo) {
+                                    return null;
+                                }
+                                $textos = [];
+                                if ($motivo->afecta_stock) {
+                                    $textos[] = '📦 Afecta inventario';
+                                }
+                                if ($motivo->afecta_saldo) {
+                                    $textos[] = '💰 Afecta saldo';
+                                }
+                                return implode(' | ', $textos);
+                            })
                             ->columnSpan(2),
-                        Forms\Components\Hidden::make('proveedor_id')->required(),
+                        Forms\Components\TextInput::make('ser_comprobante')
+                            ->label('Serie')
+                            ->required()
+                            ->maxLength(10),
+                        Forms\Components\TextInput::make('timbrado')
+                            ->label('Timbrado')
+                            ->required()
+                            ->maxLength(20),
+                        Forms\Components\TextInput::make('nro_comprobante')
+                            ->label('Nro. Comprobante')
+                            ->required()
+                            ->maxLength(20),
+                        Forms\Components\DatePicker::make('fec_comprobante')
+                            ->label('Fecha')
+                            ->default(now())
+                            ->required(),
+                        Forms\Components\Textarea::make('observacion')
+                            ->label('Motivo o Descripción')
+                            ->rows(2)
+                            ->columnSpan(3),
+                        Forms\Components\Hidden::make('cod_proveedor')->required(),
                     ])
                 ]),
             Forms\Components\Section::make('Detalle de la Nota')
@@ -91,30 +161,64 @@ class NotaCreditoDebitoCompraResource extends Resource
                         ->relationship('detalles')
                         ->label('Artículos')
                         ->schema([
-                            Forms\Components\Select::make('articulo_id')
+                            Forms\Components\Select::make('cod_articulo')
                                 ->label('Artículo')
                                 ->relationship('articulo', 'descripcion')
-                                ->disabled()
+                                ->searchable()
+                                ->required()
                                 ->columnSpan(4),
                             Forms\Components\TextInput::make('cantidad')
-                                ->numeric()->required()->reactive()
-                                ->afterStateUpdated(fn ($state, callable $set, callable $get) => $set('subtotal', $state * $get('precio_unitario')))
+                                ->label('Cantidad')
+                                ->numeric()
+                                ->required()
+                                ->reactive()
+                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                    $precio = $get('precio_unitario') ?? 0;
+                                    $iva = $get('porcentaje_iva') ?? 10;
+                                    $subtotal = $state * $precio;
+                                    $montoIva = $subtotal * ($iva / 100);
+                                    $set('monto_total_linea', $subtotal + $montoIva);
+                                })
                                 ->columnSpan(2),
                             Forms\Components\TextInput::make('precio_unitario')
-                                ->label('Precio')->numeric()->required()->reactive()
-                                ->afterStateUpdated(fn ($state, callable $set, callable $get) => $set('subtotal', $state * $get('cantidad')))
+                                ->label('Precio')
+                                ->numeric()
+                                ->required()
+                                ->reactive()
+                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                    $cantidad = $get('cantidad') ?? 0;
+                                    $iva = $get('porcentaje_iva') ?? 10;
+                                    $subtotal = $cantidad * $state;
+                                    $montoIva = $subtotal * ($iva / 100);
+                                    $set('monto_total_linea', $subtotal + $montoIva);
+                                })
                                 ->columnSpan(2),
-                            Forms\Components\TextInput::make('subtotal')
-                                ->label('Subtotal')->numeric()->disabled()
-                                ->columnSpan(2),
+                            Forms\Components\TextInput::make('porcentaje_iva')
+                                ->label('IVA %')
+                                ->numeric()
+                                ->default(10)
+                                ->required()
+                                ->reactive()
+                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                    $cantidad = $get('cantidad') ?? 0;
+                                    $precio = $get('precio_unitario') ?? 0;
+                                    $subtotal = $cantidad * $precio;
+                                    $montoIva = $subtotal * ($state / 100);
+                                    $set('monto_total_linea', $subtotal + $montoIva);
+                                })
+                                ->columnSpan(1),
+                            Forms\Components\TextInput::make('monto_total_linea')
+                                ->label('Total')
+                                ->numeric()
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
                         ])
                         ->columns(10)
                         ->default([])
                         ->reactive()
                         ->afterStateUpdated(function (callable $set, $state) {
-                            $totalGeneral = collect($state)->sum(function($row) {
-                                return ($row['cantidad'] ?? 0) * ($row['precio_unitario'] ?? 0);
-                            });
+                            $totalGeneral = collect($state)->sum('monto_total_linea');
                             $set('total_general', $totalGeneral);
                         }),
                     Forms\Components\Grid::make(5)->schema([
@@ -122,7 +226,8 @@ class NotaCreditoDebitoCompraResource extends Resource
                             ->columnSpan(4),
                         Forms\Components\TextInput::make('total_general')
                             ->label('Total General')
-                            ->disabled()->prefix('Gs.')
+                            ->disabled()
+                            ->prefix('Gs.')
                             ->extraInputAttributes(['class' => 'text-lg text-primary-500 font-bold'])
                             ->columnSpan(1),
                     ])
@@ -134,19 +239,56 @@ class NotaCreditoDebitoCompraResource extends Resource
     {
         return $table
             ->columns([
-                //
+                Tables\Columns\TextColumn::make('numero_completo')
+                    ->label('Nro. Comprobante')
+                    ->searchable(['nro_comprobante', 'ser_comprobante'])
+                    ->sortable(),
+                Tables\Columns\BadgeColumn::make('tip_comprobante')
+                    ->label('Tipo')
+                    ->colors([
+                        'success' => 'NC',
+                        'warning' => 'ND',
+                    ])
+                    ->formatStateUsing(fn ($state) => $state === 'NC' ? 'Nota Crédito' : 'Nota Débito'),
+                Tables\Columns\TextColumn::make('fec_comprobante')
+                    ->label('Fecha')
+                    ->date('d/m/Y')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('compraCabecera.numero_completo')
+                    ->label('Factura Origen')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('proveedor.nombre')
+                    ->label('Proveedor')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('motivo.descripcion')
+                    ->label('Motivo')
+                    ->searchable()
+                    ->badge()
+                    ->color(fn ($record) => $record->motivo?->afecta_stock ? 'warning' : 'info'),
+                Tables\Columns\TextColumn::make('total_nota')
+                    ->label('Total')
+                    ->money('PYG', divideBy: 1)
+                    ->sortable(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('tip_comprobante')
+                    ->label('Tipo')
+                    ->options([
+                        'NC' => 'Nota de Crédito',
+                        'ND' => 'Nota de Débito',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('fec_comprobante', 'desc');
     }
 
     public static function getRelations(): array

@@ -25,6 +25,12 @@ class CreateGuiaRemision extends CreateRecord
         $this->initSucursalData();
         $this->initUsuAltaData();
         $this->initEmpleadoData();
+
+        // Generar el siguiente número de remisión automáticamente
+        $ultimoNumero = DB::table('remision_cabecera')
+            ->max('numero_remision');
+        $siguienteNumero = $ultimoNumero ? (int)$ultimoNumero + 1 : 1;
+
         $this->form->fill([
             'nombre_sucursal' => $this->nombre_sucursal,
             'usuario_alta' => $this->nombre_empleado,
@@ -32,19 +38,27 @@ class CreateGuiaRemision extends CreateRecord
             'cod_empleado' => $this->cod_empleado,
             'tipo_comprobante' => 'REM',
             'ser_remision' => '001-001',
+            'numero_remision' => $siguienteNumero,
         ]);
     }
 
     protected function handleRecordCreation(array $data): Model
     {
         return DB::transaction(function () use ($data) {
+            // Obtener el siguiente número de remisión dentro de la transacción para evitar duplicados
+            $ultimaRemision = DB::table('remision_cabecera')
+                ->orderBy('numero_remision', 'desc')
+                ->lockForUpdate()
+                ->first();
+            $siguienteNumero = $ultimaRemision ? (int)$ultimaRemision->numero_remision + 1 : 1;
+
             // Crear la cabecera de la remisión
             $cabecera = static::getModel()::create([
                 'compra_cabecera_id' => $data['compra_cabecera_id'],
                 'almacen_id' => $data['almacen_id'],
                 'tipo_comprobante' => $data['tipo_comprobante'] ?? 'REM',
                 'ser_remision' => $data['ser_remision'] ?? '001-001',
-                'numero_remision' => $data['numero_remision'],
+                'numero_remision' => $siguienteNumero,
                 'fecha_remision' => $data['fecha_remision'],
                 'cod_sucursal' => $data['cod_sucursal'],
                 'cod_empleado' => $data['cod_empleado'] ?? null,
@@ -86,6 +100,13 @@ class CreateGuiaRemision extends CreateRecord
                     }
                 }
             }
+
+            // Cambiar el estado a Aprobado una vez procesados todos los artículos
+            $cabecera->update([
+                'estado' => 'A', // A: Aprobado/Recepcionado
+                'usuario_mod' => auth()->user()->name ?? 'Sistema',
+                'fec_mod' => now(),
+            ]);
 
             return $cabecera;
         });

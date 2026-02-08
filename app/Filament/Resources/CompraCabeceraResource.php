@@ -52,7 +52,12 @@ class CompraCabeceraResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
-
+    // Cargar relaciones necesarias para el cálculo del estado de recepción
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with('detalles');
+    }
 
 
     public static function form(Form $form): Form
@@ -681,6 +686,21 @@ class CompraCabeceraResource extends Resource
                         'Crédito' => 'warning',
                         default => 'gray',
                     }),
+
+                Tables\Columns\TextColumn::make('estado_recepcion')
+                    ->label('Estado Recepción')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'RECEPCIONADO' => 'success',
+                        'PARCIAL' => 'warning',
+                        'PENDIENTE' => 'gray',
+                        default => 'gray',
+                    })
+                    ->tooltip(fn ($record) =>
+                        $record->porcentaje_recepcion > 0 && $record->porcentaje_recepcion < 100
+                            ? "Recepcionado: {$record->porcentaje_recepcion}%"
+                            : null
+                    ),
 
               /*  Tables\Columns\TextColumn::make('estado')
                     ->label('Estado')

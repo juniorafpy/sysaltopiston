@@ -100,6 +100,47 @@ class CompraCabecera extends Model
     }
 
     /**
+     * Verifica si la compra está completamente recepcionada
+     */
+    public function getEstaCompletamenteRecepcionadaAttribute()
+    {
+        foreach ($this->detalles as $detalle) {
+            if ($detalle->cantidad_pendiente > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Obtiene el porcentaje de recepción
+     */
+    public function getPorcentajeRecepcionAttribute()
+    {
+        $totalFacturado = $this->detalles->sum('cantidad');
+        if ($totalFacturado == 0) return 0;
+
+        $totalRecibido = $this->detalles->sum('cantidad_recibida');
+        return round(($totalRecibido / $totalFacturado) * 100, 2);
+    }
+
+    /**
+     * Obtiene el estado de recepción de la factura
+     */
+    public function getEstadoRecepcionAttribute()
+    {
+        if ($this->esta_completamente_recepcionada) {
+            return 'RECEPCIONADO';
+        }
+
+        if ($this->porcentaje_recepcion > 0) {
+            return 'PARCIAL';
+        }
+
+        return 'PENDIENTE';
+    }
+
+    /**
      * Accessors
      */
     public function getNumeroCompletoAttribute()

@@ -32,11 +32,11 @@ class PersonasResource extends Resource
     protected static ?string $model = Personas::class;
 
     protected static ?string $navigationGroup = 'Definiciones';
-    protected static ?string $navigationIcon = 'heroicon-o-identification';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Personas';
     protected static ?string $modelLabel = 'Persona';
     protected static ?string $pluralModelLabel = 'Personas';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {

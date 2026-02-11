@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Empleados extends Model
 {
@@ -59,6 +60,14 @@ class Empleados extends Model
     public function aperturasCaja(): HasMany
     {
         return $this->hasMany(AperturaCaja::class, 'cod_cajero', 'cod_empleado');
+    }
+
+    /**
+     * Relación con Mecanico
+     */
+    public function mecanico(): HasOne
+    {
+        return $this->hasOne(Mecanico::class, 'cod_empleado', 'cod_empleado');
     }
 }
 

@@ -10,13 +10,14 @@ class Vehiculo extends Model
     use HasFactory;
 
     protected $table = 'vehiculos';
+    public $timestamps = false;
 
     protected $fillable = [
         'marca_id',
         'modelo_id',
         'matricula',
         'anio',
-        'color',
+        'color_id',
         'cliente_id',
     ];
 
@@ -30,9 +31,14 @@ class Vehiculo extends Model
         return $this->belongsTo(Modelos::class, 'modelo_id', 'cod_modelo');
     }
 
+    public function color()
+    {
+        return $this->belongsTo(Color::class, 'color_id', 'cod_color');
+    }
+
     public function cliente()
     {
-        return $this->belongsTo(Personas::class, 'cliente_id', 'cod_persona');
+        return $this->belongsTo(Cliente::class, 'cliente_id', 'cod_cliente');
     }
 
     public function recepciones()

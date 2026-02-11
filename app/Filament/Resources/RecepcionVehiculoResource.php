@@ -15,9 +15,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Set;
+use Filament\Forms\Get;
 use App\Models\Vehiculo;
 use App\Models\Marcas;
 use App\Models\Modelos;
+use App\Models\Color;
 
 class RecepcionVehiculoResource extends Resource
 {
@@ -36,17 +38,40 @@ class RecepcionVehiculoResource extends Resource
                 Grid::make(3)->schema([
                     Group::make()->schema([
                         Section::make('Datos de la Recepción')->schema([
-                            Forms\Components\Select::make('cliente_id')
-                                ->relationship('cliente', 'nombres')
+                            Forms\Components\Select::make('cod_cliente')
+                                ->label('Cliente')
+                                ->options(function () {
+                                    return \App\Models\Cliente::with('persona')
+                                        ->get()
+                                        ->pluck('nombre_completo', 'cod_cliente');
+                                })
                                 ->searchable()
                                 ->preload()
+                                ->live()
+                                ->afterStateUpdated(function (Set $set) {
+                                    $set('vehiculo_id', null);
+                                })
                                 ->required(),
 
                             Forms\Components\Select::make('vehiculo_id')
                                 ->label('Chapa (Matrícula)')
-                                ->relationship('vehiculo', 'matricula')
-                                ->searchable()
+                                ->relationship(
+                                    name: 'vehiculo',
+                                    modifyQueryUsing: fn ($query, Get $get) =>
+                                        $query->with(['modelo'])
+                                            ->when($get('cod_cliente'), fn ($q, $clienteId) =>
+                                                $q->where('cliente_id', $clienteId)
+                                            )
+                                )
+                                ->getOptionLabelFromRecordUsing(fn ($record) =>
+                                    $record->matricula . ' - ' . ($record->modelo->descripcion ?? 'Sin modelo')
+                                )
+                                ->searchable(['matricula'])
                                 ->preload()
+                                ->disabled(fn (Get $get) => !$get('cod_cliente'))
+                                ->helperText(fn (Get $get) => !$get('cod_cliente')
+                                    ? 'Primero seleccione un cliente'
+                                    : 'Seleccione un vehículo o cree uno nuevo')
                                 ->createOptionForm([
                                     Forms\Components\TextInput::make('matricula')
                                         ->label('Chapa (Matrícula)')
@@ -56,11 +81,26 @@ class RecepcionVehiculoResource extends Resource
                                         ->label('Marca')
                                         ->options(Marcas::all()->pluck('descripcion', 'cod_marca'))
                                         ->searchable()
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set) {
+                                            $set('modelo_id', null);
+                                        })
                                         ->required(),
                                     Forms\Components\Select::make('modelo_id')
                                         ->label('Modelo')
-                                        ->options(Modelos::all()->pluck('descripcion', 'cod_modelo'))
+                                        ->options(function (Get $get) {
+                                            $marcaId = $get('marca_id');
+                                            if (!$marcaId) {
+                                                return [];
+                                            }
+                                            return Modelos::where('cod_marca', $marcaId)
+                                                ->pluck('descripcion', 'cod_modelo');
+                                        })
                                         ->searchable()
+                                        ->disabled(fn (Get $get) => !$get('marca_id'))
+                                        ->helperText(fn (Get $get) => !$get('marca_id')
+                                            ? 'Primero seleccione una marca'
+                                            : null)
                                         ->required(),
                                     Forms\Components\TextInput::make('anio')
                                         ->label('Año')
@@ -68,12 +108,14 @@ class RecepcionVehiculoResource extends Resource
                                         ->minValue(1900)
                                         ->maxValue(date('Y') + 1)
                                         ->required(),
-                                    Forms\Components\TextInput::make('color')
+                                    Forms\Components\Select::make('color_id')
                                         ->label('Color')
-                                        ->maxLength(50),
+                                        ->options(Color::all()->pluck('descripcion', 'cod_color'))
+                                        ->searchable()
+                                        ->required(),
                                 ])
-                                ->createOptionUsing(function (array $data, Forms\Get $get): int {
-                                    $data['cliente_id'] = $get('cliente_id');
+                                ->createOptionUsing(function (array $data, Get $get): int {
+                                    $data['cliente_id'] = $get('cod_cliente');
                                     $vehiculo = Vehiculo::create($data);
                                     return $vehiculo->id;
                                 })
@@ -97,10 +139,25 @@ class RecepcionVehiculoResource extends Resource
                                 ->required(),
 
                                 Forms\Components\Select::make('empleado_id')
-                                ->relationship('empleado', 'nombre')
+                                ->label('Mecánico asignado')
+                                ->placeholder('Asignar un mecánico')
+                                ->options(function () {
+                                    return \App\Models\Empleados::with('persona')
+                                        ->whereHas('mecanico')
+                                        ->get()
+                                        ->mapWithKeys(function ($empleado) {
+                                            $persona = $empleado->persona;
+                                            if ($persona) {
+                                                $nombre = $persona->razon_social ?: trim($persona->nombres . ' ' . $persona->apellidos);
+                                                $label = "{$empleado->nombre} - {$nombre}";
+                                            } else {
+                                                $label = $empleado->nombre;
+                                            }
+                                            return [$empleado->cod_empleado => $label];
+                                        });
+                                })
                                 ->searchable()
-                                    ->label('Mecánico asignado')
-                                ->placeholder('Asignar un mecánico'),
+                                ->preload(),
 
                         ])->columns(2),
 
@@ -196,11 +253,16 @@ class RecepcionVehiculoResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('cliente.nombres')
-                    ->searchable()
+                Tables\Columns\TextColumn::make('cliente.nombre_completo')
+                    ->label('Cliente')
+                    ->searchable(['cliente.persona.nombres', 'cliente.persona.apellidos', 'cliente.persona.razon_social'])
                     ->sortable(),
                 Tables\Columns\TextColumn::make('vehiculo.matricula')
-                    ->searchable()
+                    ->label('Vehículo')
+                    ->formatStateUsing(fn ($record) =>
+                        $record->vehiculo->matricula . ' - ' . ($record->vehiculo->modelo->descripcion ?? 'Sin modelo')
+                    )
+                    ->searchable(['vehiculo.matricula'])
                     ->sortable(),
                 Tables\Columns\TextColumn::make('fecha_recepcion')
                     ->dateTime()

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('recepcion_vehiculos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('cliente_id')->constrained('personas', 'cod_persona');
+            $table->foreignId('cliente_id')->constrained('clientes', 'cod_cliente');
             $table->foreignId('vehiculo_id')->constrained('vehiculos');
             $table->dateTime('fecha_recepcion');
             $table->integer('kilometraje');

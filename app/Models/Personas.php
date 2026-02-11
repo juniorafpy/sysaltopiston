@@ -57,4 +57,19 @@ public function facturas()
     return $this->hasMany(Factura::class, 'cod_cliente', 'cod_persona');
 }
 
+public function estadoCivil()
+{
+    return $this->belongsTo(EstadoCivil::class, 'cod_estado_civil', 'cod_estado_civil');
+}
+
+public function pais()
+{
+    return $this->belongsTo(Pais::class, 'cod_pais', 'cod_pais');
+}
+
+public function departamento()
+{
+    return $this->belongsTo(Departamentos::class, 'cod_departamento', 'cod_departamento');
+}
+
 }

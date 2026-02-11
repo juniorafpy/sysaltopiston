@@ -10,20 +10,30 @@ class RecepcionVehiculo extends Model
     use HasFactory;
 
     protected $table = 'recepcion_vehiculos';
+    public $timestamps = false;
 
     protected $fillable = [
-        'cliente_id',
+        'cod_cliente',
         'vehiculo_id',
         'fecha_recepcion',
         'kilometraje',
         'motivo_ingreso',
         'observaciones',
         'estado',
+        'empleado_id',
+       // 'inventario',
+       // 'cod_sucursal',
+        'usuario_alta',
+        'fec_alta',
+    ];
+
+    protected $casts = [
+        'inventario' => 'array',
     ];
 
     public function cliente()
     {
-        return $this->belongsTo(Personas::class, 'cliente_id', 'cod_persona');
+        return $this->belongsTo(Cliente::class, 'cod_cliente', 'cod_cliente');
     }
 
     public function vehiculo()

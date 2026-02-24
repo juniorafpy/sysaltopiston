@@ -2,21 +2,39 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\Modelos;
+use App\Models\Articulos;
+use App\Models\Cliente;
+use App\Models\Empleados;
+use App\Models\Factura;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Database\Eloquent\Model;
 
 class StatsOverview extends BaseWidget
 {
+    protected int|string|array $columnSpan = 'full';
+
     protected function getStats(): array
     {
         return [
-            Stat::make('Total Model', Modelos::count())
-            ->description('Super bien')
-            ->descriptionIcon('heroicon-m-arrow-trending-up')
-            ->color('success')
-            ->chart([6, 4, 9, 5, 3, 0, 7]),
+            Stat::make('Artículos', Articulos::count())
+                ->description('Repuestos y productos registrados')
+                ->descriptionIcon('heroicon-m-cube')
+                ->color('primary'),
+
+            Stat::make('Clientes', Cliente::count())
+                ->description('Clientes activos en el sistema')
+                ->descriptionIcon('heroicon-m-users')
+                ->color('success'),
+
+            Stat::make('Facturas', Factura::count())
+                ->description('Facturas emitidas')
+                ->descriptionIcon('heroicon-m-document-text')
+                ->color('warning'),
+
+            Stat::make('Empleados', Empleados::count())
+                ->description('Colaboradores registrados')
+                ->descriptionIcon('heroicon-m-identification')
+                ->color('info'),
         ];
     }
 }

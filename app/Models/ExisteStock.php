@@ -63,6 +63,8 @@ class ExisteStock extends Model
 
     /**
      * Reserva stock para una orden de servicio
+     * NOTA: La reserva real se maneja por TRIGGER en la BD
+     * Este método solo valida disponibilidad
      */
     public function reservarStock(float $cantidad): bool
     {
@@ -70,23 +72,19 @@ class ExisteStock extends Model
             return false;
         }
 
-        $this->stock_reservado += $cantidad;
-        $this->usuario_mod = auth()->user()->name ?? 'Sistema';
-        $this->fec_mod = now();
-
-        return $this->save();
+        // El trigger en la BD manejará la actualización actual
+        return true;
     }
 
     /**
      * Libera stock reservado
+     * NOTA: La liberación real se maneja por TRIGGER en la BD
+     * Este método solo registra la intención
      */
     public function liberarStock(float $cantidad): bool
     {
-        $this->stock_reservado = max(0, $this->stock_reservado - $cantidad);
-        $this->usuario_mod = auth()->user()->name ?? 'Sistema';
-        $this->fec_mod = now();
-
-        return $this->save();
+        // El trigger en la BD manejará la actualización actual
+        return true;
     }
 
     /**

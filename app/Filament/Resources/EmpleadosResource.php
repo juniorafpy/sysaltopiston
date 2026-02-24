@@ -38,45 +38,7 @@ class EmpleadosResource extends Resource
                             )
                             ->searchable(['nombres', 'apellidos', 'nro_documento'])
                             ->preload()
-                            ->required()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('nombres')
-                                    ->label('Nombres')
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('apellidos')
-                                    ->label('Apellidos')
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('razon_social')
-                                    ->label('Razón Social (Opcional)')
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('nro_documento')
-                                    ->label('Nro. Documento')
-                                    ->required()
-                                    ->unique('personas', 'nro_documento')
-                                    ->maxLength(20),
-                                Forms\Components\TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->maxLength(255),
-                                Forms\Components\Select::make('sexo')
-                                    ->label('Sexo')
-                                    ->options([
-                                        'M' => 'Masculino',
-                                        'F' => 'Femenino',
-                                    ]),
-                                Forms\Components\DatePicker::make('fec_nacimiento')
-                                    ->label('Fecha Nacimiento')
-                                    ->displayFormat('d/m/Y')
-                                    ->native(false),
-                            ])
-                            ->helperText('Selecciona la persona o crea una nueva'),
-
-                        Forms\Components\TextInput::make('nombre')
-                            ->label('Nombre/Alias (Opcional)')
-                            ->maxLength(255)
-                            ->helperText('Nombre alternativo o alias del empleado'),
+                            ->required(),
 
                         Forms\Components\TextInput::make('email')
                             ->label('Correo Electrónico')
@@ -94,7 +56,7 @@ class EmpleadosResource extends Resource
                         Forms\Components\Select::make('cod_cargo')
                             ->label('Cargo')
                             ->relationship('cargo', 'descripcion')
-                            ->searchable()
+
                             ->preload()
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('descripcion')
@@ -138,41 +100,24 @@ class EmpleadosResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('cod_empleado')
-                    ->label('Código')
-                    ->sortable()
-                    ->searchable(),
+                    ->label('Código'),
 
                 Tables\Columns\TextColumn::make('persona.nombre_completo')
                     ->label('Nombre Completo')
                     ->searchable(['personas.nombres', 'personas.apellidos'])
-                    ->sortable()
                     ->description(fn (Empleados $record): string =>
                         $record->persona->nro_documento ?? ''
                     ),
-
-                Tables\Columns\TextColumn::make('nombre')
-                    ->label('Alias')
-                    ->searchable()
-                    ->default('Sin alias')
-                    ->toggleable(),
-
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
-                    ->searchable()
-                    ->toggleable()
-                    ->copyable()
                     ->icon('heroicon-o-envelope'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
-                    ->date('d/m/Y')
-                    ->sortable()
-                    ->toggleable(),
+                    ->date('d/m/Y'),
 
                 Tables\Columns\TextColumn::make('cargo.descripcion')
                     ->label('Cargo')
-                    ->searchable()
-                    ->sortable()
                     ->badge()
                     ->color('info')
                     ->default('Sin cargo'),
@@ -183,8 +128,7 @@ class EmpleadosResource extends Resource
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
-                    ->falseColor('danger')
-                    ->sortable(),
+                    ->falseColor('danger'),
             ])
             ->filters([
                 //
@@ -199,12 +143,7 @@ class EmpleadosResource extends Resource
                 ->icon('heroicon-m-ellipsis-horizontal')
                 ->tooltip('Acciones')
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
-            ->defaultSort('cod_empleado', 'desc');
+            ->defaultSort('fec_alta', 'desc');
     }
 
     public static function getRelations(): array

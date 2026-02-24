@@ -12,31 +12,31 @@ class OrdenServicio extends Model
     use HasFactory;
 
     protected $table = 'orden_servicios';
+    public $timestamps = false;
+
 
     protected $fillable = [
         'presupuesto_venta_id',
         'diagnostico_id',
         'recepcion_vehiculo_id',
-        'cliente_id',
+        'cod_cliente',
         'cod_sucursal',
         'fecha_inicio',
         'fecha_estimada_finalizacion',
-        'fecha_finalizacion_real',
+        //'fecha_finalizacion_real',
         'estado_trabajo',
-        'mecanico_asignado_id',
+        'cod_mecanico',
         'observaciones_tecnicas',
         'observaciones_internas',
         'total',
         'usuario_alta',
         'fec_alta',
-        'usuario_mod',
-        'fec_mod',
     ];
 
     protected $casts = [
         'fecha_inicio' => 'date',
         'fecha_estimada_finalizacion' => 'date',
-        'fecha_finalizacion_real' => 'date',
+        //'fecha_finalizacion_real' => 'date',
         'total' => 'float',
         'fec_alta' => 'datetime',
         'fec_mod' => 'datetime',
@@ -60,7 +60,7 @@ class OrdenServicio extends Model
 
     public function cliente(): BelongsTo
     {
-        return $this->belongsTo(Personas::class, 'cliente_id', 'cod_persona');
+        return $this->belongsTo(Cliente::class, 'cod_cliente', 'cod_cliente');
     }
 
     public function sucursal(): BelongsTo
@@ -70,7 +70,7 @@ class OrdenServicio extends Model
 
     public function mecanicoAsignado(): BelongsTo
     {
-        return $this->belongsTo(Empleados::class, 'mecanico_asignado_id', 'cod_empleado');
+        return $this->belongsTo(Empleados::class, 'cod_mecanico', 'cod_empleado');
     }
 
     public function detalles(): HasMany
@@ -84,11 +84,77 @@ class OrdenServicio extends Model
     }
 
     /**
+     * Protege campos que no deben editarse
+     */
+    public function setAttribute($key, $value)
+    {
+        // Rechazar intentos de establecer campos que no existen en la DB
+        if (in_array($key, ['usuario_mod', 'fec_mod'])) {
+            return $this;
+        }
+
+        return parent::setAttribute($key, $value);
+    }
+
+    /**
+     * Copia los detalles del presupuesto a la orden de servicio (sin duplicar)
+     */
+    public function copiarDetallesDelPresupuesto(): void
+    {
+        if (!$this->presupuesto_venta_id) {
+            return;
+        }
+
+        // Obtener el presupuesto específico
+        $presupuesto = PresupuestoVenta::find($this->presupuesto_venta_id);
+
+        if (!$presupuesto) {
+            return;
+        }
+
+        // Obtener detalles ya copiados de este presupuesto
+        $detallesYaCopiados = OrdenServicioDetalle::where('orden_servicio_id', $this->id)
+            ->where('presupuesto_venta_detalle_id', '!=', null)
+            ->pluck('presupuesto_venta_detalle_id')
+            ->toArray();
+
+        // Copiar solo los detalles que no estén ya copiados
+        foreach ($presupuesto->detalles as $detallePresupuesto) {
+            // Si este detalle ya fue copiado, saltar
+            if (in_array($detallePresupuesto->id, $detallesYaCopiados)) {
+                continue;
+            }
+
+            if (empty($detallePresupuesto->cod_articulo) || floatval($detallePresupuesto->cantidad ?? 0) <= 0) {
+                continue;
+            }
+
+            OrdenServicioDetalle::create([
+                'orden_servicio_id' => $this->id,
+                'presupuesto_venta_detalle_id' => $detallePresupuesto->id,
+                'cod_articulo' => $detallePresupuesto->cod_articulo,
+                'descripcion' => $detallePresupuesto->descripcion ?? $detallePresupuesto->articulo?->descripcion,
+                'cantidad' => $detallePresupuesto->cantidad,
+                'cantidad_utilizada' => 0,
+                'precio_unitario' => $detallePresupuesto->precio_unitario,
+                'porcentaje_descuento' => $detallePresupuesto->porcentaje_descuento ?? 0,
+                'monto_descuento' => $detallePresupuesto->monto_descuento ?? 0,
+                'porcentaje_impuesto' => $detallePresupuesto->porcentaje_impuesto ?? 10,
+                'monto_impuesto' => $detallePresupuesto->monto_impuesto,
+                'subtotal' => $detallePresupuesto->subtotal,
+                'total' => $detallePresupuesto->total,
+                'usuario_alta' => auth()->user()->name ?? 'Sistema',
+                'fec_alta' => now(),
+            ]);
+        }
+    }
+
+    /**
      * Verifica si la OS puede ser editada
      */
     public function puedeEditarse(): bool
     {
-        return !in_array($this->estado_trabajo, ['Finalizado', 'Cancelado', 'Facturado']);
+        return $this->estado_trabajo !== 'Finalizado';
     }
 
     /**
@@ -179,13 +245,18 @@ class OrdenServicio extends Model
             'detalles.articulo'
         ]);
 
-        // Generar el PDF usando la vista Blade
-        // Generar el PDF usando la vista Blade
-                $pdf = app('dompdf.wrapper')->loadView('pdf.orden-servicio', [
-                    'ordenServicio' => $this
-                ]);
-        // Configurar opciones del PDF
-        $pdf->setPaper('letter', 'portrait');
+        $options = new \Dompdf\Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $html = view('pdf.orden-servicio', [
+            'ordenServicio' => $this,
+        ])->render();
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->render();
 
         // Nombre del archivo
         $filename = sprintf(
@@ -196,9 +267,13 @@ class OrdenServicio extends Model
 
         // Retornar según el modo
         if ($modo === 'stream') {
-            return $pdf->stream($filename);
+            return response($dompdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'inline; filename="' . $filename . '"');
         }
 
-        return $pdf->download($filename);
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 }

@@ -10,10 +10,14 @@ class EditOrdenServicio extends EditRecord
 {
     protected static string $resource = OrdenServicioResource::class;
 
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\ViewAction::make(),
             Actions\DeleteAction::make()
                 ->before(function ($record) {
                     // Liberar stock al eliminar
@@ -24,19 +28,19 @@ class EditOrdenServicio extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $data['usuario_mod'] = auth()->user()->name ?? 'Sistema';
-        $data['fec_mod'] = now();
+        $dataLimpia = [
+            'estado_trabajo' => $data['estado_trabajo'] ?? $this->record->estado_trabajo,
+            'usuario_mod' => auth()->user()->name ?? 'Sistema',
+            'fec_mod' => now(),
+        ];
 
-        // Filtrar detalles vacíos (sin cod_articulo)
-        if (isset($data['detalles']) && is_array($data['detalles'])) {
-            $data['detalles'] = array_filter($data['detalles'], function ($detalle) {
-                return !empty($detalle['cod_articulo']);
-            });
-
-            // Reindexar el array
-            $data['detalles'] = array_values($data['detalles']);
+        if (
+            ($dataLimpia['estado_trabajo'] ?? null) === 'Finalizado' &&
+            empty($this->record->fecha_finalizacion_real)
+        ) {
+            $dataLimpia['fecha_finalizacion_real'] = now();
         }
 
-        return $data;
+        return $dataLimpia;
     }
 }

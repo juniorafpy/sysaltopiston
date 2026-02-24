@@ -7,6 +7,8 @@ use App\Models\Proveedor;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Database\QueryException;
+use Illuminate\Validation\ValidationException;
 
 class ListProveedors extends ListRecords
 {
@@ -21,22 +23,17 @@ class ListProveedors extends ListRecords
                     Forms\Components\Select::make('cod_persona')
                         ->label('Persona')
                         ->relationship('personas_pro', 'nombres')
-                        ->searchable()
+                        ->getOptionLabelFromRecordUsing(fn ($record) => $record->nombre_completo)
+                        ->searchable(['nombres', 'apellidos'])
                         ->preload()
+                        ->optionsLimit(5)
                         ->required()
-                        ->helperText('Busque y seleccione la persona registrada')
-                        ->placeholder('Buscar persona...')
-                        ->createOptionForm([
-                            Forms\Components\TextInput::make('nombres')
-                                ->required()
-                                ->label('Nombres'),
-                            Forms\Components\TextInput::make('apellidos')
-                                ->label('Apellidos'),
-                            Forms\Components\TextInput::make('ci_ruc')
-                                ->label('CI/RUC')
-                                ->required(),
+                        ->unique('proveedores', 'cod_persona')
+                        ->validationMessages([
+                            'unique' => 'La persona seleccionada ya está registrada como proveedor.',
                         ])
-                        ->createOptionModalHeading('Crear Nueva Persona'),
+                        ->helperText('Busque y seleccione la persona registrada')
+                        ->placeholder('Buscar persona...'),
 
                     Forms\Components\Toggle::make('estado')
                         ->label('Estado Activo')
@@ -52,14 +49,25 @@ class ListProveedors extends ListRecords
 
                     Forms\Components\TextInput::make('fec_alta')
                         ->label('Fecha de Registro')
-                        ->default(fn () => now()->format('d/m/Y H:i'))
+                        ->default(fn () => now()->format('d/m/Y'))
                         ->disabled()
                         ->dehydrated(false),
                 ])
                 ->using(function (array $data) {
                     $data['usuario_alta'] = auth()->user()?->name ?? 'sistema';
                     $data['fec_alta'] = now();
-                    return Proveedor::create($data);
+
+                    try {
+                        return Proveedor::create($data);
+                    } catch (QueryException $exception) {
+                        if (($exception->errorInfo[0] ?? null) === '23505') {
+                            throw ValidationException::withMessages([
+                                'cod_persona' => 'La persona seleccionada ya está registrada como proveedor.',
+                            ]);
+                        }
+
+                        throw $exception;
+                    }
                 })
                 ->modalHeading('Registrar Proveedor')
                 ->modalSubmitActionLabel('Guardar')

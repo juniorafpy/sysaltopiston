@@ -21,8 +21,7 @@ class RecepcionVehiculo extends Model
         'observaciones',
         'estado',
         'empleado_id',
-       // 'inventario',
-       // 'cod_sucursal',
+        'cod_mecanico',
         'usuario_alta',
         'fec_alta',
     ];
@@ -44,6 +43,11 @@ class RecepcionVehiculo extends Model
     public function empleado()
     {
         return $this->belongsTo(Empleados::class, 'empleado_id', 'cod_empleado');
+    }
+
+    public function mecanico()
+    {
+        return $this->belongsTo(Mecanico::class, 'cod_mecanico', 'cod_mecanico');
     }
 
     public function ordenServicioDetalles()

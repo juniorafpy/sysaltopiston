@@ -6,7 +6,6 @@ use App\Filament\Resources\ReclamoResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Auth;
 
 class EditReclamo extends EditRecord
 {
@@ -23,17 +22,6 @@ class EditReclamo extends EditRecord
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
-    }
-
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        // Si se marca como resuelto y no tiene fecha de resolución, asignarla
-        if (in_array($data['estado'], ['Resuelto', 'Cerrado']) && !$data['fecha_resolucion']) {
-            $data['fecha_resolucion'] = now();
-            $data['usuario_resolucion'] = Auth::id();
-        }
-
-        return $data;
     }
 
     protected function getSavedNotification(): ?Notification

@@ -10,6 +10,7 @@ class RecepcionInventario extends Model
     use HasFactory;
 
     protected $table = 'recepcion_inventarios';
+        public $timestamps = false;
 
     protected $fillable = [
         'recepcion_vehiculo_id',

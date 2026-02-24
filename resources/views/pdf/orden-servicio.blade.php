@@ -415,13 +415,8 @@
         <thead>
             <tr>
                 <th style="width: 5%;">#</th>
-                <th style="width: 35%;">Artículo</th>
-                <th style="width: 8%;" class="text-center">Cant.</th>
-                <th style="width: 12%;" class="text-right">Precio Unit.</th>
-                <th style="width: 8%;" class="text-center">Desc.</th>
-                <th style="width: 12%;" class="text-right">Subtotal</th>
-                <th style="width: 8%;" class="text-center">IVA</th>
-                <th style="width: 12%;" class="text-right">Total</th>
+                <th style="width: 80%;">Artículo</th>
+                <th style="width: 15%;" class="text-center">Cant.</th>
             </tr>
         </thead>
         <tbody>
@@ -445,38 +440,10 @@
                     </span>
                 </td>
                 <td class="text-center">{{ number_format($detalle->cantidad, 0) }}</td>
-                <td class="text-right">{{ number_format($detalle->precio_unitario, 0) }}</td>
-                <td class="text-center">{{ $detalle->porcentaje_descuento }}%</td>
-                <td class="text-right">{{ number_format($detalle->subtotal, 0) }}</td>
-                <td class="text-center">{{ $detalle->porcentaje_impuesto }}%</td>
-                <td class="text-right"><strong>{{ number_format($detalle->total, 0) }}</strong></td>
             </tr>
             @endforeach
         </tbody>
     </table>
-
-    <!-- Totales -->
-    <div class="clearfix">
-        <table class="totals-table">
-            <tr>
-                <td class="totals-label">Subtotal:</td>
-                <td class="totals-value">Gs. {{ number_format($ordenServicio->detalles->sum('subtotal'), 0) }}</td>
-            </tr>
-            <tr>
-                <td class="totals-label">Descuentos:</td>
-                <td class="totals-value">Gs. {{ number_format($ordenServicio->detalles->sum('monto_descuento'), 0) }}</td>
-            </tr>
-            <tr>
-                <td class="totals-label">IVA (10%):</td>
-                <td class="totals-value">Gs. {{ number_format($ordenServicio->detalles->sum('monto_impuesto'), 0) }}</td>
-            </tr>
-            <tr class="total-final">
-                <td class="totals-label">TOTAL:</td>
-                <td class="totals-value">Gs. {{ number_format($ordenServicio->total, 0) }}</td>
-            </tr>
-        </table>
-    </div>
-    <div class="clearfix"></div>
 
     <!-- Observaciones Técnicas -->
     @if($ordenServicio->observaciones_tecnicas)

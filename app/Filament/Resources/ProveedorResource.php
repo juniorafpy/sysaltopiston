@@ -51,22 +51,18 @@ class ProveedorResource extends Resource
                                 Select::make('cod_persona')
                                     ->label('Persona')
                                     ->relationship('personas_pro', 'nombres')
-                                    ->searchable()
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->nombre_completo)
+                                    ->searchable(['nombres', 'apellidos'])
                                     ->preload()
+                                    ->optionsLimit(5)
                                     ->required()
-                                    ->helperText('Busque y seleccione la persona registrada')
-                                    ->placeholder('Buscar persona...')
-                                    ->createOptionForm([
-                                        Forms\Components\TextInput::make('nombres')
-                                            ->required()
-                                            ->label('Nombres'),
-                                        Forms\Components\TextInput::make('apellidos')
-                                            ->label('Apellidos'),
-                                        Forms\Components\TextInput::make('ci_ruc')
-                                            ->label('CI/RUC')
-                                            ->required(),
+                                    ->unique('proveedores', 'cod_persona', ignoreRecord: true)
+                                    ->validationMessages([
+                                        'unique' => 'La persona seleccionada ya está registrada como proveedor.',
                                     ])
-                                    ->createOptionModalHeading('Crear Nueva Persona')
+                                   // ->helperText('Busque y seleccione la persona registrada')
+                                    ->placeholder('Buscar persona...')
+                                    //->createOptionModalHeading('Crear Nueva Persona')
                                     ->columnSpan(2),
 
                                 // Estado
@@ -111,14 +107,12 @@ class ProveedorResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('cod_proveedor')
-                    ->label('#')
-                    ->sortable()
-                    ->searchable(),
+                    ->label('#'),
+
 
                 Tables\Columns\TextColumn::make('personas_pro.nombre_completo')
                     ->label('Nombre del Proveedor')
                     ->searchable(['nombres', 'apellidos'])
-                    ->sortable()
                     ->icon('heroicon-o-user')
                     ->limit(40)
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
@@ -128,14 +122,15 @@ class ProveedorResource extends Resource
                         }
                         return null;
                     })
-                    ->weight('medium'),
+                    ->weight('medium')
+                    ->searchable(),
 
-                Tables\Columns\TextColumn::make('personas_pro.ci_ruc')
+               /* Tables\Columns\TextColumn::make('personas_pro.ci_ruc')
                     ->label('CI/RUC')
                     ->searchable()
                     ->copyable()
                     ->copyMessage('CI/RUC copiado')
-                    ->icon('heroicon-o-identification'),
+                    ->icon('heroicon-o-identification'),*/
 
                 Tables\Columns\IconColumn::make('estado')
                     ->label('Estado')
@@ -143,31 +138,31 @@ class ProveedorResource extends Resource
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
-                    ->falseColor('danger')
-                    ->sortable(),
+                    ->falseColor('danger'),
+                    //->sortable(),
 
                 Tables\Columns\TextColumn::make('usuario_alta')
                     ->label('Registrado por')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true)
+                    //->sortable()
+                    //->toggleable(isToggledHiddenByDefault: true)
                     ->icon('heroicon-o-user-circle'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha de Registro')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true)
+                  //  ->sortable()
+                  //  ->toggleable(isToggledHiddenByDefault: true)
                     ->icon('heroicon-o-calendar'),
             ])
-            ->defaultSort('cod_proveedor', 'desc')
-            ->filters([
-                Tables\Filters\TernaryFilter::make('estado')
-                    ->label('Estado')
-                    ->placeholder('Todos')
-                    ->trueLabel('Solo Activos')
-                    ->falseLabel('Solo Inactivos')
-                    ->native(false),
+            ->headerActions([
+                Tables\Actions\Action::make('exportarPdf')
+                    ->label('Listado')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('danger')
+                    ->url(fn () => route('proveedores.pdf'))
+                    ->openUrlInNewTab(),
             ])
+            ->defaultSort('cod_proveedor', 'desc')
             ->actions([
                 ActionGroup::make([
                     Tables\Actions\EditAction::make()
@@ -177,11 +172,6 @@ class ProveedorResource extends Resource
                 ])
                 ->icon('heroicon-m-ellipsis-horizontal')
                 ->tooltip('Acciones')
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 

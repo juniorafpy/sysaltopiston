@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\ProveedorResource\Pages;
 
-use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 use App\Filament\Resources\ProveedorResource;
@@ -13,12 +12,7 @@ class EditProveedor extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\DeleteAction::make()
-                ->label('Eliminar')
-                ->icon('heroicon-o-trash')
-                ->color('danger'),
-        ];
+        return [];
     }
 
     protected function getFormActions(): array

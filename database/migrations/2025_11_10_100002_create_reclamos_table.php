@@ -31,12 +31,6 @@ return new class extends Migration
             $table->date('fecha_reclamo');
             $table->enum('prioridad', ['Alta', 'Media', 'Baja'])->default('Media');
             $table->text('descripcion');
-            $table->enum('estado', ['Pendiente', 'En Proceso', 'Resuelto', 'Cerrado'])->default('Pendiente');
-
-            // Resolución (se completa después)
-            $table->text('resolucion')->nullable();
-            $table->date('fecha_resolucion')->nullable();
-            $table->unsignedBigInteger('usuario_resolucion')->nullable();
 
             // Auditoría
             // Comentado temporalmente hasta que se cree la tabla sucursales

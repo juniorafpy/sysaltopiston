@@ -66,4 +66,12 @@ class User extends Authenticatable {
         return $this->belongsTo(Empleados::class, 'cod_empleado', 'cod_empleado');
     }
 
+    /**
+     * Relación con la persona del usuario
+     */
+    public function persona(): BelongsTo
+    {
+        return $this->belongsTo(Personas::class, 'cod_persona', 'cod_persona');
+    }
+
 }

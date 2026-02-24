@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Models\Reclamo;
 use App\Models\Personas;
+use App\Models\Cliente;
 use App\Models\OrdenServicio;
 use App\Models\TipoReclamo;
 use Filament\Forms;
@@ -16,12 +17,8 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Placeholder;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\BadgeColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use App\Filament\Resources\ReclamoResource\Pages;
 
@@ -97,17 +94,27 @@ class ReclamoResource extends Resource
                                     ->searchable()
                                     ->preload()
                                     ->options(function (Forms\Get $get) {
-                                        $clienteId = $get('cod_cliente');
+                                        $codPersona = $get('cod_cliente');
 
-                                        if (!$clienteId) {
+                                        if (!$codPersona) {
                                             return [];
                                         }
 
-                                        // [ACCIÓN CLAVE] Filtrar solo OS Finalizadas o Facturadas del cliente seleccionado
-                                        return OrdenServicio::whereHas('recepcionVehiculo', function ($query) use ($clienteId) {
-                                                $query->where('cod_cliente', $clienteId);
+                                        $cliente = Cliente::where('cod_persona', $codPersona)->first();
+
+                                        if (!$cliente) {
+                                            return [];
+                                        }
+
+                                        // Filtrar solo OS Finalizadas del cliente seleccionado
+                                        return OrdenServicio::query()
+                                            ->where('estado_trabajo', 'Finalizado')
+                                            ->where(function ($query) use ($cliente, $codPersona) {
+                                                $query->where('cod_cliente', $cliente->cod_cliente)
+                                                    ->orWhereHas('recepcionVehiculo.cliente', function ($subQuery) use ($codPersona) {
+                                                        $subQuery->where('cod_persona', $codPersona);
+                                                    });
                                             })
-                                            ->whereIn('estado_trabajo', ['Finalizado', 'Facturado'])
                                             ->with('recepcionVehiculo.vehiculo')
                                             ->get()
                                             ->mapWithKeys(function ($os) {
@@ -126,10 +133,38 @@ class ReclamoResource extends Resource
                                             $set('matricula_vehiculo', $matricula);
                                         }
                                     })
-                                    ->helperText('Solo órdenes Finalizadas o Facturadas')
+                                    ->helperText('Solo órdenes Finalizadas del cliente seleccionado')
                                     ->disabled(fn (Forms\Get $get) => !$get('cod_cliente')),                                Placeholder::make('matricula_vehiculo')
                                     ->label('Vehículo/Chapa')
                                     ->content(fn (Forms\Get $get): string => $get('matricula_vehiculo') ?? 'Seleccione una OS'),
+
+                                Placeholder::make('usuario_alta_display')
+                                    ->label('Usuario Registro')
+                                    ->content(function (Forms\Get $get, $record) {
+                                        if ($record?->usuarioAlta?->name) {
+                                            return $record->usuarioAlta->name;
+                                        }
+
+                                        return Auth::user()?->name ?? 'N/A';
+                                    }),
+
+                                Placeholder::make('fecha_alta_display')
+                                    ->label('Fecha Registro')
+                                    ->content(function (Forms\Get $get, $record) {
+                                        if ($record?->fecha_alta) {
+                                            return $record->fecha_alta->format('d/m/Y H:i');
+                                        }
+
+                                        return now()->format('d/m/Y H:i');
+                                    }),
+
+                                Forms\Components\Hidden::make('usuario_alta')
+                                    ->default(fn ($record) => $record?->usuario_alta ?? Auth::id())
+                                    ->dehydrated(),
+
+                                Forms\Components\Hidden::make('fecha_alta')
+                                    ->default(fn ($record) => $record?->fecha_alta ?? now())
+                                    ->dehydrated(),
                             ]),
                     ])
                     ->columns(2),
@@ -174,40 +209,6 @@ class ReclamoResource extends Resource
                             ->helperText('Describa detalladamente el motivo del reclamo'),
                     ])
                     ->columns(3),
-
-                Section::make('Estado y Resolución')
-                    ->schema([
-                        Grid::make(2)
-                            ->schema([
-                                Select::make('estado')
-                                    ->label('Estado')
-                                    ->options([
-                                        'Pendiente' => 'Pendiente',
-                                        'En Proceso' => 'En Proceso',
-                                        'Resuelto' => 'Resuelto',
-                                        'Cerrado' => 'Cerrado',
-                                    ])
-                                    ->default('Pendiente')
-                                    ->required()
-                                    ->native(false)
-                                    ->live(),
-
-                                DatePicker::make('fecha_resolucion')
-                                    ->label('Fecha de Resolución')
-                                    ->native(false)
-                                    ->displayFormat('d/m/Y')
-                                    ->visible(fn (Forms\Get $get) => in_array($get('estado'), ['Resuelto', 'Cerrado'])),
-                            ]),
-
-                        Textarea::make('resolucion')
-                            ->label('Resolución del Reclamo')
-                            ->rows(3)
-                            ->maxLength(1000)
-                            ->columnSpanFull()
-                            ->visible(fn (Forms\Get $get) => in_array($get('estado'), ['Resuelto', 'Cerrado'])),
-                    ])
-                    ->columns(2)
-                    ->visible(fn (string $operation) => $operation === 'edit'),
 
                 Section::make('Auditoría')
                     ->schema([
@@ -278,16 +279,6 @@ class ReclamoResource extends Resource
                     ])
                     ->sortable(),*/
 
-                BadgeColumn::make('estado')
-                    ->label('Estado')
-                    ->colors([
-                        'danger' => 'Pendiente',
-                        'warning' => 'En Proceso',
-                        'success' => 'Resuelto',
-                        'secondary' => 'Cerrado',
-                    ])
-                    ->sortable(),
-
                 TextColumn::make('usuarioAlta.name')
                     ->label('Registrado por')
                     ->sortable(),
@@ -318,33 +309,19 @@ class ReclamoResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\Action::make('ver')
+                        ->label('Ver')
+                        ->icon('heroicon-o-eye')
+                        ->color('info')
+                        ->modalHeading(fn (Reclamo $record) => 'Reclamo #' . $record->cod_reclamo)
+                        ->modalWidth('5xl')
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Cerrar')
+                        ->modalContent(fn (Reclamo $record) => view('filament.reclamos.view-modal', [
+                            'record' => $record,
+                        ])),
                  //   Tables\Actions\EditAction::make(),
                    // Tables\Actions\DeleteAction::make(),
-                    Tables\Actions\Action::make('marcar_resuelto')
-                        ->label('Marcar Resuelto')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->hidden(fn ($record) => in_array($record->estado, ['Resuelto', 'Cerrado']))
-                        ->form([
-                            Textarea::make('resolucion')
-                                ->label('Resolución')
-                                ->required()
-                                ->rows(3),
-                        ])
-                        ->action(function (Reclamo $record, array $data) {
-                            $record->update([
-                                'estado' => 'Resuelto',
-                                'resolucion' => $data['resolucion'],
-                                'fecha_resolucion' => now(),
-                                'usuario_resolucion' => Auth::id(),
-                            ]);
-
-                            Notification::make()
-                                ->title('Reclamo resuelto exitosamente')
-                                ->success()
-                                ->send();
-                        }),
                 ]),
             ]);
            /* ->bulkActions([
@@ -372,23 +349,4 @@ class ReclamoResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::where('estado', 'Pendiente')->count();
-    }
-
-    public static function getNavigationBadgeColor(): ?string
-    {
-        $pendientes = static::getModel()::where('estado', 'Pendiente')->count();
-
-        if ($pendientes > 5) {
-            return 'danger';
-        }
-
-        if ($pendientes > 0) {
-            return 'warning';
-        }
-
-        return 'success';
-    }
 }

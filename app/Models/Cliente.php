@@ -20,10 +20,6 @@ class Cliente extends Model
         'fec_alta',
     ];
 
-    protected $casts = [
-        'fec_alta' => 'datetime',
-    ];
-
     /**
      * Relación con Personas
      */

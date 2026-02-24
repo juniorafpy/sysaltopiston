@@ -47,14 +47,16 @@ class ArticuloResource extends Resource
         return $form
             ->schema([
                 Section::make('Información del Artículo')
-                    ->description('Complete los datos básicos del repuesto o artículo')
-                    ->icon('heroicon-o-cube')
                     ->schema([
                         Grid::make(3)
                             ->schema([
                                 TextInput::make('descripcion')
                                     ->label('Descripción')
                                     ->required()
+                                    ->extraInputAttributes([
+                                        'oninput' => 'this.value = this.value.toUpperCase()'
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => mb_strtoupper($state ?? '', 'UTF-8'))
                                     ->maxLength(255)
                                     ->placeholder('Ej: Filtro de aceite para motor')
                                     ->columnSpan(2),
@@ -119,13 +121,12 @@ class ArticuloResource extends Resource
                                     ->options(fn () => \App\Models\Medidas::pluck('descripcion', 'cod_medida'))
                                     ->searchable()
                                     ->preload()
-                                    ->placeholder('Opcional'),
+                                    ->required()
+                                    ->placeholder('Unuidad de medida'),
                             ]),
                     ]),
 
-                Section::make('Precios y Costos')
-                    ->description('Configure los precios y costos del artículo')
-                    ->icon('heroicon-o-currency-dollar')
+                Section::make()
                     ->schema([
                         Grid::make(3)
                             ->schema([
@@ -191,9 +192,7 @@ class ArticuloResource extends Resource
                             ]),
                     ]),
 
-                Section::make('Estado y Auditoría')
-                    ->description('Estado e información de registro')
-                    ->icon('heroicon-o-information-circle')
+                Section::make()
                     ->schema([
                         Grid::make(3)
                             ->schema([
@@ -235,27 +234,19 @@ class ArticuloResource extends Resource
                 TextColumn::make('marcas_ar.descripcion')
                     ->label('Marca')
                     ->searchable()
-                    ->sortable()
-                    ->toggleable(),
+                    ->sortable(),
 
-                TextColumn::make('modelos_ar.descripcion')
-                    ->label('Modelo')
-                    ->searchable()
-                    ->toggleable(),
-
-                TextColumn::make('tipo_articulo_ar.descripcion')
+                /*TextColumn::make('tipo_articulo_ar.descripcion')
                     ->label('Tipo')
                     ->badge()
                     ->color('info')
-                    ->searchable()
-                    ->toggleable(),
+                    ->searchable(),*/
 
                 TextColumn::make('tipoRepuesto.descripcion')
                     ->label('Categoría')
                     ->badge()
                     ->color(fn ($record) => $record->tipoRepuesto?->color ?? 'gray')
-                    ->searchable()
-                    ->toggleable(),
+                    ->searchable(),
 
                 IconColumn::make('activo')
                     ->label('Estado')
@@ -265,112 +256,26 @@ class ArticuloResource extends Resource
                     ->trueColor('success')
                     ->falseColor('danger'),
 
-                TextColumn::make('medida_ar.descripcion')
-                    ->label('Medida')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
                 TextColumn::make('usuario_alta')
                     ->label('Usuario Alta')
-                    ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable(),
 
                 TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('activo')
-                    ->label('Estado')
-                    ->options([
-                        1 => 'Activo',
-                        0 => 'Inactivo',
-                    ])
-                    ->default(1),
-
-                Tables\Filters\SelectFilter::make('cod_marca')
-                    ->label('Marca')
-                    ->relationship('marcas_ar', 'descripcion')
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\SelectFilter::make('cod_tip_articulo')
-                    ->label('Tipo de Artículo')
-                    ->relationship('tipo_articulo_ar', 'descripcion')
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\SelectFilter::make('cod_tipo_repuesto')
-                    ->label('Categoría Repuesto')
-                    ->relationship('tipoRepuesto', 'descripcion')
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\SelectFilter::make('cod_impuesto')
-                    ->label('IVA')
-                    ->relationship('impuesto', 'descripcion')
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\Filter::make('precio')
-                    ->form([
-                        Grid::make(2)
-                            ->schema([
-                                TextInput::make('precio_desde')
-                                    ->label('Precio desde')
-                                    ->numeric()
-                                    ->prefix('Gs.'),
-                                TextInput::make('precio_hasta')
-                                    ->label('Precio hasta')
-                                    ->numeric()
-                                    ->prefix('Gs.'),
-                            ]),
-                    ])
-                    ->query(function ($query, array $data) {
-                        return $query
-                            ->when($data['precio_desde'], fn ($query, $precio) => $query->where('precio', '>=', $precio))
-                            ->when($data['precio_hasta'], fn ($query, $precio) => $query->where('precio', '<=', $precio));
-                    })
-                    ->indicateUsing(function (array $data): array {
-                        $indicators = [];
-                        if ($data['precio_desde'] ?? null) {
-                            $indicators[] = 'Precio desde: Gs. ' . number_format($data['precio_desde']);
-                        }
-                        if ($data['precio_hasta'] ?? null) {
-                            $indicators[] = 'Precio hasta: Gs. ' . number_format($data['precio_hasta']);
-                        }
-                        return $indicators;
-                    }),
+                    ->dateTime('d/m/Y')
+                    ->sortable(),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
+                //    Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                 ]),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('activar')
-                        ->label('Activar seleccionados')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->action(fn ($records) => $records->each->update(['activo' => true]))
-                        ->deselectRecordsAfterCompletion(),
-                    Tables\Actions\BulkAction::make('desactivar')
-                        ->label('Desactivar seleccionados')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->action(fn ($records) => $records->each->update(['activo' => false]))
-                        ->deselectRecordsAfterCompletion(),
-                ]),
-            ])
-            ->defaultSort('fec_alta', 'desc')
+
+          //  ->defaultSort('fec_alta', 'desc')
             ->persistSortInSession()
-            ->persistSearchInSession()
-            ->persistFiltersInSession();
+           ->persistSearchInSession()
+           ->persistFiltersInSession();
     }
 
     public static function getRelations(): array

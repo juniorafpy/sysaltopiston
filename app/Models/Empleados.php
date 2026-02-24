@@ -20,7 +20,7 @@ class Empleados extends Model
         'fec_alta',
         'cod_persona',
         'cod_cargo',
-        'nombre',
+        //'nombre',
         'email',
         'activo'
     ];

@@ -13,7 +13,6 @@ use Filament\Tables;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Section;
-use Filament\Forms\Components\View;
 
 class DiagnosticoResource extends Resource
 {
@@ -35,23 +34,30 @@ class DiagnosticoResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('recepcion_vehiculo_id')
                                     ->label('Recepción vinculada')
-                                    ->relationship('recepcionVehiculo', 'id')
+                                    ->relationship(
+                                        name: 'recepcionVehiculo',
+                                        titleAttribute: 'id',
+                                        modifyQueryUsing: fn ($query) => $query->with(['vehiculo', 'cliente.persona'])
+                                    )
                                     ->getOptionLabelFromRecordUsing(fn (?RecepcionVehiculo $record) => $record ? sprintf('#%s · %s · %s',
                                         $record->id,
                                         $record->vehiculo?->matricula ?? 'Sin chapa',
-                                        $record->cliente?->nombres ?? 'Sin cliente'
+                                        $record->cliente?->nombre_completo ?? 'Sin cliente'
                                     ) : null)
-                                    ->searchable(['id', 'motivo_ingreso', 'vehiculo.matricula', 'cliente.nombres'])
+                                    ->searchable(['id', 'motivo_ingreso'])
                                     ->preload()
                                     ->reactive()
-                                    ->placeholder('Selecciona o busca por chapa, cliente o motivo')
+                                    ->placeholder('Selecciona o busca por ID o motivo')
                                     ->default(fn () => request()->get('recepcion_id'))
                                     ->disabled(fn () => request()->has('recepcion_id'))
                                     ->required(),
 
-                                    Forms\Components\DateTimePicker::make('fecha_recepcion')
-                                ->default(now())
-                                ->required(),
+                                Forms\Components\DateTimePicker::make('fecha_diagnostico')
+                                    ->label('Fecha de Diagnóstico')
+                                    ->default(now())
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->required(),
 
                                 Forms\Components\Grid::make(2)
                                     ->schema([
@@ -78,8 +84,14 @@ class DiagnosticoResource extends Resource
 
                                         Forms\Components\Placeholder::make('cliente')
                                             ->label('Cliente')
-                                            ->content(fn (Get $get) => static::resolveRecepcion($get('recepcion_vehiculo_id'))?->cliente?->nombres ?? '—')
-                                        ->extraAttributes([
+                                            ->content(function (Get $get) {
+                                                $recepcion = static::resolveRecepcion($get('recepcion_vehiculo_id'));
+                                                if ($recepcion && $recepcion->cliente) {
+                                                    return $recepcion->cliente->nombre_completo;
+                                                }
+                                                return '—';
+                                            })
+                                            ->extraAttributes([
                                                 'class' => 'p-4 rounded-lg border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-800/20',
                                             ]),
 
@@ -119,7 +131,7 @@ class DiagnosticoResource extends Resource
                     Group::make()->schema([
                         Section::make('Información del Sistema')
                             ->schema([
-                                Forms\Components\Hidden::make('sucursal'),
+                                Forms\Components\Hidden::make('cod_sucursal'),
                                 Forms\Components\TextInput::make('nombre_sucursal')
                                     ->label('Sucursal')
                                     ->disabled()
@@ -143,12 +155,60 @@ class DiagnosticoResource extends Resource
     public static function table(Tables\Table $table): Tables\Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query->with([
+                'recepcionVehiculo.vehiculo',
+                'recepcionVehiculo.cliente.persona',
+                'recepcionVehiculo.empleado.persona',
+                'empleado.persona'
+            ]))
             ->columns([
-                Tables\Columns\TextColumn::make('recepcionVehiculo.vehiculo.matricula')->label('Chapa'),
-                Tables\Columns\TextColumn::make('recepcionVehiculo.cliente.nombres')->label('Cliente'),
-                Tables\Columns\TextColumn::make('empleado.nombre')->label('Mecánico'),
-                Tables\Columns\TextColumn::make('fecha_diagnostico')->dateTime()->label('Fecha'),
-                Tables\Columns\TextColumn::make('estado'),
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('recepcionVehiculo.vehiculo.matricula')
+                    ->label('Chapa')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('recepcionVehiculo.cliente.nombre_completo')
+                    ->label('Cliente')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('recepcionVehiculo.empleado_id')
+                    ->label('Mecánico')
+                    ->formatStateUsing(function ($state, Diagnostico $record) {
+                        $empleado = $record->recepcionVehiculo?->empleado;
+
+                        if (!$empleado) {
+                            return '-';
+                        }
+
+                        if ($empleado->persona) {
+                            if ($empleado->persona->razon_social) {
+                                return $empleado->persona->razon_social;
+                            }
+
+                            $nombre = trim(($empleado->persona->nombres ?? '') . ' ' . ($empleado->persona->apellidos ?? ''));
+                            if ($nombre !== '') {
+                                return $nombre;
+                            }
+                        }
+
+                        return $empleado->nombre ?? "Empleado #{$state}";
+                    })
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('fecha_diagnostico')
+                    ->dateTime('d/m/Y H:i')
+                    ->label('Fecha')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('estado')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Pendiente a presupuesto' => 'warning',
+                        'Completado' => 'success',
+                        default => 'gray',
+                    })
+                    ->sortable(),
             ])
             ->filters([])
             ->actions([
@@ -202,7 +262,7 @@ class DiagnosticoResource extends Resource
             $cache[$id] = RecepcionVehiculo::with([
                 'vehiculo.marca',
                 'vehiculo.modelo',
-                'cliente',
+                'cliente.persona',
             ])->find($id);
         }
 

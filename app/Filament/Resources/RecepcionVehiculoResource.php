@@ -252,37 +252,69 @@ class RecepcionVehiculoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) =>
+                $query->with(['cliente.persona', 'vehiculo.modelo', 'empleado.persona'])
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('cliente.nombre_completo')
                     ->label('Cliente')
-                    ->searchable(['cliente.persona.nombres', 'cliente.persona.apellidos', 'cliente.persona.razon_social'])
-                    ->sortable(),
+                    ->searchable(['cliente.persona.nombres', 'cliente.persona.apellidos', 'cliente.persona.razon_social']),
                 Tables\Columns\TextColumn::make('vehiculo.matricula')
                     ->label('Vehículo')
                     ->formatStateUsing(fn ($record) =>
                         $record->vehiculo->matricula . ' - ' . ($record->vehiculo->modelo->descripcion ?? 'Sin modelo')
                     )
-                    ->searchable(['vehiculo.matricula'])
-                    ->sortable(),
+                    ->searchable(['vehiculo.matricula']),
                 Tables\Columns\TextColumn::make('fecha_recepcion')
-                    ->dateTime()
+                    ->label('Fecha Recepción')
+                    ->dateTime('d/m/Y H:i:s')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('estado')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('empleado.nombre')
-                ->label('Mecánico')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('empleado_id')
+                    ->label('Mecánico')
+                    ->formatStateUsing(function ($state, $record) {
+                        if (!$state || !$record->empleado) {
+                            return '-';
+                        }
+
+                        $empleado = $record->empleado;
+
+                        // Intentar obtener el nombre desde persona
+                        if ($empleado->persona) {
+                            if ($empleado->persona->razon_social) {
+                                return $empleado->persona->razon_social;
+                            }
+                            $nombre = trim(($empleado->persona->nombres ?? '') . ' ' . ($empleado->persona->apellidos ?? ''));
+                            if ($nombre) {
+                                return $nombre;
+                            }
+                        }
+
+                        // Si no hay persona, usar el nombre del empleado
+                        return $empleado->nombre ?? "Empleado #{$state}";
+                    })
+                    ->searchable(),
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\Action::make('registrar_diagnostico')
-                    ->label('Diagnóstico')
-                    ->icon('heroicon-o-wrench-screwdriver')
-                    ->url(fn ($record) => \App\Filament\Resources\DiagnosticoResource::getUrl('create', ['recepcion_id' => $record->id])),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make()
+                        ->label('Ver Detalles'),
+                    Tables\Actions\Action::make('imprimir_comprobante')
+                        ->label('Imprimir Comprobante')
+                        ->icon('heroicon-o-printer')
+                        ->color('success')
+                        ->url(fn ($record) => route('recepcion-vehiculo.pdf', $record->id))
+                        ->openUrlInNewTab(),
+                    Tables\Actions\Action::make('registrar_diagnostico')
+                        ->label('Registrar Diagnóstico')
+                        ->icon('heroicon-o-wrench-screwdriver')
+                        ->color('warning')
+                        ->url(fn ($record) => \App\Filament\Resources\DiagnosticoResource::getUrl('create', ['recepcion_id' => $record->id])),
+                ]),
             ]);
 
     }

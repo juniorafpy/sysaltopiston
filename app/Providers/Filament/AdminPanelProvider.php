@@ -29,7 +29,6 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->registration()
 
 
             ->plugins([
@@ -41,7 +40,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                \App\Filament\Pages\Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
@@ -58,6 +57,10 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Servicios'),
                 NavigationGroup::make()
                     ->label('Ventas'),
+                NavigationGroup::make()
+                    ->label('Informes'),
+                NavigationGroup::make()
+                    ->label('Ayuda'),
 
             ])
             ->middleware([

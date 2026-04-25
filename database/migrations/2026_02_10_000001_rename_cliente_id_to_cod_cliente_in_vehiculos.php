@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -34,6 +32,23 @@ return new class extends Migration
             // Renombrar la columna
             DB::statement('ALTER TABLE vehiculos RENAME COLUMN cliente_id TO cod_cliente');
 
+            // Crear clientes faltantes a partir de los cod_persona usados en vehiculos
+            DB::statement("
+                INSERT INTO clientes (cod_persona, estado, usuario_alta, fec_alta)
+                SELECT DISTINCT v.cod_cliente, 'A', 'MIGRACION', NOW()
+                FROM vehiculos v
+                LEFT JOIN clientes c ON c.cod_persona = v.cod_cliente
+                WHERE c.cod_cliente IS NULL
+            ");
+
+            // Convertir el valor de cod_cliente (antes cod_persona) al verdadero cod_cliente de la tabla clientes
+            DB::statement('
+                UPDATE vehiculos v
+                SET cod_cliente = c.cod_cliente
+                FROM clientes c
+                WHERE c.cod_persona = v.cod_cliente
+            ');
+
             // Crear nueva foreign key
             DB::statement('
                 ALTER TABLE vehiculos
@@ -55,6 +70,14 @@ return new class extends Migration
         if ($hasCodCliente) {
             // Eliminar la foreign key
             DB::statement('ALTER TABLE vehiculos DROP CONSTRAINT IF EXISTS vehiculos_cod_cliente_foreign');
+
+            // Convertir de cod_cliente de clientes a cod_persona para volver al esquema original
+            DB::statement('
+                UPDATE vehiculos v
+                SET cod_cliente = c.cod_persona
+                FROM clientes c
+                WHERE c.cod_cliente = v.cod_cliente
+            ');
 
             // Renombrar la columna de vuelta
             DB::statement('ALTER TABLE vehiculos RENAME COLUMN cod_cliente TO cliente_id');

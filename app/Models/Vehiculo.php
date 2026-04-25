@@ -18,7 +18,7 @@ class Vehiculo extends Model
         'matricula',
         'anio',
         'color_id',
-        'cliente_id',
+        'cod_cliente',
     ];
 
     public function marca()
@@ -38,7 +38,7 @@ class Vehiculo extends Model
 
     public function cliente()
     {
-        return $this->belongsTo(Cliente::class, 'cliente_id', 'cod_cliente');
+        return $this->belongsTo(Cliente::class, 'cod_cliente', 'cod_cliente');
     }
 
     public function recepciones()

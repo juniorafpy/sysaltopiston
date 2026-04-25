@@ -19,7 +19,6 @@ use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\Fieldset;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ActionGroup;
 use Illuminate\Database\Eloquent\Builder;
@@ -81,7 +80,6 @@ class PersonasResource extends Resource
                                 ->placeholder('Ingrese CI o RUC...')
                                 ->reactive()
                                 ->live(debounce: 500)
-                                ->helperText('Presione Enter para buscar en RUC')
                                 ->afterStateUpdated(function ($state, callable $set) {
                                     if (!$state) return;
 
@@ -142,6 +140,8 @@ class PersonasResource extends Resource
                                 ->required(fn ($get) => $get('ind_fisica'))
                                 ->maxLength(100)
                                 ->placeholder('Nombres completos')
+                                ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                ->dehydrateStateUsing(fn ($state) => mb_strtoupper((string) $state))
                                 ->columnSpan(1),
 
                             TextInput::make('apellidos')
@@ -149,18 +149,24 @@ class PersonasResource extends Resource
                                 ->required(fn ($get) => $get('ind_fisica'))
                                 ->maxLength(100)
                                 ->placeholder('Apellidos completos')
+                                ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                ->dehydrateStateUsing(fn ($state) => mb_strtoupper((string) $state))
+
                                 ->columnSpan(1),
 
                             TextInput::make('razon_social')
                                 ->label('Razón Social')
                                 ->maxLength(200)
                                 ->placeholder('Nombre comercial (opcional)')
+                                ->live()
+                                ->afterStateUpdated(fn ($state, callable $set) => $set('razon_social', mb_strtoupper((string) $state)))
+                                ->dehydrateStateUsing(fn ($state) => mb_strtoupper((string) $state))
                                 ->columnSpan(1),
 
-                            Select::make('cod_estado_civil')
-                                ->label('Estado Civil')
-                                ->options(fn () => \App\Models\EstadoCivil::pluck('descripcion', 'cod_estado_civil'))
-                                ->searchable()
+                                Select::make('cod_estado_civil')
+                                    ->label('Estado Civil')
+                                    ->relationship('estadoCivil', 'descripcion')
+
                                 ->preload()
                                 ->native(false)
                                 ->placeholder('Seleccione...')
@@ -172,12 +178,48 @@ class PersonasResource extends Resource
                                 ->placeholder('ejemplo@correo.com')
                                 ->columnSpan(1),
 
-                            DatePicker::make('fec_nacimiento')
+                            TextInput::make('fec_nacimiento')
                                 ->label('Fecha de Nacimiento')
-                                ->native(false)
-                                ->displayFormat('d/m/Y')
-                                ->maxDate(now()->subYears(18))
-                                ->helperText('Debe ser mayor de 18 años')
+                                ->placeholder('DD/MM/AAAA')
+                                ->rule('date_format:d/m/Y')
+                                ->live(debounce: 300)
+                                ->afterStateHydrated(function ($state, callable $set) {
+                                    if (blank($state)) {
+                                        $set('edad_calculada', null);
+                                        return;
+                                    }
+
+                                    try {
+                                        $set('edad_calculada', \Carbon\Carbon::parse($state)->age);
+                                    } catch (\Throwable $th) {
+                                        $set('edad_calculada', null);
+                                    }
+                                })
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    if (blank($state)) {
+                                        $set('edad_calculada', null);
+                                        return;
+                                    }
+
+                                    try {
+                                        $set('edad_calculada', \Carbon\Carbon::createFromFormat('d/m/Y', $state)->age);
+                                    } catch (\Throwable $th) {
+                                        $set('edad_calculada', null);
+                                    }
+                                })
+                                ->dehydrateStateUsing(fn ($state) => filled($state)
+                                    ? \Carbon\Carbon::createFromFormat('d/m/Y', $state)->format('Y-m-d')
+                                    : null)
+                                ->formatStateUsing(fn ($state) => filled($state)
+                                    ? \Carbon\Carbon::parse($state)->format('d/m/Y')
+                                    : null)
+                                ->columnSpan(1),
+
+                            TextInput::make('edad_calculada')
+                                ->label('Edad')
+                                ->suffix('años')
+                                ->disabled()
+                                ->dehydrated(false)
                                 ->columnSpan(1),
 
                             Select::make('sexo')
@@ -190,13 +232,6 @@ class PersonasResource extends Resource
                                 ->placeholder('Seleccione...')
                                 ->columnSpan(1),
 
-                            TextInput::make('edad')
-                                ->label('Edad')
-                                ->numeric()
-                                ->minValue(18)
-                                ->maxValue(120)
-                                ->suffix('años')
-                                ->columnSpan(1),
                         ]),
 
                     Grid::make(3)
@@ -204,7 +239,7 @@ class PersonasResource extends Resource
                             Select::make('cod_pais')
                                 ->label('País')
                                 ->options(fn () => \App\Models\Pais::pluck('descripcion', 'cod_pais'))
-                                ->searchable()
+
                                 ->preload()
                                 ->native(false)
                                 ->required()
@@ -221,7 +256,7 @@ class PersonasResource extends Resource
                                     return \App\Models\Departamentos::where('cod_pais', $cod_pais)
                                         ->pluck('descripcion', 'cod_departamento');
                                 })
-                                ->searchable()
+
                                 ->preload()
                                 ->native(false)
                                 ->required()
@@ -237,7 +272,7 @@ class PersonasResource extends Resource
                                     return \App\Models\Ciudad::where('cod_departamento', $cod_departamento)
                                         ->pluck('descripcion', 'cod_ciudad');
                                 })
-                                ->searchable()
+
                                 ->preload()
                                 ->native(false)
                                 ->required()
@@ -267,6 +302,9 @@ class PersonasResource extends Resource
                                 ->required(fn ($get) => $get('ind_juridica'))
                                 ->maxLength(200)
                                 ->placeholder('Nombre de la empresa')
+                                ->live()
+                                ->afterStateUpdated(fn ($state, callable $set) => $set('razon_social', mb_strtoupper((string) $state)))
+                                ->dehydrateStateUsing(fn ($state) => mb_strtoupper((string) $state))
                                 ->columnSpan(2),
 
                             TextInput::make('email')
@@ -321,23 +359,16 @@ class PersonasResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('cod_persona')
-                    ->label('#')
-                    ->sortable()
-                    ->searchable(),
+                    ->label('#'),
 
                 Tables\Columns\TextColumn::make('nro_documento')
                     ->label('CI/RUC')
-                    ->searchable()
-                    ->sortable()
-                    ->copyable()
-                    ->copyMessage('Documento copiado')
                     ->icon('heroicon-o-identification')
                     ->weight('medium'),
 
                 Tables\Columns\TextColumn::make('nombre_completo')
                     ->label('Nombre Completo')
                     ->searchable(['nombres', 'apellidos', 'razon_social'])
-                    ->sortable()
                     ->icon(fn ($record) => $record->ind_fisica ? 'heroicon-o-user' : 'heroicon-o-building-office-2')
                     ->limit(40)
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
@@ -349,24 +380,10 @@ class PersonasResource extends Resource
                     })
                     ->weight('bold'),
 
-                Tables\Columns\TextColumn::make('tipo_persona')
-                    ->label('Tipo')
-                    ->badge()
-                    ->formatStateUsing(fn ($record) => $record->ind_fisica ? 'Física' : 'Jurídica')
-                    ->color(fn ($record) => $record->ind_fisica ? 'info' : 'warning')
-                    ->icon(fn ($record) => $record->ind_fisica ? 'heroicon-o-user' : 'heroicon-o-building-office-2'),
-
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
-                    ->searchable()
-                    ->icon('heroicon-o-envelope')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->icon('heroicon-o-envelope'),
 
-                Tables\Columns\TextColumn::make('ciudad.descripcion')
-                    ->label('Ciudad')
-                    ->sortable()
-                    ->icon('heroicon-o-map-pin')
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\IconColumn::make('ind_activo')
                     ->label('Estado')
@@ -375,44 +392,12 @@ class PersonasResource extends Resource
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('danger')
-                    ->getStateUsing(fn ($record) => $record->ind_activo === 'S')
-                    ->sortable(),
+                    ->getStateUsing(fn ($record) => $record->ind_activo === 'S'),
 
-                Tables\Columns\TextColumn::make('fec_alta')
-                    ->label('Fecha de Registro')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->icon('heroicon-o-calendar'),
-            ])
-            ->defaultSort('cod_persona', 'desc')
-            ->filters([
-                Tables\Filters\SelectFilter::make('tipo_persona')
-                    ->label('Tipo de Persona')
-                    ->options([
-                        'fisica' => 'Física',
-                        'juridica' => 'Jurídica',
-                    ])
-                    ->query(function (Builder $query, array $data) {
-                        if ($data['value'] === 'fisica') {
-                            return $query->where('ind_fisica', true);
-                        } elseif ($data['value'] === 'juridica') {
-                            return $query->where('ind_juridica', true);
-                        }
-                    })
-                    ->native(false),
 
-                Tables\Filters\TernaryFilter::make('ind_activo')
-                    ->label('Estado')
-                    ->placeholder('Todos')
-                    ->trueLabel('Solo Activos')
-                    ->falseLabel('Solo Inactivos')
-                    ->queries(
-                        true: fn (Builder $query) => $query->where('ind_activo', 'S'),
-                        false: fn (Builder $query) => $query->where('ind_activo', 'I'),
-                    )
-                    ->native(false),
             ])
+            ->defaultSort('fec_alta', 'desc')
+
             ->actions([
                 ActionGroup::make([
                     Tables\Actions\ViewAction::make()
@@ -440,39 +425,9 @@ class PersonasResource extends Resource
                                 ->send();
                         }),
                 ])
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-
-                    Tables\Actions\BulkAction::make('activar')
-                        ->label('Activar seleccionados')
-                        ->icon('heroicon-m-check-circle')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->action(function ($records) {
-                            $records->each->update(['ind_activo' => 'S']);
-                            Notification::make()
-                                ->title('Personas activadas')
-                                ->success()
-                                ->send();
-                        }),
-
-                    Tables\Actions\BulkAction::make('desactivar')
-                        ->label('Desactivar seleccionados')
-                        ->icon('heroicon-m-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->action(function ($records) {
-                            $records->each->update(['ind_activo' => 'I']);
-                            Notification::make()
-                                ->title('Personas desactivadas')
-                                ->warning()
-                                ->send();
-                        }),
-                ]),
             ]);
     }
+
 
     public static function getRelations(): array
     {

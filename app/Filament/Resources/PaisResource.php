@@ -37,6 +37,13 @@ class PaisResource extends Resource
                 ->maxLength(3)
                 ->length(3)
                 ->required(),
+            Forms\Components\Toggle::make('estado')
+                ->label('Activo')
+                ///->helperText('Activado = S, desactivado = N')
+                ->default(true)
+                ->formatStateUsing(fn ($state) => $state !== 'N')
+                ->dehydrateStateUsing(fn ($state) => $state ? 'S' : 'N')
+                ->inline(false),
             Forms\Components\TextInput::make('usuario_alta')
                 ->label('Usuario Alta')
                 ->default(fn () => auth()->user()->name)
@@ -60,6 +67,10 @@ class PaisResource extends Resource
                 Tables\Columns\TextColumn::make('descripcion')->searchable(),
                 Tables\Columns\TextColumn::make('gentilicio')->searchable(),
                 Tables\Columns\TextColumn::make('abreviatura')->searchable(),
+                Tables\Columns\IconColumn::make('estado')
+                    ->label('Activo')
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => $record->estado === 'S'),
                 Tables\Columns\TextColumn::make('usuario_alta'),
                 Tables\Columns\TextColumn::make('fec_alta')->date('d/m/Y'),
             ])

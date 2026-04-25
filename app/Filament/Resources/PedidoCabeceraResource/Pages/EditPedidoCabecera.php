@@ -4,7 +4,6 @@ namespace App\Filament\Resources\PedidoCabeceraResource\Pages;
 
 use App\Filament\Resources\PedidoCabeceraResource;
 use App\Traits\WithSucursalData;
-use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
 class EditPedidoCabecera extends EditRecord
@@ -57,5 +56,10 @@ class EditPedidoCabecera extends EditRecord
                 ->label('Cancelar')
                 ->color('gray'),
         ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
     }
 }

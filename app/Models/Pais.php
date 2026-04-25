@@ -23,13 +23,21 @@ class Pais extends Model
         'descripcion',
         'gentilicio',
         'abreviatura',
+        'estado',
         'usuario_alta',
-        'fec_alta'
-    
+        'fec_alta',
+
     ]; //campos para visualizar
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $pais): void {
+            $pais->estado ??= 'S';
+        });
+    }
+
  // Mutators para convertir a mayúsculas
- 
+
  public function setDescripcionAttribute($value)
  {
      $this->attributes['descripcion'] = strtoupper($value);

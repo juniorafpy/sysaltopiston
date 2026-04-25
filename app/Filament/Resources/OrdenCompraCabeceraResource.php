@@ -8,6 +8,7 @@ use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use App\Models\OrdenCompraCabecera;
+use App\Models\Estados;
 use App\Models\PresupuestoCabecera;
 use App\Models\ExisteStock;
 use Filament\Forms\Components\Grid;
@@ -387,10 +388,6 @@ class OrdenCompraCabeceraResource extends Resource
             ->color('info')
             ->icon('heroicon-m-eye'),
 
-        Tables\Actions\EditAction::make()
-            ->label('Editar')
-            ->icon('heroicon-m-pencil-square'),
-
         Tables\Actions\Action::make('imprimir')
             ->label('Imprimir PDF')
             ->icon('heroicon-m-printer')
@@ -403,7 +400,7 @@ class OrdenCompraCabeceraResource extends Resource
             ->icon('heroicon-m-no-symbol')
             ->color('danger')
             ->requiresConfirmation()
-            ->visible(fn (OrdenCompraCabecera $record) => $record->estado !== 'A')
+            ->visible(fn (OrdenCompraCabecera $record) => (int) $record->estado === 1)
             ->action(fn (OrdenCompraCabecera $record) => $record->update(['estado' => 'A'])),
 
         Tables\Actions\Action::make('aprobar')
@@ -411,8 +408,14 @@ class OrdenCompraCabeceraResource extends Resource
             ->icon('heroicon-m-check-circle')
             ->color('success')
             ->requiresConfirmation()
-            ->visible(fn (OrdenCompraCabecera $record) => $record->estado === 1)
-            ->action(fn (OrdenCompraCabecera $record) => $record->update(['estado' => 2])),
+            ->visible(fn (OrdenCompraCabecera $record) => (int) $record->estado === 1)
+            ->action(function (OrdenCompraCabecera $record) {
+                $estadoAprobado = Estados::query()
+                    ->whereRaw("UPPER(descripcion) = 'APROBADO'")
+                    ->value('cod_estado') ?? 5;
+
+                $record->update(['estado' => $estadoAprobado]);
+            }),
     ])
         ->label('Opciones')                      // texto del botón (opcional)
         ->icon('heroicon-m-ellipsis-vertical'),  // ícono de “tres puntitos”

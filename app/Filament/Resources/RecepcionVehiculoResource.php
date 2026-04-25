@@ -60,7 +60,7 @@ class RecepcionVehiculoResource extends Resource
                                     modifyQueryUsing: fn ($query, Get $get) =>
                                         $query->with(['modelo'])
                                             ->when($get('cod_cliente'), fn ($q, $clienteId) =>
-                                                $q->where('cliente_id', $clienteId)
+                                                $q->where('cod_cliente', $clienteId)
                                             )
                                 )
                                 ->getOptionLabelFromRecordUsing(fn ($record) =>
@@ -115,7 +115,7 @@ class RecepcionVehiculoResource extends Resource
                                         ->required(),
                                 ])
                                 ->createOptionUsing(function (array $data, Get $get): int {
-                                    $data['cliente_id'] = $get('cod_cliente');
+                                    $data['cod_cliente'] = $get('cod_cliente');
                                     $vehiculo = Vehiculo::create($data);
                                     return $vehiculo->id;
                                 })

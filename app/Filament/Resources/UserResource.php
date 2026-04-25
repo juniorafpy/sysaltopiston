@@ -3,15 +3,12 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
-use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class UserResource extends Resource
 {
@@ -30,10 +27,24 @@ class UserResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Información del Usuario')
                     ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('Nombre')
+                    Forms\Components\Select::make('cod_persona')
+                            ->label('Persona')
+                            ->relationship('persona', 'nombres')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->nombre_completo ?? 'Sin nombre')
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->helperText('Persona asociada al usuario'),
+
+                    Forms\Components\TextInput::make('name')
+                            ->label('Usuario')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(6)
+                            ->live()
+                            ->afterStateUpdated(fn ($state, callable $set) => $set('name', mb_strtoupper((string) $state)))
+                            ->dehydrateStateUsing(fn ($state) => mb_strtoupper((string) $state))
+                            ->rule('regex:/^[A-Z]+$/')
+                            ->helperText('Máximo 6 caracteres, solo letras mayúsculas (A-Z).'),
 
                         Forms\Components\TextInput::make('email')
                             ->label('Correo Electrónico')
@@ -50,14 +61,7 @@ class UserResource extends Resource
                             ->nullable()
                             ->helperText('Sucursal a la que pertenece el usuario'),
 
-                        Forms\Components\Select::make('cod_empleado')
-                            ->label('Empleado')
-                            ->relationship('empleado', 'cod_empleado')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->persona->nombre_completo ?? 'Sin nombre')
-                            ->searchable()
-                            ->preload()
-                            ->nullable()
-                            ->helperText('Empleado asociado al usuario (necesario para facturar)'),
+
 
                         Forms\Components\TextInput::make('password')
                             ->label('Contraseña')
@@ -86,6 +90,8 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
+
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
@@ -104,14 +110,6 @@ class UserResource extends Resource
                     ->badge()
                     ->color('info')
                     ->default('Sin sucursal'),
-
-                Tables\Columns\TextColumn::make('empleado.persona.nombre_completo')
-                    ->label('Empleado')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color('success')
-                    ->default('Sin empleado'),
 
                 Tables\Columns\TextColumn::make('roles.name')
                     ->label('Roles')
@@ -140,13 +138,9 @@ class UserResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+            //    Tables\Actions\DeleteAction::make(),
             ]);
+
     }
 
     public static function getRelations(): array

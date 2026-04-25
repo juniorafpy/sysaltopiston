@@ -6,7 +6,6 @@ use App\Filament\Resources\PedidoCabeceraResource;
 use Filament\Actions;
 Use App\Models\Sucursal;
 use App\Traits\WithSucursalData;
-use Illuminate\Support\Facades\Auth;
 use Filament\Resources\Pages\CreateRecord;
 class CreatePedidoCabecera extends CreateRecord
 {
@@ -37,10 +36,10 @@ class CreatePedidoCabecera extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Asegurarse de que cod_empleado se guarde
-        $data['cod_empleado'] = $this->cod_empleado;
-        $data['cod_sucursal'] = $this->cod_sucursal;
-        $data['usuario_alta'] = $this->usuario_alta;
+        // Mantener lo elegido en el formulario y usar valores del trait solo como fallback
+        $data['cod_empleado'] = $data['cod_empleado'] ?? $this->cod_empleado;
+        $data['cod_sucursal'] = $data['cod_sucursal'] ?? $this->cod_sucursal;
+        $data['usuario_alta'] = $data['usuario_alta'] ?? $this->usuario_alta;
 
         return $data;
     }

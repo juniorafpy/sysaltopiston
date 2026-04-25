@@ -6,14 +6,7 @@ use App\Filament\Resources\PaisResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use App\Models\Pais;
-use Filament\Actions\DeleteAction;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ListPais extends ListRecords
 {
@@ -37,6 +30,13 @@ class ListPais extends ListRecords
                         ->label('Abreviatura')
                         ->required()
                         ->maxLength(3),
+                    Forms\Components\Toggle::make('estado')
+                        ->label('Activo')
+                        ->helperText('Activado = S, desactivado = N')
+                        ->default(true)
+                        ->formatStateUsing(fn ($state) => $state !== 'N')
+                        ->dehydrateStateUsing(fn ($state) => $state ? 'S' : 'N')
+                        ->inline(false),
                     Forms\Components\TextInput::make('usuario_alta')
                         ->label('Usuario Alta')
                         ->default(fn () => auth()->user()->name)
@@ -51,6 +51,8 @@ class ListPais extends ListRecords
                 ->using(function (array $data) {
                     $data['usuario_alta'] = auth()->user()?->name ?? 'sistema';
                     $data['fec_alta']     = now();
+                    $data['estado'] ??= 'S';
+
                     return Pais::create($data);
                 })
                 ->modalHeading('Registrar país')

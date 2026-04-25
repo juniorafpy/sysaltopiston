@@ -272,7 +272,7 @@ class ArticuloResource extends Resource
                 ]),
             ])
 
-          //  ->defaultSort('fec_alta', 'desc')
+                        ->defaultSort('fec_alta', 'desc')
             ->persistSortInSession()
            ->persistSearchInSession()
            ->persistFiltersInSession();

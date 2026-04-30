@@ -15,7 +15,6 @@ class CpCuota extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'id_compra_cabecera',
         'tip_comprobante',
         'ser_comprobante',
         'nro_comprobante',
@@ -52,7 +51,7 @@ class CpCuota extends Model
 
         static::creating(function ($cuota) {
             if (!$cuota->usuario_alta) {
-                $cuota->usuario_alta = Auth::id();
+                $cuota->usuario_alta = auth()->user()->name ?? 'Sistema';
             }
             if (!$cuota->fecha_alta) {
                 $cuota->fecha_alta = now();
@@ -60,7 +59,7 @@ class CpCuota extends Model
         });
 
         static::updating(function ($cuota) {
-            $cuota->usuario_mod = Auth::id();
+            $cuota->usuario_mod = auth()->user()->name ?? 'Sistema';
             $cuota->fecha_mod = now();
         });
     }
@@ -70,7 +69,9 @@ class CpCuota extends Model
      */
     public function compraCabecera()
     {
-        return $this->belongsTo(CompraCabecera::class, 'id_compra_cabecera', 'id_compra_cabecera');
+        return $this->belongsTo(CompraCabecera::class, 'nro_comprobante', 'nro_comprobante')
+            ->where('ser_comprobante', $this->ser_comprobante)
+            ->where('cod_proveedor', $this->cod_proveedor);
     }
 
     public function proveedor()

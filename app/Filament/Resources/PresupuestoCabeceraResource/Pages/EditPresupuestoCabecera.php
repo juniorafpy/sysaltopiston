@@ -18,37 +18,24 @@ class EditPresupuestoCabecera extends EditRecord
 
      protected function getHeaderActions(): array
     {
-        return [
-            Actions\ViewAction::make()
-                ->mutateRecordDataUsing(function (array $data): array {
-                    // Cargar los detalles para el modal de ver
-                    $data['presupuestoDetalles'] = $this->record->presupuestoDetalles->map(function ($detalle) {
-                        return [
-                            'id_detalle' => $detalle->id_detalle,
-                            'cod_articulo' => $detalle->cod_articulo,
-                            'cantidad' => $detalle->cantidad,
-                            'precio' => $detalle->precio,
-                            'total' => $detalle->total,
-                            'total_iva' => $detalle->total_iva,
-                        ];
-                    })->toArray();
-                    return $data;
-                }),
-            Actions\DeleteAction::make()
-        ];
+        return [];
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
         // Cargar los detalles existentes
         $data['presupuestoDetalles'] = $this->record->presupuestoDetalles->map(function ($detalle) {
+            $precio   = (float)$detalle->precio;
+            $cantidad = (int)$detalle->cantidad;
+            $total    = round($cantidad * $precio);
+            $iva      = round($total / 11);
             return [
-                'id_detalle' => $detalle->id_detalle,
+                'id_detalle'   => $detalle->id_detalle,
                 'cod_articulo' => $detalle->cod_articulo,
-                'cantidad' => $detalle->cantidad,
-                'precio' => $detalle->precio,
-                'total' => $detalle->total,
-                'total_iva' => $detalle->total_iva,
+                'cantidad'     => $cantidad,
+                'precio'       => number_format($precio, 0, ',', '.'),
+                'total'        => number_format($total, 0, ',', '.'),
+                'total_iva'    => number_format($iva, 0, ',', '.'),
             ];
         })->toArray();
 
@@ -57,29 +44,28 @@ class EditPresupuestoCabecera extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // Recalcula totales (lado servidor) antes de guardar
         $grav = 0.0; $iva = 0.0;
 
         if (!empty($data['presupuestoDetalles']) && is_array($data['presupuestoDetalles'])) {
             foreach ($data['presupuestoDetalles'] as &$d) {
-                $cantidad  = (float)($d['cantidad'] ?? 0);
-                $precio    = (float)($d['precio'] ?? 0);
-                $exenta    = (float)($d['exenta'] ?? 0);
-                $totalItem = $cantidad * $precio;
-                $ivaItem   = max(0, ($totalItem - $exenta)) * 0.10;
+                $cantidad  = (int) str_replace('.', '', (string)($d['cantidad'] ?? 0));
+                $precio    = (float) str_replace('.', '', (string)($d['precio'] ?? 0));
+                $totalItem = round($cantidad * $precio);
+                $ivaItem   = round($totalItem / 11);
+                $netItem   = $totalItem - $ivaItem;
 
                 $d['total']     = $totalItem;
                 $d['total_iva'] = $ivaItem;
 
-                $grav += $totalItem;
+                $grav += $netItem;
                 $iva  += $ivaItem;
             }
             unset($d);
         }
 
-        $data['monto_gravado'] = $grav;
-        $data['monto_tot_impuesto'] = $iva;
-        $data['monto_general'] = $grav + $iva;
+        $data['monto_gravado']      = round($grav);
+        $data['monto_tot_impuesto'] = round($iva);
+        $data['monto_general']      = round($grav + $iva);
 
         return $data;
     }
@@ -99,24 +85,28 @@ class EditPresupuestoCabecera extends EditRecord
 
         // Actualizar o crear detalles
         foreach ($detalles as $detalle) {
+                $parseNum = fn($v) => (float) str_replace('.', '', (string)($v ?? 0));
+                $cantidad  = (int)$parseNum($detalle['cantidad']);
+                $precio    = $parseNum($detalle['precio']);
+                $total     = round($cantidad * $precio);
+                $totalIva  = round($total / 11);
+
             if (isset($detalle['id_detalle']) && in_array($detalle['id_detalle'], $detallesExistentes)) {
-                // Actualizar detalle existente
                 $record->presupuestoDetalles()->where('id_detalle', $detalle['id_detalle'])->update([
                     'cod_articulo' => $detalle['cod_articulo'],
-                    'cantidad' => $detalle['cantidad'],
-                    'precio' => $detalle['precio'],
-                    'total' => $detalle['total'],
-                    'total_iva' => $detalle['total_iva'],
+                    'cantidad'     => $cantidad,
+                    'precio'       => $precio,
+                    'total'        => $total,
+                    'total_iva'    => $totalIva,
                 ]);
                 $detallesEnviados[] = $detalle['id_detalle'];
             } else {
-                // Crear nuevo detalle
                 $nuevoDetalle = $record->presupuestoDetalles()->create([
                     'cod_articulo' => $detalle['cod_articulo'],
-                    'cantidad' => $detalle['cantidad'],
-                    'precio' => $detalle['precio'],
-                    'total' => $detalle['total'],
-                    'total_iva' => $detalle['total_iva'],
+                    'cantidad'     => $cantidad,
+                    'precio'       => $precio,
+                    'total'        => $total,
+                    'total_iva'    => $totalIva,
                 ]);
                 $detallesEnviados[] = $nuevoDetalle->id_detalle;
             }
@@ -133,25 +123,24 @@ class EditPresupuestoCabecera extends EditRecord
 
     protected function afterSave(): void
     {
-        // Refuerza consistencia
         $cab = $this->record;
         $grav = 0.0; $iva = 0.0;
 
         foreach ($cab->presupuestoDetalles as $det) {
-            $totalItem = (float)$det->cantidad * (float)$det->precio;
-            $ivaItem   = max(0, ($totalItem - (float)($det->exenta ?? 0))) * 0.10;
+            $totalItem = round((float)$det->cantidad * (float)$det->precio);
+            $ivaItem   = round($totalItem / 11);
+            $netItem   = $totalItem - $ivaItem;
 
-            if ((float)$det->total !== $totalItem || (float)$det->total_iva !== $ivaItem) {
-                $det->update(['total' => $totalItem, 'total_iva' => $ivaItem]);
-            }
-            $grav += $totalItem;
+            $det->update(['total' => $totalItem, 'total_iva' => $ivaItem]);
+
+            $grav += $netItem;
             $iva  += $ivaItem;
         }
 
         $cab->update([
-            'monto_gravado' => $grav,
-            'monto_tot_impuesto' => $iva,
-            'monto_general' => $grav + $iva,
+            'monto_gravado'      => round($grav),
+            'monto_tot_impuesto' => round($iva),
+            'monto_general'      => round($grav + $iva),
         ]);
     }
 }

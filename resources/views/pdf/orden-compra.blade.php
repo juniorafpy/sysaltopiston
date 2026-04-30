@@ -29,11 +29,11 @@
     <table class="info-table">
         <tr>
             <td class="info-label">Fecha de Orden:</td>
-            <td>{{ $ordenCompra->fec_orden }}</td>
+            <td>{{ $ordenCompra->fec_orden ? \Carbon\Carbon::parse($ordenCompra->fec_orden)->format('d/m/Y') : '' }}</td>
         </tr>
         <tr>
             <td class="info-label">Fecha de Entrega:</td>
-            <td>{{ $ordenCompra->fec_entrega }}</td>
+            <td>{{ $ordenCompra->fec_entrega ? \Carbon\Carbon::parse($ordenCompra->fec_entrega)->format('d/m/Y') : '' }}</td>
         </tr>
         @if($ordenCompra->nro_presupuesto_ref)
         <tr>
@@ -43,7 +43,7 @@
         @endif
         <tr>
             <td class="info-label">Estado:</td>
-            <td>{{ optional($ordenCompra->estadoRel)->descripcion }}</td>
+            <td>{{ $ordenCompra->estado }}</td>
         </tr>
     </table>
 
@@ -55,7 +55,7 @@
         </tr>
         <tr>
             <td class="info-label">Condicion de Compra:</td>
-            <td>{{ optional($ordenCompra->condicionCompra)->descripcion }}</td>
+            <td>{{ $condicionLabel }}</td>
         </tr>
     </table>
 
@@ -87,16 +87,16 @@
 
     <table class="totals-table">
         <tr>
-            <td>Subtotal:</td>
-            <td class="text-right">{{ number_format($subtotal, 0) }} Gs.</td>
+            <td>Total Gravado:</td>
+            <td class="text-right">{{ number_format($montoGravado, 0, ',', '.') }} Gs.</td>
         </tr>
         <tr>
             <td>IVA 10%:</td>
-            <td class="text-right">{{ number_format($totalIva, 0) }} Gs.</td>
+            <td class="text-right">{{ number_format($montoImpuesto, 0, ',', '.') }} Gs.</td>
         </tr>
         <tr class="grand-total">
-            <td>TOTAL:</td>
-            <td class="text-right">{{ number_format($total, 0) }} Gs.</td>
+            <td>TOTAL GENERAL:</td>
+            <td class="text-right">{{ number_format($montoGeneral, 0, ',', '.') }} Gs.</td>
         </tr>
     </table>
 

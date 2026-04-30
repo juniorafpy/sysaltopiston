@@ -8,22 +8,18 @@ use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use App\Models\OrdenCompraCabecera;
-use App\Models\Estados;
 use App\Models\PresupuestoCabecera;
-use App\Models\ExisteStock;
 use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Actions\ActionGroup;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Set;
 use Filament\Forms\Get;
+use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use App\Filament\Resources\OrdenCompraCabeceraResource\Pages;
 use App\Filament\Resources\OrdenCompraCabeceraResource\RelationManagers;
 
@@ -40,16 +36,32 @@ class OrdenCompraCabeceraResource extends Resource
 
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
+        return $form->schema([
 
-
-            // --- Sección de Datos Principales ---
-            Section::make('Datos Principales')
+            // SECCIÓN 1: CABECERA
+            Forms\Components\Section::make('Información de Cabecera')
                 ->schema([
-                    Grid::make(4)
+                    Forms\Components\Grid::make(3)
                         ->schema([
-                            // Proveedor - Movido al principio para que se seleccione primero
+                            Select::make('cod_sucursal')
+                                ->label('Sucursal')
+                                ->relationship('sucursale', 'descripcion')
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->default(fn () => auth()->user()->cod_sucursal)
+                                ->disabled()
+                                ->dehydrated(true),
+
+                            DatePicker::make('fec_orden')
+                                ->label('Fecha de Orden')
+                                ->default(fn () => now()->toDateString())
+                                ->displayFormat('d/m/Y')
+                                ->native(false)
+                                ->disabled()
+                                ->dehydrated(true)
+                                ->required(),
+
                             Select::make('cod_proveedor')
                                 ->label('Proveedor')
                                 ->relationship('proveedor', 'cod_proveedor')
@@ -60,298 +72,317 @@ class OrdenCompraCabeceraResource extends Resource
                                 ->preload()
                                 ->required()
                                 ->live()
-                                ->afterStateUpdated(function ($state, Set $set) {
-                                    // Limpiar presupuesto cuando cambia el proveedor
-                                    $set('nro_presupuesto_ref', null);
-                                })
+                                ->afterStateUpdated(fn (Set $set) => $set('nro_presupuesto_ref', null))
                                 ->disabled(fn (Get $get) => $get('nro_presupuesto_ref') !== null)
-                                ->dehydrated()
-                                ->columnSpan(2),
+                                ->dehydrated(true),
 
-                            // Nro. Presupuesto - Filtrado por proveedor seleccionado
                             Select::make('nro_presupuesto_ref')
                                 ->label('Presupuesto de Referencia')
                                 ->options(function ($record, Get $get) {
                                     $codProveedor = $get('cod_proveedor');
-
-                                    // Si no hay proveedor seleccionado, no mostrar presupuestos
-                                    if (!$codProveedor) {
-                                        return [];
-                                    }
-
-                                    // Solo presupuestos APROBADOS que NO estén cargados en ninguna orden de compra
+                                    if (!$codProveedor) return [];
                                     $presupuestosYaCargados = OrdenCompraCabecera::whereNotNull('nro_presupuesto_ref')
-                                        ->when($record, function ($query) use ($record) {
-                                            // Si estamos editando, excluir el presupuesto actual de la lista de "ya cargados"
-                                            $query->where('nro_orden_compra', '!=', $record->nro_orden_compra);
-                                        })
+                                        ->when($record, fn ($q) => $q->where('nro_orden_compra', '!=', $record->nro_orden_compra))
                                         ->pluck('nro_presupuesto_ref')
                                         ->toArray();
-
                                     return PresupuestoCabecera::where('estado', 'APROBADO')
-                                        ->where('cod_proveedor', $codProveedor) // Filtrar por proveedor
+                                        ->where('cod_proveedor', $codProveedor)
                                         ->whereNotIn('nro_presupuesto', $presupuestosYaCargados)
                                         ->get()
-                                        ->mapWithKeys(function ($presupuesto) {
-                                            $label = 'Nro. ' . $presupuesto->nro_presupuesto;
-                                            if ($presupuesto->fec_presupuesto) {
-                                                $fecha = $presupuesto->fec_presupuesto instanceof \Carbon\Carbon
-                                                    ? $presupuesto->fec_presupuesto->format('d/m/Y')
-                                                    : $presupuesto->fec_presupuesto;
-                                                $label .= ' — ' . $fecha;
+                                        ->mapWithKeys(function ($p) {
+                                            $label = 'Nro. ' . $p->nro_presupuesto;
+                                            if ($p->fec_presupuesto) {
+                                                $label .= ' — ' . \Carbon\Carbon::parse($p->fec_presupuesto)->format('d/m/Y');
                                             }
-                                            return [$presupuesto->nro_presupuesto => $label];
+                                            return [$p->nro_presupuesto => $label];
                                         });
                                 })
                                 ->searchable()
                                 ->preload()
+                                ->getOptionLabelUsing(function ($value) {
+                                    $p = PresupuestoCabecera::find($value);
+                                    if (!$p) return $value;
+                                    $label = 'Nro. ' . $p->nro_presupuesto;
+                                    if ($p->fec_presupuesto) {
+                                        $label .= ' — ' . \Carbon\Carbon::parse($p->fec_presupuesto)->format('d/m/Y');
+                                    }
+                                    return $label;
+                                })
                                 ->live()
-                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                    if (!$state) return;
+                                ->afterStateUpdated(function ($state, Set $set, Get $get, string $operation) {
+                                    if (!$state || in_array($operation, ['view', 'edit'])) return;
                                     static::cargarDetallesDesdePresupuesto($state, $set, $get);
                                 })
-                                ->disabled(fn ($context) => $context === 'edit')
-                                ->placeholder('Primero seleccione un proveedor')
-                               // ->helperText('Solo se muestran presupuestos aprobados del proveedor seleccionado')
-                                ->columnSpan(1),
+                                ->disabled(fn ($context) => in_array($context, ['edit', 'view'])),
 
-                            // Condición de Compra
                             Select::make('cod_condicion_compra')
-                                ->relationship('condicionCompra', 'descripcion')
-                                ->required()
                                 ->label('Condición de Compra')
-                                ->disabled(fn (Get $get) => $get('nro_presupuesto_ref') !== null)
-                                ->dehydrated()
-                                ->columnSpan(1),
-
-                            // Fecha de Orden
-                            DatePicker::make('fec_orden')
-                                ->label('Fecha de Orden')
-                                ->default(now())
+                                ->relationship('condicionCompra', 'descripcion')
+                                ->searchable()
+                                ->preload()
                                 ->required()
-                                ->columnSpan(1),
+                                ->disabled(fn (Get $get) => $get('nro_presupuesto_ref') !== null)
+                                ->dehydrated(true),
 
-                            // Fecha de Entrega
                             DatePicker::make('fec_entrega')
                                 ->label('Fecha de Entrega')
                                 ->required()
-                                ->columnSpan(1),
+                                ->native(false)
+                                ->displayFormat('d/m/Y')
+                                ->suffixIcon('heroicon-m-calendar-days'),
 
-                            // Estado (hidden, se asigna automáticamente)
-                            Forms\Components\Hidden::make('estado')
-                                ->default(1),
-
-                            // Sucursal (hidden)
-                            Forms\Components\Hidden::make('cod_sucursal')
-                                ->default(fn () => auth()->user()->cod_sucursal),
-
-                            // Observación
                             Textarea::make('observacion')
                                 ->label('Observación')
-                                ->columnSpanFull(),
+                                ->maxLength(500)
+                                ->columnSpan(3),
+
+                            Forms\Components\Hidden::make('estado')->default('PENDIENTE'),
                         ]),
                 ]),
 
-            // --- Información del Sistema ---
-            Section::make('Información del Sistema')
+            // SECCIÓN 2: DETALLES
+            Forms\Components\Section::make('Detalles de la Orden')
                 ->schema([
-                    Grid::make(4)
+                    TableRepeater::make('ordenCompraDetalles')
+                        ->label('')
+                        ->colStyles([
+                            'cod_articulo' => 'width: 280px; min-width: 280px;',
+                            'precio'       => 'width: 170px; min-width: 170px;',
+                            'cantidad'     => 'width: 90px;  min-width: 90px;',
+                            'total'        => 'width: 170px; min-width: 170px;',
+                            'total_iva'    => 'width: 170px; min-width: 170px;',
+                        ])
                         ->schema([
-                            TextInput::make('usuarioAlta.name')
-                                ->label('Creado por')
-                                ->disabled()
-                                ->columnSpan(1),
+                            Forms\Components\Select::make('cod_articulo')
+                                ->label('Artículo')
+                                ->options(\App\Models\Articulos::pluck('descripcion', 'cod_articulo'))
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->disabled(fn (Get $get, $context) => in_array($context, ['edit', 'view']) || $get('../../nro_presupuesto_ref') !== null)
+                                ->dehydrated(true)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                    if ($state) {
+                                        $articulo = \App\Models\Articulos::find($state);
+                                        if ($articulo) {
+                                            $precio   = round($articulo->precio);
+                                            $cantidad = (int) str_replace('.', '', (string)($get('cantidad') ?? 1));
+                                            $total    = round($cantidad * $precio);
+                                            $iva      = round($total / 11);
+                                            $set('precio', number_format($precio, 0, ',', '.'));
+                                            $set('total', number_format($total, 0, ',', '.'));
+                                            $set('total_iva', number_format($iva, 0, ',', '.'));
+                                        }
+                                    }
+                                    static::recalcularTotalesOrden($get, $set);
+                                }),
 
-                            TextInput::make('fec_alta')
-                                ->label('Fecha de Creación')
-                                ->disabled()
-                                ->columnSpan(1),
+                            Forms\Components\TextInput::make('precio')
+                                ->label('Precio')
+                                ->required()
+                                ->suffix('₲')
+                                ->formatStateUsing(fn ($state) => $state ? number_format((float) str_replace('.', '', (string)$state), 0, ',', '.') : '')
+                                ->disabled(fn ($context) => in_array($context, ['edit', 'view']))
+                                ->dehydrated(true)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                    $precio   = (float) str_replace('.', '', (string)($state ?? 0));
+                                    $cantidad = (float) str_replace('.', '', (string)($get('cantidad') ?? 1));
+                                    $total    = round($cantidad * $precio);
+                                    $iva      = round($total / 11);
+                                    $set('precio', number_format($precio, 0, ',', '.'));
+                                    $set('total', number_format($total, 0, ',', '.'));
+                                    $set('total_iva', number_format($iva, 0, ',', '.'));
+                                    static::recalcularTotalesOrden($get, $set);
+                                }),
 
-                            TextInput::make('usuario_modifica')
-                                ->label('Modificado por')
-                                ->disabled()
-                                ->columnSpan(1),
+                            Forms\Components\TextInput::make('cantidad')
+                                ->label('Cantidad')
+                                ->default(1)
+                                ->required()
+                                ->disabled(fn (Get $get, $context) => in_array($context, ['edit', 'view']) || $get('../../nro_presupuesto_ref') !== null)
+                                ->dehydrated(true)
+                                ->formatStateUsing(fn ($state) => $state !== null ? (int)$state : 1)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                    $cantidad = (float) str_replace('.', '', (string)($state ?? 1));
+                                    $precio   = (float) str_replace('.', '', (string)($get('precio') ?? 0));
+                                    $total    = round($cantidad * $precio);
+                                    $iva      = round($total / 11);
+                                    $set('total', number_format($total, 0, ',', '.'));
+                                    $set('total_iva', number_format($iva, 0, ',', '.'));
+                                    static::recalcularTotalesOrden($get, $set);
+                                }),
 
-                            TextInput::make('fec_modifica')
-                                ->label('Fecha de Modificación')
-                                ->disabled()
-                                ->columnSpan(1),
+                            Forms\Components\TextInput::make('total')
+                                ->label('Total')
+                                ->readOnly()
+                                ->dehydrated(true)
+                                ->suffix('₲')
+                                ->formatStateUsing(fn ($state) => $state ? number_format((float) str_replace('.', '', (string)$state), 0, ',', '.') : ''),
+
+                            Forms\Components\TextInput::make('total_iva')
+                                ->label('IVA 10%')
+                                ->readOnly()
+                                ->dehydrated(true)
+                                ->suffix('₲')
+                                ->formatStateUsing(fn ($state) => $state ? number_format((float) str_replace('.', '', (string)$state), 0, ',', '.') : ''),
+                        ])
+                        ->addActionLabel('+ Agregar Artículo')
+                        ->defaultItems(0)
+                        ->addable(fn (Get $get, $context) => !in_array($context, ['edit', 'view']) && blank($get('nro_presupuesto_ref')))
+                        ->deletable(fn (Get $get, $context) => !in_array($context, ['edit', 'view']) && blank($get('nro_presupuesto_ref')))
+                        ->reorderable(fn (Get $get, $context) => !in_array($context, ['edit', 'view']) && blank($get('nro_presupuesto_ref')))
+                        ->live()
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            $detalles = $get('ordenCompraDetalles') ?? [];
+                            $grav = 0; $iva = 0;
+                            foreach ($detalles as $d) {
+                                $t  = (int) str_replace('.', '', (string)($d['total'] ?? 0));
+                                $iv = (int) str_replace('.', '', (string)($d['total_iva'] ?? 0));
+                                $grav += ($t - $iv);
+                                $iva  += $iv;
+                            }
+                            $set('monto_gravado', number_format($grav, 0, ',', '.'));
+                            $set('monto_tot_impuesto', number_format($iva, 0, ',', '.'));
+                            $set('monto_general', number_format($grav + $iva, 0, ',', '.'));
+                        })
+                        ->deleteAction(
+                            fn (Forms\Components\Actions\Action $action) => $action->after(
+                                fn (Get $get, Set $set) => (function () use ($get, $set) {
+                                    $detalles = $get('ordenCompraDetalles') ?? [];
+                                    $grav = 0; $iva = 0;
+                                    foreach ($detalles as $d) {
+                                        $t  = (int) str_replace('.', '', (string)($d['total'] ?? 0));
+                                        $iv = (int) str_replace('.', '', (string)($d['total_iva'] ?? 0));
+                                        $grav += ($t - $iv);
+                                        $iva  += $iv;
+                                    }
+                                    $set('monto_gravado', number_format($grav, 0, ',', '.'));
+                                    $set('monto_tot_impuesto', number_format($iva, 0, ',', '.'));
+                                    $set('monto_general', number_format($grav + $iva, 0, ',', '.'));
+                                })()
+                            ),
+                        ),
+                ]),
+
+            // SECCIÓN 3: TOTALES
+            Forms\Components\Section::make('Totales')
+                ->schema([
+                    Forms\Components\Grid::make(3)
+                        ->schema([
+                            Forms\Components\TextInput::make('monto_gravado')
+                                ->label('Total Gravada')
+                                ->readOnly()
+                                ->dehydrated(true)
+                                ->dehydrateStateUsing(fn ($state) => (int) str_replace('.', '', (string)$state))
+                                ->suffix('₲')
+                                ->afterStateHydrated(function (Set $set, Get $get) {
+                                    $detalles = $get('ordenCompraDetalles') ?? [];
+                                    $grav = 0; $iva = 0;
+                                    foreach ($detalles as $d) {
+                                        $t  = (int) str_replace('.', '', (string)($d['total'] ?? 0));
+                                        $iv = (int) str_replace('.', '', (string)($d['total_iva'] ?? 0));
+                                        $grav += ($t - $iv);
+                                        $iva  += $iv;
+                                    }
+                                    $set('monto_gravado', number_format($grav, 0, ',', '.'));
+                                    $set('monto_tot_impuesto', number_format($iva, 0, ',', '.'));
+                                    $set('monto_general', number_format($grav + $iva, 0, ',', '.'));
+                                }),
+
+                            Forms\Components\TextInput::make('monto_tot_impuesto')
+                                ->label('Total IVA')
+                                ->readOnly()
+                                ->dehydrated(true)
+                                ->dehydrateStateUsing(fn ($state) => (int) str_replace('.', '', (string)$state))
+                                ->suffix('₲'),
+
+                            Forms\Components\TextInput::make('monto_general')
+                                ->label('Total General')
+                                ->readOnly()
+                                ->dehydrated(true)
+                                ->dehydrateStateUsing(fn ($state) => (int) str_replace('.', '', (string)$state))
+                                ->suffix('₲'),
+                        ]),
+                ]),
+
+            // SECCIÓN 4: AUDITORÍA
+            Forms\Components\Section::make('Información de Auditoría')
+                ->schema([
+                    Forms\Components\Grid::make(2)
+                        ->schema([
+                            Forms\Components\Placeholder::make('usuario_display')
+                                ->label('Usuario Alta')
+                                ->content(function ($record) {
+                                    if ($record && $record->usuario_alta) {
+                                        return $record->usuario_alta;
+                                    }
+                                    return auth()->user()->name ?? 'N/A';
+                                }),
+                            Forms\Components\Placeholder::make('fec_alta_display')
+                                ->label('Fecha Alta')
+                                ->content(function ($record) {
+                                    if ($record && $record->fec_alta) {
+                                        return \Carbon\Carbon::parse($record->fec_alta)->format('d/m/Y H:i');
+                                    }
+                                    return \Carbon\Carbon::now('America/Asuncion')->format('d/m/Y H:i');
+                                }),
                         ]),
                 ])
-                ->hiddenOn('create')
-                ->collapsed(),
-
-            // --- Sección de Detalles (abajo) ---
-            Section::make('Detalles de la Orden')
-                ->schema([
-
-                    Repeater::make('ordenCompraDetalles')
-                        ->relationship()
-                        ->schema([
-                            Select::make('cod_articulo')
-                                ->relationship('articulo', 'descripcion')
-                                ->searchable()
-                                ->required()
-                                ->label('Artículo')
-                                ->live()
-                                ->disabled(fn (Get $get) => $get('../../nro_presupuesto_ref') !== null)
-                                ->dehydrated()
-                                ->afterStateUpdated(function ($state, Set $set) {
-                                    if ($state) {
-                                        // Obtener el stock disponible del artículo en la sucursal actual
-                                        $sucursalId = auth()->user()->cod_sucursal ?? 1;
-                                        $stock = \App\Models\ExisteStock::where('cod_articulo', $state)
-                                            ->where('cod_sucursal', $sucursalId)
-                                            ->first();
-
-                                        if ($stock) {
-                                            $stockDisponible = $stock->stock_actual - $stock->stock_reservado;
-                                            $set('stock_disponible_display', number_format($stockDisponible, 2));
-                                        } else {
-                                            $set('stock_disponible_display', '0.00 (Sin stock registrado)');
-                                        }
-                                    } else {
-                                        $set('stock_disponible_display', '');
-                                    }
-                                })
-                                ->placeholder('Seleccione un artículo')
-                                ->columnSpan(2),
-
-                            TextInput::make('stock_disponible_display')
-                                ->label('Stock Disponible')
-                                ->disabled()
-                                ->dehydrated(false)
-                                ->placeholder('---')
-                                ->columnSpan(1),
-
-                            TextInput::make('cantidad')
-                                ->numeric()
-                                ->required()
-                                ->default(1)
-                                ->minValue(0.01)
-                                ->label('Cantidad')
-                                ->live()
-                                ->disabled(fn (Get $get) => $get('../../nro_presupuesto_ref') !== null)
-                                ->dehydrated()
-                                ->afterStateUpdated(function ($state, Get $get, Set $set) {
-                                    $cantidad = floatval($state ?? 0);
-                                    $precio = floatval($get('precio') ?? 0);
-                                    $subtotal = $cantidad * $precio;
-                                    // IVA 10%
-                                    $totalIva = $subtotal * 0.10;
-                                    $set('total', $subtotal);
-                                    $set('total_iva', $totalIva);
-                                })
-                                ->columnSpan(1),
-
-                            TextInput::make('precio')
-                                ->numeric()
-                                ->prefix('Gs.')
-                                ->required()
-                                ->minValue(0)
-                                ->label('Precio Unit.')
-                                ->live()
-                                ->disabled(fn (Get $get) => $get('../../nro_presupuesto_ref') !== null)
-                                ->dehydrated()
-                                ->afterStateUpdated(function ($state, Get $get, Set $set) {
-                                    $cantidad = floatval($get('cantidad') ?? 0);
-                                    $precio = floatval($state ?? 0);
-                                    $subtotal = $cantidad * $precio;
-                                    // IVA 10%
-                                    $totalIva = $subtotal * 0.10;
-                                    $set('total', $subtotal);
-                                    $set('total_iva', $totalIva);
-                                })
-                                ->columnSpan(1),
-
-                            TextInput::make('total')
-                                ->numeric()
-                                ->prefix('Gs.')
-                                ->disabled()
-                                ->label('Subtotal')
-                                ->columnSpan(1)
-                                ->dehydrated(),
-
-                            TextInput::make('total_iva')
-                                ->numeric()
-                                ->prefix('Gs.')
-                                ->disabled()
-                                ->label('IVA 10%')
-                                ->default(0)
-                                ->columnSpan(1)
-                                ->dehydrated(),
-                        ])
-                        ->columns(7)
-                        ->defaultItems(0)
-                        ->addActionLabel('Añadir Artículo')
-                        ->addable(fn (Get $get) => $get('nro_presupuesto_ref') === null)
-                        ->deletable(fn (Get $get) => $get('nro_presupuesto_ref') === null)
-                        ->reorderable(false)
-                        ->live(),
-                ]),
+                ->collapsed()
+                ->collapsible(),
         ]);
     }
 
-    /**
-     * Carga los detalles desde un presupuesto aprobado
-     */
+    protected static function recalcularTotalesOrden(Get $get, Set $set): void
+    {
+        $detalles = $get('../../ordenCompraDetalles') ?? [];
+        $grav = 0; $iva = 0;
+        foreach ($detalles as $d) {
+            $t  = (int) str_replace('.', '', (string)($d['total'] ?? 0));
+            $iv = (int) str_replace('.', '', (string)($d['total_iva'] ?? 0));
+            $grav += ($t - $iv);
+            $iva  += $iv;
+        }
+        $set('../../monto_gravado', number_format($grav, 0, ',', '.'));
+        $set('../../monto_tot_impuesto', number_format($iva, 0, ',', '.'));
+        $set('../../monto_general', number_format($grav + $iva, 0, ',', '.'));
+    }
+
     protected static function cargarDetallesDesdePresupuesto(int|string $nroPresupuesto, Set $set, Get $get): void
     {
-        $presupuesto = PresupuestoCabecera::with(['presupuestoDetalles', 'presupuestoDetalles.articulo'])
+        $presupuesto = PresupuestoCabecera::with(['presupuestoDetalles'])
             ->where('nro_presupuesto', $nroPresupuesto)
             ->first();
 
-        if (!$presupuesto) {
-            return;
-        }
+        if (!$presupuesto) return;
 
-        // Cargar datos de cabecera
         $set('cod_proveedor', $presupuesto->cod_proveedor);
         $set('cod_condicion_compra', $presupuesto->cod_condicion_compra);
         $set('observacion', 'Basado en presupuesto Nro. ' . $nroPresupuesto);
 
-        // Cargar detalles
         $items = [];
+        $grav = 0; $ivaTot = 0;
         foreach ($presupuesto->presupuestoDetalles as $d) {
-            $cantidad = (float) ($d->cantidad ?? 0);
-            $precio   = (float) ($d->precio ?? 0);
-            $total    = $cantidad * $precio;
-            $iva      = $total * 0.10;
-
+            $total = (float)($d->total ?? 0);
+            $iva   = (float)($d->total_iva ?? 0);
+            $grav   += ($total - $iva);
+            $ivaTot += $iva;
             $items[] = [
                 'cod_articulo' => $d->cod_articulo,
-                'cantidad'     => $cantidad,
-                'precio'       => $precio,
-                'total'        => $total,
-                'total_iva'    => $iva,
+                'cantidad'     => (int)($d->cantidad ?? 0),
+                'precio'       => number_format((float)($d->precio ?? 0), 0, ',', '.'),
+                'total'        => number_format($total, 0, ',', '.'),
+                'total_iva'    => number_format($iva, 0, ',', '.'),
             ];
         }
 
-        // Reemplaza el contenido del Repeater
         $set('ordenCompraDetalles', $items);
-    }
-
-    /**
-     * Maneja las 'timestamps' manuales (fec_alta, usuario_alta)
-     * ya que tu modelo tiene $timestamps = false;
-     */
-    protected static function mutateFormDataBeforeCreate(array $data): array
-    {
-        $data['fec_alta'] = now();
-        $data['usuario_alta'] = auth()->user()->name;
-        $data['cod_sucursal'] = $data['cod_sucursal'] ?? auth()->user()->cod_sucursal;
-        $data['estado'] = $data['estado'] ?? 1; // Estado default "Pendiente"
-
-        return $data;
-    }
-
-    // Opcional: Si quieres actualizar al editar
-    protected static function mutateFormDataBeforeSave(array $data): array
-    {
-        $data['usuario_modifica'] = auth()->user()->name;
-        $data['fec_modifica'] = now();
-
-        return $data;
+        $set('monto_gravado', number_format($grav, 0, ',', '.'));
+        $set('monto_tot_impuesto', number_format($ivaTot, 0, ',', '.'));
+        $set('monto_general', number_format($grav + $ivaTot, 0, ',', '.'));
     }
 
     public static function table(Table $table): Table
@@ -374,8 +405,14 @@ class OrdenCompraCabeceraResource extends Resource
                  ->label('Condicion'),
                    // ->searchable(),
 
-                Tables\Columns\TextColumn::make('estadoRel.descripcion')
+                Tables\Columns\TextColumn::make('estado')
                 ->label('Estado')
+                ->badge()
+                ->color(fn (string $state): string => match($state) {
+                    'APROBADO' => 'success',
+                    'ANULADO'  => 'danger',
+                    default    => 'warning',
+                })
                 ->sortable(),
             ])
             ->filters([
@@ -386,7 +423,20 @@ class OrdenCompraCabeceraResource extends Resource
         Tables\Actions\ViewAction::make()
             ->label('Ver')
             ->color('info')
-            ->icon('heroicon-m-eye'),
+            ->icon('heroicon-m-eye')
+            ->modalWidth('7xl')
+            ->modalHeading(fn (OrdenCompraCabecera $record) => 'Vista Orden de Compra N° ' . $record->nro_orden_compra)
+            ->mutateRecordDataUsing(function (array $data, OrdenCompraCabecera $record): array {
+                $detalles = \App\Models\OrdenCompraDetalle::where('nro_orden_compra', $record->nro_orden_compra)->get();
+                $data['ordenCompraDetalles'] = $detalles->map(fn ($d) => [
+                    'cod_articulo' => $d->cod_articulo,
+                    'cantidad'     => (int)$d->cantidad,
+                    'precio'       => number_format((float)$d->precio, 0, ',', '.'),
+                    'total'        => number_format((float)$d->total, 0, ',', '.'),
+                    'total_iva'    => number_format((float)$d->total_iva, 0, ',', '.'),
+                ])->toArray();
+                return $data;
+            }),
 
         Tables\Actions\Action::make('imprimir')
             ->label('Imprimir PDF')
@@ -400,22 +450,55 @@ class OrdenCompraCabeceraResource extends Resource
             ->icon('heroicon-m-no-symbol')
             ->color('danger')
             ->requiresConfirmation()
-            ->visible(fn (OrdenCompraCabecera $record) => (int) $record->estado === 1)
-            ->action(fn (OrdenCompraCabecera $record) => $record->update(['estado' => 'A'])),
+            ->modalHeading('Anular Orden de Compra')
+            ->modalDescription('¿Está seguro que desea anular esta orden de compra? Esta acción no se puede deshacer.')
+            ->modalSubmitActionLabel('Sí, anular')
+            ->visible(fn (OrdenCompraCabecera $record) => $record->estado === 'PENDIENTE')
+            ->action(function (OrdenCompraCabecera $record) {
+                $record->update([
+                    'estado'              => 'ANULADO',
+                    'nro_presupuesto_ref' => null,
+                ]);
+                
+                \Filament\Notifications\Notification::make()
+                    ->title('Orden de compra anulada')
+                    ->body("La orden de compra Nro. {$record->nro_orden_compra} ha sido anulada exitosamente.")
+                    ->success()
+                    ->icon('heroicon-o-check-circle')
+                    ->duration(5000)
+                    ->send();
+            }),
 
         Tables\Actions\Action::make('aprobar')
             ->label('Aprobar')
             ->icon('heroicon-m-check-circle')
             ->color('success')
             ->requiresConfirmation()
-            ->visible(fn (OrdenCompraCabecera $record) => (int) $record->estado === 1)
+            ->modalHeading('Aprobar Orden de Compra')
+            ->modalDescription('¿Está seguro que desea aprobar esta orden de compra?')
+            ->modalSubmitActionLabel('Sí, aprobar')
+            ->visible(fn (OrdenCompraCabecera $record) => $record->estado === 'PENDIENTE')
             ->action(function (OrdenCompraCabecera $record) {
-                $estadoAprobado = Estados::query()
-                    ->whereRaw("UPPER(descripcion) = 'APROBADO'")
-                    ->value('cod_estado') ?? 5;
-
-                $record->update(['estado' => $estadoAprobado]);
+                $record->update(['estado' => 'APROBADO']);
+                
+                \Filament\Notifications\Notification::make()
+                    ->title('Orden de compra aprobada')
+                    ->body("La orden de compra Nro. {$record->nro_orden_compra} ha sido aprobada exitosamente.")
+                    ->success()
+                    ->icon('heroicon-o-check-badge')
+                    ->duration(5000)
+                    ->send();
             }),
+
+        Tables\Actions\Action::make('crear_factura')
+            ->label('Crear Factura')
+            ->icon('heroicon-m-document-plus')
+            ->color('info')
+            ->visible(fn (OrdenCompraCabecera $record) => $record->estado === 'APROBADO')
+            ->url(fn (OrdenCompraCabecera $record) => 
+                \App\Filament\Resources\CompraCabeceraResource::getUrl('create', ['orden_compra' => $record->nro_orden_compra])
+            )
+            ->tooltip('Crear una factura de compra basada en esta orden'),
     ])
         ->label('Opciones')                      // texto del botón (opcional)
         ->icon('heroicon-m-ellipsis-vertical'),  // ícono de “tres puntitos”
@@ -433,9 +516,9 @@ class OrdenCompraCabeceraResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListOrdenCompraCabeceras::route('/'),
+            'index'  => Pages\ListOrdenCompraCabeceras::route('/'),
             'create' => Pages\CreateOrdenCompraCabecera::route('/create'),
-            'edit' => Pages\EditOrdenCompraCabecera::route('/{record}/edit'),
+            'edit'   => Pages\EditOrdenCompraCabecera::route('/{record}/edit'),
         ];
     }
 }

@@ -33,6 +33,7 @@ class CreatePresupuestoCabecera extends CreateRecord
             'cod_sucursal' => $this->cod_sucursal,
             'nombre_sucursal' => $this->nombre_sucursal,
             'usuario_alta' => $this->usuario_alta,
+            'fec_presupuesto' => now('America/Asuncion')->toDateString(),
            //'cod_empleado'=>$this->cod_empleado,
            // 'nombre_empleado'=>$this->nombre_empleado,
         ]);
@@ -55,19 +56,20 @@ class CreatePresupuestoCabecera extends CreateRecord
             $precio    = (float)($d['precio'] ?? 0);
             $exenta    = (float)($d['exenta'] ?? 0);
             $totalItem = $cantidad * $precio;
-            $ivaItem   = max(0, ($totalItem - $exenta)) * 0.10;
+            $ivaItem   = round($totalItem / 11);
+            $netItem   = $totalItem - $ivaItem;
 
             $d['total']     = $totalItem;
             $d['total_iva'] = $ivaItem;
 
-            $grav += $totalItem;
+            $grav += $netItem;
             $iva  += $ivaItem;
         }
         unset($d);
 
-        $data['monto_gravado'] = $grav;
-        $data['monto_tot_impuesto'] = $iva;
-        $data['monto_general'] = $grav + $iva;
+        $data['monto_gravado']      = round($grav);
+        $data['monto_tot_impuesto'] = round($iva);
+        $data['monto_general']      = round($grav + $iva);
 
         \Log::info('=== TOTALES CALCULADOS ===', [
             'monto_gravado' => $grav,
@@ -112,12 +114,19 @@ class CreatePresupuestoCabecera extends CreateRecord
             foreach ($detalles as $index => $detalle) {
                 \Log::info("Detalle #{$index}", ['detalle' => $detalle]);
 
+                $parseNum = fn($v) => (float) str_replace('.', '', str_replace(',', '.', (string)($v ?? 0)));
+
+                $cantidad = $parseNum($detalle['cantidad']);
+                $precio   = $parseNum($detalle['precio']);
+                $total    = $cantidad * $precio;
+                $totalIva = round($total / 11);
+
                 $detalleCreado = $record->presupuestoDetalles()->create([
                     'cod_articulo' => $detalle['cod_articulo'],
-                    'cantidad' => $detalle['cantidad'],
-                    'precio' => $detalle['precio'],
-                    'total' => $detalle['total'],
-                    'total_iva' => $detalle['total_iva'],
+                    'cantidad'     => $cantidad,
+                    'precio'       => $precio,
+                    'total'        => $total,
+                    'total_iva'    => $totalIva,
                 ]);
 
                 \Log::info("Detalle guardado", ['id_detalle' => $detalleCreado->id_detalle]);
@@ -131,28 +140,25 @@ class CreatePresupuestoCabecera extends CreateRecord
 
     protected function afterCreate(): void
     {
-        // Refuerza consistencia
         $cab = $this->record;
         $grav = 0.0; $iva = 0.0;
 
         foreach ($cab->presupuestoDetalles as $det) {
-            $totalItem = (float)$det->cantidad * (float)$det->precio;
-            $ivaItem   = max(0, ($totalItem - (float)($det->exenta ?? 0))) * 0.10;
+            $totalItem = round((float)$det->cantidad * (float)$det->precio);
+            $ivaItem   = round($totalItem / 11);
+            $netItem   = $totalItem - $ivaItem;
 
-            if ((float)$det->total !== $totalItem || (float)$det->total_iva !== $ivaItem) {
-                $det->update(['total' => $totalItem, 'total_iva' => $ivaItem]);
-            }
-            $grav += $totalItem;
+            $det->update(['total' => $totalItem, 'total_iva' => $ivaItem]);
+
+            $grav += $netItem;
             $iva  += $ivaItem;
         }
 
         $cab->update([
-            'monto_gravado' => $grav,
-            'monto_tot_impuesto' => $iva,
-            'monto_general' => $grav + $iva,
+            'monto_gravado'      => round($grav),
+            'monto_tot_impuesto' => round($iva),
+            'monto_general'      => round($grav + $iva),
         ]);
-
-
     }
 
 

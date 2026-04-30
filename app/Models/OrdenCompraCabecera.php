@@ -26,10 +26,11 @@ class OrdenCompraCabecera extends Model
        'cod_sucursal',
        'estado',
        'observacion',
+       'monto_gravado',
+       'monto_tot_impuesto',
+       'monto_general',
        'usuario_alta',
-       'fec_alta',
-       'usuario_modifica',
-       'fec_modifica'
+       'fec_alta'
     ]; //campos para visualizar
 
      public function ordenCompraDetalles()
@@ -68,12 +69,7 @@ class OrdenCompraCabecera extends Model
             $model->usuario_alta = Auth::user()->name;
             $model->fec_alta = now();
             $model->cod_sucursal = Auth::user()->cod_sucursal;
-            $model->estado = $model->estado ?? 1; // Estado default "Pendiente"
-        });
-
-        static::updating(function ($model) {
-            $model->usuario_modifica = Auth::user()->name;
-            $model->fec_modifica = now();
+            $model->estado = $model->estado ?? 'PENDIENTE';
         });
     }
 
@@ -99,19 +95,24 @@ class OrdenCompraCabecera extends Model
 
             \Log::info('Relaciones cargadas correctamente');
 
-            // Calcular totales
-            $subtotal = $this->ordenCompraDetalles->sum('total');
-            $totalIva = $this->ordenCompraDetalles->sum('total_iva');
-            $total = $subtotal + $totalIva;
+            // Usar montos guardados; si están en 0 calcular de los detalles
+            $montoGravado  = $this->monto_gravado    ?: ($this->ordenCompraDetalles->sum('total') - $this->ordenCompraDetalles->sum('total_iva'));
+            $montoImpuesto = $this->monto_tot_impuesto ?: $this->ordenCompraDetalles->sum('total_iva');
+            $montoGeneral  = $this->monto_general    ?: $this->ordenCompraDetalles->sum('total');
 
-            \Log::info('Totales calculados - Subtotal: ' . $subtotal . ', IVA: ' . $totalIva . ', Total: ' . $total);
+            // Condición: CREDITO si dias_cuotas > 0
+            $condicion = $this->condicionCompra;
+            $condicionLabel = ($condicion && (int)$condicion->dias_cuotas > 0)
+                ? 'CREDITO — ' . $condicion->descripcion
+                : ($condicion?->descripcion ?? 'CONTADO');
 
             // Renderizar la vista Blade a HTML
             $html = view('pdf.orden-compra', [
-                'ordenCompra' => $this,
-                'subtotal' => $subtotal,
-                'totalIva' => $totalIva,
-                'total' => $total,
+                'ordenCompra'    => $this,
+                'montoGravado'   => $montoGravado,
+                'montoImpuesto'  => $montoImpuesto,
+                'montoGeneral'   => $montoGeneral,
+                'condicionLabel' => $condicionLabel,
             ])->render();
 
             \Log::info('Vista Blade renderizada. Longitud HTML: ' . strlen($html));

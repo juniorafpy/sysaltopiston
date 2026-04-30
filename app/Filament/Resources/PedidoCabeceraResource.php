@@ -80,7 +80,7 @@ class PedidoCabeceraResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->disabled(fn ($context) => $context === 'view'),
+                            ->disabled(),
 
                         DatePicker::make('fec_pedido')
                             ->label('Fecha Pedido')
@@ -183,7 +183,7 @@ class PedidoCabeceraResource extends Resource
                         default => 'gray',
                     })
             ])
-            ->defaultSort('fec_pedido', 'desc')
+            ->defaultSort('cod_pedido', 'desc')
 
             ->filters([
                 //

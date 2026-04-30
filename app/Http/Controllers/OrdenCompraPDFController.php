@@ -16,19 +16,25 @@ class OrdenCompraPDFController extends Controller
             'proveedor.personas_pro',
             'condicionCompra',
             'sucursale',
-            'estadoRel'
         ]);
 
-        // Calcular totales
-        $subtotal = $ordenCompra->ordenCompraDetalles->sum('total');
-        $totalIva = $ordenCompra->ordenCompraDetalles->sum('total_iva');
-        $total = $subtotal + $totalIva;
+        // Usar montos guardados en la cabecera; si están vacíos calcular de los detalles
+        $montoGravado    = $ordenCompra->monto_gravado    ?: ($ordenCompra->ordenCompraDetalles->sum('total') - $ordenCompra->ordenCompraDetalles->sum('total_iva'));
+        $montoImpuesto   = $ordenCompra->monto_tot_impuesto ?: $ordenCompra->ordenCompraDetalles->sum('total_iva');
+        $montoGeneral    = $ordenCompra->monto_general    ?: $ordenCompra->ordenCompraDetalles->sum('total');
+
+        // Condición de compra: mostrar CREDITO si dias_cuotas > 0
+        $condicion       = $ordenCompra->condicionCompra;
+        $condicionLabel  = ($condicion && (int)$condicion->dias_cuotas > 0)
+            ? 'CREDITO — ' . $condicion->descripcion
+            : ($condicion?->descripcion ?? 'CONTADO');
 
         $data = [
-            'ordenCompra' => $ordenCompra,
-            'subtotal' => $subtotal,
-            'totalIva' => $totalIva,
-            'total' => $total,
+            'ordenCompra'    => $ordenCompra,
+            'montoGravado'   => $montoGravado,
+            'montoImpuesto'  => $montoImpuesto,
+            'montoGeneral'   => $montoGeneral,
+            'condicionLabel' => $condicionLabel,
         ];
 
         // Renderizar la vista Blade a HTML

@@ -4,8 +4,9 @@ namespace App\Filament\Resources\PedidoCabeceraResource\Pages;
 
 use App\Filament\Resources\PedidoCabeceraResource;
 use Filament\Actions;
-Use App\Models\Sucursal;
+use App\Models\Sucursal;
 use App\Traits\WithSucursalData;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 class CreatePedidoCabecera extends CreateRecord
 {
@@ -31,6 +32,7 @@ class CreatePedidoCabecera extends CreateRecord
             'usuario_alta' => $this->usuario_alta,
             'cod_empleado'=>$this->cod_empleado,
             'nombre_empleado'=>$this->nombre_empleado,
+            'fec_pedido' => now()->toDateString(),
         ]);
     }
 
@@ -60,8 +62,16 @@ class CreatePedidoCabecera extends CreateRecord
 
 protected function getRedirectUrl(): string
     {
-        // Esto le dice a Filament: "Vuelve a la página de la lista (index)".
         return static::getResource()::getUrl('index');
+    }
+
+    protected function getCreatedNotification(): ?Notification
+    {
+        return Notification::make()
+            ->success()
+            ->title('Pedido Registrado')
+            ->body('El pedido de compra se ha guardado correctamente.')
+            ->persistent();
     }
 
 }

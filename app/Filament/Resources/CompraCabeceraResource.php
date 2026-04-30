@@ -10,8 +10,6 @@ use Filament\Forms\Get;
 use Filament\Forms\Form;
 use App\Models\Articulos;
 use Filament\Tables\Table;
-//alex
-use Ramsey\Collection\Set;
 use App\Models\CompraCabecera;
 use App\Models\OrdenCompraCabecera;
 use Filament\Resources\Resource;
@@ -22,6 +20,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Repeater;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
@@ -64,168 +63,559 @@ class CompraCabeceraResource extends Resource
     {
         return $form
             ->schema([
-                // SECCIÓN 1: Información del Comprobante
-                Section::make('Información del Comprobante')
-                    ->description('Datos principales de la factura de compra')
-                    ->collapsible()
-                    ->columns(3)
+                // Campo oculto para tipo de comprobante (siempre es FAC - Factura)
+                Forms\Components\Hidden::make('tip_comprobante')
+                    ->default('FAC'),
+                
+                // Layout con Grid: Información Principal (2 cols) + Vencimiento (1 col)
+                Grid::make(3)
                     ->schema([
-                        // Tipo de Comprobante
-                        Select::make('tip_comprobante')
-                            ->label('Tipo Factura')
-                            ->options([
-                                'FAC' => 'Factura Crédito',
-                                'CON' => 'Factura Contado',
-                            ])
-                            ->required()
-                            ->default('FAC')
-                            ->native(false)
-                            ->columnSpan(1),
+                        Section::make('Información Principal')
+                            ->description('Datos del proveedor y condiciones de compra')
+                            ->columnSpan(2)
+                            ->schema([
+                                // Grid con Sucursal, Fecha y Condición en la misma fila
+                                Forms\Components\Grid::make(3)
+                                    ->schema([
+                                        // Sucursal
+                                        Select::make('cod_sucursal')
+                                            ->label('Sucursal')
+                                            ->options(\App\Models\Sucursal::pluck('descripcion', 'cod_sucursal'))
+                                            ->default(fn () => auth()->user()->cod_sucursal)
+                                            ->required()
+                                            ->disabled(fn ($context) => $context === 'edit' || (request()->query('orden_compra') && $context === 'create'))
+                                            ->dehydrated()
+                                            ->searchable()
+                                            ->preload()
+                                            ->columnSpan(1),
 
-                        // Proveedor
-                        Select::make('cod_proveedor')
-                            ->label('Proveedor')
-                            ->relationship('proveedor','id')
-                            ->getOptionLabelFromRecordUsing(fn ($record) =>
-                                $record?->personas_pro?->nombres ?? $record?->nombres ?? ''
-                            )
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->helperText('Seleccione el proveedor de la factura')
-                            ->columnSpan(2),
+                                        // Fecha de Factura
+                                        DatePicker::make('fec_comprobante')
+                                            ->label('Fecha de Factura')
+                                            ->required()
+                                            ->default(now())
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->live()
+                                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                                $condicionId = $get('cod_condicion_compra');
+                                                if ($condicionId && $state) {
+                                                    $condicion = \App\Models\CondicionCompra::find($condicionId);
+                                                    if ($condicion) {
+                                                        // Extraer días de la descripción (ej: "30 DIAS" -> 30)
+                                                        preg_match('/(\d+)/', $condicion->descripcion, $matches);
+                                                        $dias = $matches[1] ?? 30;
+                                                        $fechaVencimiento = \Carbon\Carbon::parse($state)->addDays($dias);
+                                                        $set('fec_vencimiento', $fechaVencimiento->format('Y-m-d'));
+                                                    }
+                                                }
+                                            })
+                                            ->columnSpan(1),
 
-                        // Sucursal
-                        Select::make('cod_sucursal')
-                            ->label('Sucursal')
-                            ->relationship('sucursal', 'descripcion')
-                            ->default(1)
-                            ->required()
-                            ->disabled(fn ($context) => $context === 'edit')
-                            ->dehydrated()
-                            ->searchable()
-                            ->preload()
-                            ->columnSpan(1),
+                                        // Condición de Compra
+                                        Select::make('cod_condicion_compra')
+                                            ->label('Condición de Compra')
+                                            ->options(function () {
+                                                return \App\Models\CondicionCompra::all()
+                                                    ->mapWithKeys(function ($condicion) {
+                                                        $cuotasInfo = $condicion->cant_cuota > 0
+                                                            ? " ({$condicion->cant_cuota} cuotas)"
+                                                            : ' (Contado)';
+                                                        return [$condicion->cod_condicion => $condicion->descripcion . $cuotasInfo];
+                                                    });
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->disabled(fn ($context) => request()->query('orden_compra') && $context === 'create')
+                                            ->dehydrated()
+                                            ->live()
+                                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                                if ($state) {
+                                                    $condicion = \App\Models\CondicionCompra::find($state);
+                                                    $fechaComprobante = $get('fec_comprobante');
+                                                    
+                                                    if ($condicion && $fechaComprobante) {
+                                                        // Extraer días de la descripción (ej: "30 DIAS" -> 30)
+                                                        preg_match('/(\d+)/', $condicion->descripcion, $matches);
+                                                        $dias = $matches[1] ?? 30;
+                                                        $fechaVencimiento = \Carbon\Carbon::parse($fechaComprobante)->addDays($dias);
+                                                        $set('fec_vencimiento', $fechaVencimiento->format('Y-m-d'));
+                                                    }
+                                                }
+                                            })
+                                            ->columnSpan(1),
+                                    ]),
 
-                        // Usuario Alta
-                        TextInput::make('usuario_alta')
-                            ->label('Usuario')
-                            ->default(fn () => auth()->user()->name ?? 'Sistema')
-                            ->required()
-                            ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(1),
+                                // Grid para Proveedor, Serie y Nro Factura
+                                Forms\Components\Grid::make(5)
+                                    ->schema([
+                                        // Proveedor
+                                        Select::make('cod_proveedor')
+                                            ->label('Proveedor')
+                                            ->options(function () {
+                                                return \App\Models\Proveedor::with('personas_pro')
+                                                    ->get()
+                                                    ->mapWithKeys(function ($proveedor) {
+                                                        $label = $proveedor->personas_pro?->nombre_completo ?? $proveedor->nombre ?? 'N/A';
+                                                        return [$proveedor->cod_proveedor => $label];
+                                                    });
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            //->helperText('Seleccione el proveedor de la factura')
+                                            ->disabled(fn ($context) => request()->query('orden_compra') && $context === 'create')
+                                            ->dehydrated()
+                                            ->columnSpan(3),
 
-                        // Fecha Alta
-                        TextInput::make('fecha_alta')
-                            ->label('Fecha Alta')
-                            ->default(Carbon::now()->toDateTimeString())
-                            ->required()
-                            ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(1),
+                                        // Serie Comprobante
+                                        TextInput::make('ser_comprobante')
+                                            ->label('Serie')
+                                            ->required()
+                                            ->maxLength(7)
+                                            ->placeholder('001-003')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(function ($state) {
+                                                // Validar formato en tiempo real
+                                                if ($state && !preg_match('/^\d{3}-\d{3}$/', $state)) {
+                                                    Notification::make()
+                                                        ->title('⚠️ Formato de serie incorrecto')
+                                                        ->body('La serie debe tener el formato: 001-003 (3 dígitos - guion - 3 dígitos)')
+                                                        ->danger()
+                                                        ->persistent()
+                                                        ->send();
+                                                }
+                                            })
+                                            ->rules([
+                                                'required',
+                                                'regex:/^\d{3}-\d{3}$/',
+                                            ])
+                                            ->validationMessages([
+                                                'regex' => '⚠️ La serie debe tener el formato: 001-003 (3 dígitos - guion - 3 dígitos)',
+                                                'required' => 'La serie de la factura es obligatoria.',
+                                            ])
+                                            ->helperText('Formato: 001-003')
+                                            ->columnSpan(1),
 
-                        // Fecha Comprobante
-                        DatePicker::make('fec_comprobante')
-                            ->label('Fecha Factura')
-                            ->required()
-                            ->default(now())
-                            ->native(false)
-                            ->displayFormat('d/m/Y')
-                            ->columnSpan(1),
+                                        // Número Comprobante
+                                        TextInput::make('nro_comprobante')
+                                            ->label('Nro. Factura')
+                                            ->required()
+                                            ->maxLength(7)
+                                            ->numeric()
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                                if (!$state || !$get('cod_proveedor') || !$get('ser_comprobante')) {
+                                                    return;
+                                                }
 
-                        // Fecha Vencimiento
-                        DatePicker::make('fec_vencimiento')
-                            ->label('Vencimiento')
-                            ->required()
-                            ->default(now()->addDays(30))
-                            ->native(false)
-                            ->displayFormat('d/m/Y')
-                            ->helperText('Fecha de vencimiento de pago')
-                            ->columnSpan(1),
+                                                // Buscar timbrado válido
+                                                $timbrado = DB::table('timbrado_proveedor')
+                                                    ->where('cod_proveedor', $get('cod_proveedor'))
+                                                    ->where('ser_timbrado', $get('ser_comprobante'))
+                                                    ->where('ind_activo', true)
+                                                    ->where('fec_vencimiento', '>=', now()->format('Y-m-d'))
+                                                    ->first();
 
-                        // Condición de Compra
-                        Select::make('cod_condicion_compra')
-                            ->label('Condición de Compra')
-                            ->relationship('condicionCompra', 'descripcion')
-                            ->getOptionLabelFromRecordUsing(function ($record) {
-                                $cuotasInfo = $record->cant_cuota > 0
-                                    ? " ({$record->cant_cuota} cuotas)"
-                                    : ' (Contado)';
-                                return $record->descripcion . $cuotasInfo;
-                            })
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->columnSpan(1),
+                                                if ($timbrado) {
+                                                    // Verificar rango
+                                                    $nroFactura = (int) $state;
+                                                    if ($nroFactura >= $timbrado->numero_inicial && $nroFactura <= $timbrado->numero_final) {
+                                                        $set('timbrado', $timbrado->num_timbrado);
+                                                        
+                                                        Notification::make()
+                                                            ->title('✅ Timbrado cargado')
+                                                            ->body("Timbrado: {$timbrado->num_timbrado} (Rango: {$timbrado->numero_inicial}-{$timbrado->numero_final})")
+                                                            ->success()
+                                                            ->duration(3000)
+                                                            ->send();
+                                                    }
+                                                } else {
+                                                    // No existe timbrado válido - abrir modal automáticamente
+                                                    $set('timbrado', null);
+                                                    
+                                                    Notification::make()
+                                                        ->title('⚠️ Timbrado no encontrado')
+                                                        ->body(new \Illuminate\Support\HtmlString('
+                                                            Abriendo formulario para registrar nuevo timbrado...
+                                                            <script>
+                                                                setTimeout(function() {
+                                                                    let button = document.querySelector(\'button[wire\\\\:click*="mountFormComponentAction"][wire\\\\:click*="timbrado"][wire\\\\:click*="crearTimbrado"]\');
+                                                                    if (button) {
+                                                                        button.click();
+                                                                    }
+                                                                }, 100);
+                                                            </script>
+                                                        '))
+                                                        ->warning()
+                                                        ->duration(2000)
+                                                        ->send();
+                                                }
+                                            })
+                                            //->helperText('Número')
+                                            ->rules([
+                                                fn (callable $get): Closure => function (string $attribute, $value, Closure $fail) use ($get) {
+                                                    // Verificar duplicado
+                                                    $existe = DB::table('cm_compras_cabecera')
+                                                        ->where('cod_proveedor', $get('cod_proveedor'))
+                                                        ->where('tip_comprobante', $get('tip_comprobante'))
+                                                        ->where('ser_comprobante', $get('ser_comprobante'))
+                                                        ->where('nro_comprobante', $value)
+                                                        ->when($get('id_compra_cabecera'), fn ($query, $id) => $query->where('id_compra_cabecera', '!=', $id))
+                                                        ->exists();
+
+                                                    if ($existe) {
+                                                        // Obtener nombre del proveedor para el mensaje
+                                                        $proveedor = \App\Models\Proveedor::with('personas_pro')->find($get('cod_proveedor'));
+                                                        $nombreProveedor = $proveedor ? ($proveedor->personas_pro->nombre_completo ?? $proveedor->razon_social ?? 'N/A') : 'N/A';
+                                                        
+                                                        $fail("⚠️ La factura {$get('ser_comprobante')}-{$value} del proveedor {$nombreProveedor} ya está registrada en el sistema.");
+                                                        
+                                                        // Mostrar notificación adicional
+                                                        Notification::make()
+                                                            ->title('❌ Factura Duplicada')
+                                                            ->body("La factura **{$get('ser_comprobante')}-{$value}** del proveedor **{$nombreProveedor}** ya existe en el sistema. No se puede registrar dos veces.")
+                                                            ->danger()
+                                                            ->persistent()
+                                                            ->send();
+                                                        
+                                                        return;
+                                                    }
+
+                                                    // Verificar rango de timbrado
+                                                    if ($get('cod_proveedor') && $get('ser_comprobante')) {
+                                                        $timbrado = DB::table('timbrado_proveedor')
+                                                            ->where('cod_proveedor', $get('cod_proveedor'))
+                                                            ->where('ser_timbrado', $get('ser_comprobante'))
+                                                            ->where('ind_activo', true)
+                                                            ->where('fec_vencimiento', '>=', now()->format('Y-m-d'))
+                                                            ->first();
+
+                                                        if (!$timbrado) {
+                                                            $fail("⚠️ No existe timbrado válido. Use el botón [+] junto al campo Timbrado.");
+                                                            return;
+                                                        }
+
+                                                        $nroFactura = (int) $value;
+                                                        if ($nroFactura < $timbrado->numero_inicial || $nroFactura > $timbrado->numero_final) {
+                                                            $fail("⚠️ El número debe estar entre {$timbrado->numero_inicial} y {$timbrado->numero_final}");
+                                                        }
+                                                    }
+                                                },
+                                            ])
+                                            ->columnSpan(1),
+                                    ]),
+
+                                // Grid para Timbrado y Orden de Compra
+                                Forms\Components\Grid::make(5)
+                                    ->schema([
+                                        // Timbrado
+                                        TextInput::make('timbrado')
+                                            ->label('Timbrado')
+                                            ->required()
+                                            ->numeric()
+                                            ->maxLength(8)
+                                            ->validationMessages([
+                                                'max' => 'El timbrado no debe tener más de 8 dígitos.',
+                                            ])
+                                            ->rules(['regex:/^\d{1,8}$/'])
+                                            ->helperText('Hasta 8 dígitos')
+                                            ->suffixAction(
+                                                Action::make('crearTimbrado')
+                                                    ->icon('heroicon-o-plus-circle')
+                                                    ->tooltip('Registrar nuevo timbrado')
+                                                    ->modalHeading('📋 Registrar Nuevo Timbrado')
+                                                    ->modalDescription(function (Forms\Get $get) {
+                                                        $proveedor = \App\Models\Proveedor::with('personas_pro')->find($get('cod_proveedor'));
+                                                        $nombreProveedor = $proveedor ? $proveedor->personas_pro->nombre_completo : 'No seleccionado';
+                                                        return "Proveedor: {$nombreProveedor} | Complete los datos del nuevo timbrado";
+                                                    })
+                                                    ->modalWidth('2xl')
+                                                    ->fillForm(function (Forms\Get $get) {
+                                                        return [
+                                                            'ser_timbrado_nuevo' => $get('ser_comprobante'),
+                                                        ];
+                                                    })
+                                                    ->form([
+                                                        Forms\Components\Grid::make(2)
+                                                            ->schema([
+                                                                Forms\Components\TextInput::make('num_timbrado_nuevo')
+                                                                    ->label('Número de Timbrado')
+                                                                    ->required()
+                                                                    ->numeric()
+                                                                    ->maxLength(8)
+                                                                    ->placeholder('12345678')
+                                                                    ->columnSpan(1),
+                                                                
+                                                                Forms\Components\TextInput::make('ser_timbrado_nuevo')
+                                                                    ->label('Serie del Timbrado')
+                                                                    ->required()
+                                                                    ->maxLength(7)
+                                                                    ->placeholder('001-003')
+                                                                    ->live(onBlur: true)
+                                                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                                                        // Validar formato en tiempo real
+                                                                        if ($state && !preg_match('/^\d{3}-\d{3}$/', $state)) {
+                                                                            Notification::make()
+                                                                                ->title('⚠️ Formato incorrecto')
+                                                                                ->body('La serie debe tener el formato: 001-003 (3 dígitos - guion - 3 dígitos)')
+                                                                                ->danger()
+                                                                                ->duration(5000)
+                                                                                ->send();
+                                                                        }
+                                                                    })
+                                                                    ->rules([
+                                                                        'required',
+                                                                        'regex:/^\d{3}-\d{3}$/',
+                                                                    ])
+                                                                    ->validationMessages([
+                                                                        'regex' => '⚠️ La serie debe tener el formato: 001-003 (3 dígitos - guion - 3 dígitos)',
+                                                                        'required' => 'La serie del timbrado es obligatoria.',
+                                                                    ])
+                                                                    ->helperText('Formato requerido: 001-003')
+                                                                    ->columnSpan(1),
+                                                                
+                                                                Forms\Components\DatePicker::make('fecha_inicial_nuevo')
+                                                                    ->label('Fecha Inicial')
+                                                                    ->required()
+                                                                    ->native(false)
+                                                                    ->displayFormat('d/m/Y')
+                                                                    ->default(now())
+                                                                    ->columnSpan(1),
+                                                                
+                                                                Forms\Components\DatePicker::make('fec_vencimiento_nuevo')
+                                                                    ->label('Fecha Vencimiento')
+                                                                    ->required()
+                                                                    ->native(false)
+                                                                    ->displayFormat('d/m/Y')
+                                                                    ->after('fecha_inicial_nuevo')
+                                                                    ->columnSpan(1),
+                                                                
+                                                                Forms\Components\TextInput::make('numero_inicial_nuevo')
+                                                                    ->label('Número Inicial')
+                                                                    ->required()
+                                                                    ->numeric()
+                                                                    ->minValue(1)
+                                                                    ->placeholder('1')
+                                                                    ->columnSpan(1),
+                                                                
+                                                                Forms\Components\TextInput::make('numero_final_nuevo')
+                                                                    ->label('Número Final')
+                                                                    ->required()
+                                                                    ->numeric()
+                                                                    ->minValue(1)
+                                                                    ->placeholder('9999999')
+                                                                    ->columnSpan(1),
+                                                                
+                                                                Forms\Components\Toggle::make('ind_activo_nuevo')
+                                                                    ->label('Activo')
+                                                                    ->default(true)
+                                                                    ->inline(false)
+                                                                    ->columnSpan(2),
+                                                            ]),
+                                                    ])
+                                                    ->action(function (array $data, Forms\Get $get, Forms\Set $set) {
+                                                        $codProveedor = $get('cod_proveedor');
+                                                        
+                                                        if (!$codProveedor) {
+                                                            Notification::make()
+                                                                ->title('Error')
+                                                                ->body('Debe seleccionar un proveedor primero.')
+                                                                ->danger()
+                                                                ->send();
+                                                            return;
+                                                        }
+
+                                                        // Validar formato de serie antes de guardar
+                                                        if (!preg_match('/^\d{3}-\d{3}$/', $data['ser_timbrado_nuevo'])) {
+                                                            Notification::make()
+                                                                ->title('⚠️ Formato de serie incorrecto')
+                                                                ->body('La serie debe tener el formato: 001-003 (3 dígitos - guion - 3 dígitos). No se puede guardar el timbrado.')
+                                                                ->danger()
+                                                                ->persistent()
+                                                                ->send();
+                                                            return;
+                                                        }
+
+                                                        try {
+                                                            // Insertar el nuevo timbrado usando el modelo
+                                                            $nuevoTimbrado = \App\Models\timbradoProv::create([
+                                                                'cod_proveedor' => $codProveedor,
+                                                                'num_timbrado' => $data['num_timbrado_nuevo'],
+                                                                'ser_timbrado' => $data['ser_timbrado_nuevo'],
+                                                                'fecha_inicial' => $data['fecha_inicial_nuevo'],
+                                                                'fec_vencimiento' => $data['fec_vencimiento_nuevo'],
+                                                                'numero_inicial' => $data['numero_inicial_nuevo'],
+                                                                'numero_final' => $data['numero_final_nuevo'],
+                                                                'ind_activo' => $data['ind_activo_nuevo'] ?? true,
+                                                            ]);
+
+                                                            // Cargar el timbrado en el campo
+                                                            $set('timbrado', $data['num_timbrado_nuevo']);
+                                                            $set('ser_comprobante', $data['ser_timbrado_nuevo']);
+
+                                                            Notification::make()
+                                                                ->title('Timbrado registrado exitosamente')
+                                                                ->body("Timbrado {$data['num_timbrado_nuevo']} creado y cargado. (ID: {$nuevoTimbrado->cod_timbrado})")
+                                                                ->success()
+                                                                ->duration(5000)
+                                                                ->send();
+                                                        } catch (\Exception $e) {
+                                                            Notification::make()
+                                                                ->title('Error al registrar timbrado')
+                                                                ->body($e->getMessage())
+                                                                ->danger()
+                                                                ->send();
+                                                        }
+                                                    })
+                                            )
+                                            ->columnSpan(2),
+
+                                        // Nro OC Referencia - SOLO SI VIENE DESDE OC
+                                        Select::make('nro_oc_ref')
+                                            ->label('Orden de Compra Referencia')
+                                            ->options(function (Get $get) {
+                                                $codProveedor = $get('cod_proveedor');
+                                                if (!$codProveedor) {
+                                                    return [];
+                                                }
+                                                return OrdenCompraCabecera::where('estado', 'APROBADO')
+                                                    ->where('cod_proveedor', $codProveedor)
+                                                    ->get()
+                                                    ->mapWithKeys(function ($orden) {
+                                                        $label = 'OC Nro. ' . $orden->nro_orden_compra;
+                                                        if ($orden->fec_orden) {
+                                                            $fecha = $orden->fec_orden instanceof \Carbon\Carbon
+                                                                ? $orden->fec_orden->format('d/m/Y')
+                                                                : $orden->fec_orden;
+                                                            $label .= ' — ' . $fecha;
+                                                        }
+                                                        return [$orden->nro_orden_compra => $label];
+                                                    });
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->getOptionLabelUsing(function ($value) {
+                                                if (!$value) return null;
+                                                $orden = OrdenCompraCabecera::find($value);
+                                                if (!$orden) return $value;
+                                                $label = 'OC Nro. ' . $orden->nro_orden_compra;
+                                                if ($orden->fec_orden) {
+                                                    $fecha = $orden->fec_orden instanceof \Carbon\Carbon
+                                                        ? $orden->fec_orden->format('d/m/Y')
+                                                        : $orden->fec_orden;
+                                                    $label .= ' — ' . $fecha;
+                                                }
+                                                return $label;
+                                            })
+                                            ->live()
+                                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                                if (!$state) {
+                                                    $set('detalles', []);
+                                                    return;
+                                                }
+
+                                                $ordenCompra = OrdenCompraCabecera::with('ordenCompraDetalles.articulo')
+                                                    ->find($state);
+
+                                                if (!$ordenCompra) {
+                                                    return;
+                                                }
+
+                                                $detalles = $ordenCompra->ordenCompraDetalles->map(function ($detalle) {
+                                                    $cantidad = (float) $detalle->cantidad;
+                                                    $precio = (float) $detalle->precio;
+                                                    $totalConIva = $cantidad * $precio; // El precio incluye IVA
+                                                    $iva = $totalConIva / 11; // Extraer IVA del total (10%)
+
+                                                    return [
+                                                        'cod_articulo' => $detalle->cod_articulo,
+                                                        'cantidad' => $cantidad,
+                                                        'precio_unitario' => $precio,
+                                                        'porcentaje_iva' => 10,
+                                                        'total_iva' => number_format($iva, 2, '.', ''),
+                                                        'monto_total_linea' => number_format($totalConIva, 2, '.', ''),
+                                                    ];
+                                                })->toArray();
+
+                                                $set('detalles', $detalles);
+
+                                                Notification::make()
+                                                    ->title('Detalles cargados desde OC')
+                                                    ->success()
+                                                    ->send();
+                                            })
+                                            ->placeholder('Seleccione una orden de compra')
+                                            ->helperText('Cargue artículos desde una OC aprobada')
+                                            ->visible(fn ($context, Get $get) => request()->query('orden_compra') || $get('nro_oc_ref') || $context !== 'create')
+                                            ->disabled(fn ($context) => request()->query('orden_compra') && $context === 'create')
+                                            ->dehydrated()
+                                            ->columnSpan(2),
+                                        
+                                        // Impuesto
+                                        /*Select::make('cod_impuesto')
+                                            ->label('Impuesto')
+                                            ->options(function () {
+                                                return \App\Models\Impuesto::where('activo', true)
+                                                    ->get()
+                                                    ->mapWithKeys(function ($impuesto) {
+                                                        return [$impuesto->cod_impuesto => $impuesto->descripcion]; 
+                                                    });
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->native(false)
+                                            ->columnSpan(1),*/
+                                    ]),
+                            ]),
+                        
+                        // Sección derecha con Fecha de Vencimiento
+                        Section::make('Vencimiento')
+                            ->columnSpan(1)
+                            ->schema([
+                                DatePicker::make('fec_vencimiento')
+                                    ->label(function (Forms\Get $get) {
+                                        $condicionId = $get('cod_condicion_compra');
+                                        if ($condicionId) {
+                                            $condicion = \App\Models\CondicionCompra::find($condicionId);
+                                            if ($condicion && $condicion->cant_cuota > 0) {
+                                                return "Cuota 1 - Fecha Vencimiento";
+                                            }
+                                        }
+                                        return 'Fecha de Vencimiento';
+                                    })
+                                    ->required()
+                                    ->native(false)
+                                    ->displayFormat('d/m/Y')
+                                    ->helperText(function (Forms\Get $get) {
+                                        $condicionId = $get('cod_condicion_compra');
+                                        if ($condicionId) {
+                                            $condicion = \App\Models\CondicionCompra::find($condicionId);
+                                            if ($condicion) {
+                                                return "Condición: {$condicion->descripcion}";
+                                            }
+                                        }
+                                        return 'Fecha de vencimiento de pago';
+                                    }),
+                                
+                                // Observaciones en el mismo panel
+                                Textarea::make('observacion')
+                                    ->label('Observaciones')
+                                    ->rows(6)
+                                    ->maxLength(255)
+                                    ->placeholder('Observaciones adicionales...')
+                                    ->columnSpanFull(),
+                            ]),
                     ]),
 
                 // SECCIÓN 2: Timbrado y Numeración
-                Section::make('Timbrado y Numeración')
-                    ->description('Ingrese los datos del comprobante físico')
+                /*Section::make('Timbrado y Numeración')
+                    ->description('Datos del comprobante físico')
                     ->collapsible()
-                    ->columns(3)
+                    ->columns(4)
                     ->schema([
-                        // Serie Comprobante
-                        TextInput::make('ser_comprobante')
-                            ->label('Serie')
-                            ->required()
-                            ->maxLength(7)
-                            ->placeholder('001-003')
-                            ->reactive()
-                            ->rules(['regex:/^\d{3}-\d{3}$/'])
-                            ->helperText('Formato: 001-003')
-                          /*  ->afterStateUpdated(function ($state, callable $set, $get) {
-                                if (preg_match('/^\d{3}-\d{3}$/', $state) && $get('cod_proveedor')) {
-                                    $timbrado = DB::table('cm_timbrado_prov')
-                                        ->where('cod_proveedor', $get('cod_proveedor'))
-                                        ->where('ser_timbrado', $state)
-                                        ->value('num_timbrado');
-
-                                    if ($timbrado) {
-                                        $set('timbrado', $timbrado);
-                                        Notification::make()
-                                            ->title('✅ Timbrado encontrado')
-                                            ->success()
-                                            ->send();
-                                    } else {
-                                        $set('timbrado', null);
-                                        Notification::make()
-                                            ->title('⚠️ Timbrado no encontrado')
-                                            ->body("No se encontró el timbrado para la serie **{$state}**")
-                                            ->warning()
-                                            ->send();
-                                    }
-                                } else {
-                                    $set('timbrado', null);
-                                }
-                            })*/
-                            ->columnSpan(1),
-
-                        // Número Comprobante
-                        TextInput::make('nro_comprobante')
-                            ->label('Número')
-                            ->required()
-                            ->maxLength(7)
-                            ->numeric()
-                            ->helperText('Número de la factura')
-                            ->rules([
-                                fn (callable $get): Closure => function (string $attribute, $value, Closure $fail) use ($get) {
-                                    $existe = DB::table('cm_compras_cabecera')
-                                        ->where('cod_proveedor', $get('cod_proveedor'))
-                                        ->where('tip_comprobante', $get('tip_comprobante'))
-                                        ->where('ser_comprobante', $get('ser_comprobante'))
-                                        ->where('nro_comprobante', $value)
-                                        ->when($get('id_compra_cabecera'), fn ($query, $id) => $query->where('id_compra_cabecera', '!=', $id))
-                                        ->exists();
-
-                                    if ($existe) {
-                                        $fail("⚠️ La factura **{$get('ser_comprobante')}-{$value}** ya existe en el sistema");
-                                    }
-                                },
-                            ])
-                            ->columnSpan(1),
-
                         // Timbrado
                         TextInput::make('timbrado')
                             ->label('Timbrado')
@@ -236,115 +626,54 @@ class CompraCabeceraResource extends Resource
                                 'max' => 'El timbrado no debe tener más de 7 dígitos.',
                             ])
                             ->rules(['regex:/^\d{1,7}$/'])
-                            ->helperText('Ingrese hasta 7 dígitos numéricos')
+                            ->helperText('Hasta 7 dígitos')
                             ->columnSpan(1),
 
-                        // Nro OC Referencia
-                        Select::make('nro_oc_ref')
-                            ->label('Nro. OC Referencia')
-                            ->options(function (Get $get) {
-                                $codProveedor = $get('cod_proveedor');
+                        // Usuario Alta (hidden)
+                        TextInput::make('usuario_alta')
+                            ->label('Usuario')
+                            ->default(fn () => auth()->user()->name ?? 'Sistema')
+                            ->required()
+                            ->disabled()
+                            ->dehydrated()
+                            ->hidden(),
 
-                                // Si no hay proveedor seleccionado, no mostrar OC
-                                if (!$codProveedor) {
-                                    return [];
-                                }
-
-                                // Solo órdenes de compra APROBADAS (estado 2) del proveedor seleccionado
-                                return OrdenCompraCabecera::where('estado', 'APROBADO')
-                                    ->where('cod_proveedor', $codProveedor)
-                                    ->get()
-                                    ->mapWithKeys(function ($orden) {
-                                        $label = 'OC Nro. ' . $orden->nro_orden_compra;
-                                        if ($orden->fec_orden) {
-                                            $fecha = $orden->fec_orden instanceof \Carbon\Carbon
-                                                ? $orden->fec_orden->format('d/m/Y')
-                                                : $orden->fec_orden;
-                                            $label .= ' — ' . $fecha;
-                                        }
-                                        return [$orden->nro_orden_compra => $label];
-                                    });
-                            })
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                if (!$state) {
-                                    $set('detalles', []);
-                                    return;
-                                }
-
-                                // Cargar la OC con sus detalles
-                                $ordenCompra = OrdenCompraCabecera::with('ordenCompraDetalles.articulo')
-                                    ->find($state);
-
-                                if (!$ordenCompra) {
-                                    return;
-                                }
-
-                                // Mapear los detalles de la OC
-                                $detalles = $ordenCompra->ordenCompraDetalles->map(function ($detalle) {
-                                    $cantidad = (float) $detalle->cantidad;
-                                    $precio = (float) $detalle->precio;
-                                    $total = $cantidad * $precio;
-                                    $iva = $total * 0.10;
-
-                                    return [
-                                        'cod_articulo' => $detalle->cod_articulo,
-                                        'cantidad' => $cantidad,
-                                        'precio_unitario' => $precio,
-                                        'porcentaje_iva' => 10,
-                                        'total_iva' => number_format($iva, 2, '.', ''),
-                                        'monto_total_linea' => number_format($total, 2, '.', ''),
-                                    ];
-                                })->toArray();
-
-                                $set('detalles', $detalles);
-
-                                Notification::make()
-                                    ->title('Detalles cargados desde OC')
-                                    ->success()
-                                    ->send();
-                            })
-                            ->placeholder('Seleccione una orden de compra')
-                            ->helperText('Solo se muestran OC aprobadas del proveedor seleccionado')
-                            ->columnSpan(1),
-
-                        // Observación
-                        TextInput::make('observacion')
-                            ->label('Observaciones')
-                            ->maxLength(255)
-                            ->placeholder('Ingrese observaciones adicionales...')
-                            ->columnSpan(2),
-                    ]),
+                        // Fecha Alta (hidden)
+                        TextInput::make('fecha_alta')
+                            ->label('Fecha Alta')
+                            ->default(Carbon::now()->toDateTimeString())
+                            ->required()
+                            ->disabled()
+                            ->dehydrated()
+                            ->hidden(),
+                    ]),*/
 
                 // SECCIÓN 3: Detalle de Compra
                 Section::make('Artículos y Detalles de la Compra')
                     ->description('Agregue los artículos comprados con sus cantidades y precios')
-                    ->collapsed()
+                    ->collapsed(fn ($context) => $context !== 'create')
                     ->schema([
                         Repeater::make('detalles')
-                            ->relationship()
                             ->schema([
                                 // Artículo
                                 Select::make('cod_articulo')
                                     ->label('Artículo')
-                                    ->relationship('articulo', 'descripcion')
+                                    ->options(\App\Models\Articulos::pluck('descripcion', 'cod_articulo'))
                                     ->searchable()
                                     ->preload()
                                     ->required()
                                     ->columnSpan(3)
                                     ->reactive()
-                                    ->afterStateUpdated(function ($state, Set $set) {
+                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
                                         if ($state) {
                                             $articulo = Articulos::find($state);
                                             if ($articulo) {
                                                 $precio = (float) $articulo->precio;
                                                 $set('precio_unitario', $precio);
                                                 $cantidad = 1;
-                                                $total = $cantidad * $precio;
-                                                $iva = max(0, $total) * 0.10;
-                                                $set('monto_total_linea', number_format($total, 2, '.', ''));
+                                                $totalConIva = $cantidad * $precio; // El precio YA incluye IVA
+                                                $iva = $totalConIva / 11; // Extraer el 10% del total (total/11 para IVA 10%)
+                                                $set('monto_total_linea', number_format($totalConIva, 2, '.', ''));
                                                 $set('total_iva', number_format($iva, 2, '.', ''));
                                             }
                                         }
@@ -357,14 +686,13 @@ class CompraCabeceraResource extends Resource
                                     ->minValue(0.01)
                                     ->default(1)
                                     ->required()
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $cantidad = (float) $state;
                                         $precio = (float) $get('precio_unitario');
-                                        $exenta = (float) ($get('exenta') ?? 0);
-                                        $total = $cantidad * $precio;
-                                        $iva = max(0, ($total - $exenta)) * 0.10;
-                                        $set('monto_total_linea', number_format($total, 2, '.', ''));
+                                        $totalConIva = $cantidad * $precio; // El precio incluye IVA
+                                        $iva = $totalConIva / 11; // Extraer IVA del total (10%)
+                                        $set('monto_total_linea', number_format($totalConIva, 2, '.', ''));
                                         $set('total_iva', number_format($iva, 2, '.', ''));
                                     })
                                     ->columnSpan(1),
@@ -376,14 +704,13 @@ class CompraCabeceraResource extends Resource
                                     ->minValue(0)
                                     ->required()
                                     ->prefix('₲')
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                        $cantidad = (float) ($get('cantidad') ?? 0);
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $cantidad = (float) ($get('cantidad') ?? 1);
                                         $precio = (float) $state;
-                                        $exenta = (float) ($get('exenta') ?? 0);
-                                        $total = $cantidad * $precio;
-                                        $iva = max(0, ($total - $exenta)) * 0.10;
-                                        $set('monto_total_linea', number_format($total, 2, '.', ''));
+                                        $totalConIva = $cantidad * $precio; // El precio incluye IVA
+                                        $iva = $totalConIva / 11; // Extraer IVA del total (10%)
+                                        $set('monto_total_linea', number_format($totalConIva, 2, '.', ''));
                                         $set('total_iva', number_format($iva, 2, '.', ''));
                                     })
                                     ->columnSpan(1),
@@ -395,14 +722,23 @@ class CompraCabeceraResource extends Resource
                                     ->minValue(0)
                                     ->default(10)
                                     ->suffix('%')
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                        $cantidad = (float) ($get('cantidad') ?? 0);
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $cantidad = (float) ($get('cantidad') ?? 1);
                                         $precio = (float) ($get('precio_unitario') ?? 0);
                                         $porcentajeIva = (float) $state;
-                                        $total = $cantidad * $precio;
-                                        $iva = $total * ($porcentajeIva / 100);
-                                        $set('monto_total_linea', number_format($total, 2, '.', ''));
+                                        $totalConIva = $cantidad * $precio; // El precio incluye IVA
+                                        
+                                        // Calcular IVA según porcentaje
+                                        if ($porcentajeIva == 10) {
+                                            $iva = $totalConIva / 11; // Para 10%: total/11
+                                        } elseif ($porcentajeIva == 5) {
+                                            $iva = $totalConIva / 21; // Para 5%: total/21
+                                        } else {
+                                            $iva = $totalConIva * ($porcentajeIva / (100 + $porcentajeIva));
+                                        }
+                                        
+                                        $set('monto_total_linea', number_format($totalConIva, 2, '.', ''));
                                         $set('total_iva', number_format($iva, 2, '.', ''));
                                     })
                                     ->columnSpan(1),
@@ -414,6 +750,7 @@ class CompraCabeceraResource extends Resource
                                     ->readOnly()
                                     ->prefix('₲')
                                     ->dehydrated(true)
+                                    ->live()
                                     ->extraAttributes(['class' => 'font-bold text-success-600'])
                                     ->columnSpan(1),
                             ])
@@ -426,63 +763,96 @@ class CompraCabeceraResource extends Resource
                             )
                             ->defaultItems(0)
                             ->reorderable(false)
-                            ->live()
+                            ->live(onBlur: false)
+                            ->afterStateUpdated(function (Forms\Set $set, $state) {
+                                // Forzar actualización de los campos de totales
+                                // Los Placeholders se actualizarán automáticamente al cambiar el estado
+                            })
                             ->grid(1)
                     ]),
 
-                // SECCIÓN 4: Totales de la Factura
+                // SECCIÓN 4: Información del Sistema
+                Section::make('Información del Sistema')
+                    ->description('Usuario y fecha de registro')
+                    ->schema([
+                        Grid::make(2)
+                            ->schema([
+                                Forms\Components\TextInput::make('usuario_alta')
+                                    ->label('Usuario de Alta')
+                                    ->default(fn () => auth()->user()->name ?? 'Sistema')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                                
+                                Forms\Components\TextInput::make('fecha_alta_display')
+                                    ->label('Fecha de Alta')
+                                    ->default(fn () => now()->format('d/m/Y H:i:s'))
+                                    ->disabled()
+                                    ->dehydrated(false),
+                            ]),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+
+                // SECCIÓN 5: Totales de la Factura
                 Section::make('Totales de la Factura')
                     ->description('Resumen de montos')
                     ->schema([
                         Grid::make(3)
                             ->schema([
-                                TextInput::make('total_gravada')
+                                Forms\Components\Placeholder::make('total_gravada_calc')
                                     ->label('Total Gravado')
-                                    ->numeric()
-                                    ->readOnly()
-                                    ->prefix('₲')
-                                    ->dehydrated(false)
-                                    ->live()
-                                    ->afterStateHydrated(function (TextInput $component, $state, $record) {
-                                        if ($record && $record->detalles) {
-                                            $total = $record->detalles->sum('monto_total_linea');
-                                            $component->state(number_format($total, 0, '', ''));
+                                    ->content(function (Forms\Get $get): string {
+                                        $detalles = $get('detalles') ?? [];
+                                        $totalGravado = 0;
+                                        
+                                        foreach ($detalles as $detalle) {
+                                            $totalConIva = isset($detalle['monto_total_linea']) 
+                                                ? (float) str_replace(',', '', $detalle['monto_total_linea']) 
+                                                : 0;
+                                            $iva = isset($detalle['total_iva']) 
+                                                ? (float) str_replace(',', '', $detalle['total_iva']) 
+                                                : 0;
+                                            
+                                            // Gravado = Total - IVA
+                                            $totalGravado += ($totalConIva - $iva);
                                         }
+                                        
+                                        return '₲ ' . number_format($totalGravado, 0, ',', '.');
                                     })
-                                    ->extraAttributes(['class' => 'font-bold text-lg']),
+                                    ->extraAttributes(['class' => 'text-lg font-bold']),
 
-                                TextInput::make('tot_iva')
+                                Forms\Components\Placeholder::make('tot_iva_calc')
                                     ->label('Total IVA (10%)')
-                                    ->numeric()
-                                    ->readOnly()
-                                    ->prefix('₲')
-                                    ->dehydrated(false)
-                                    ->live()
-                                    ->afterStateHydrated(function (TextInput $component, $state, $record) {
-                                        if ($record && $record->detalles) {
-                                            $subtotal = $record->detalles->sum('monto_total_linea');
-                                            $iva = $subtotal * 0.10;
-                                            $component->state(number_format($iva, 0, '', ''));
+                                    ->content(function (Forms\Get $get): string {
+                                        $detalles = $get('detalles') ?? [];
+                                        $totalIva = 0;
+                                        
+                                        foreach ($detalles as $detalle) {
+                                            if (isset($detalle['total_iva'])) {
+                                                $totalIva += (float) str_replace(',', '', $detalle['total_iva']);
+                                            }
                                         }
+                                        
+                                        return '₲ ' . number_format($totalIva, 0, ',', '.');
                                     })
-                                    ->extraAttributes(['class' => 'font-bold text-lg text-warning-600']),
+                                    ->extraAttributes(['class' => 'text-lg font-bold text-warning-600']),
 
-                                TextInput::make('total_general')
+                                Forms\Components\Placeholder::make('total_general_calc')
                                     ->label('Total General')
-                                    ->numeric()
-                                    ->readOnly()
-                                    ->prefix('₲')
-                                    ->dehydrated(false)
-                                    ->live()
-                                    ->afterStateHydrated(function (TextInput $component, $state, $record) {
-                                        if ($record && $record->detalles) {
-                                            $subtotal = $record->detalles->sum('monto_total_linea');
-                                            $iva = $subtotal * 0.10;
-                                            $total = $subtotal + $iva;
-                                            $component->state(number_format($total, 0, '', ''));
+                                    ->content(function (Forms\Get $get): string {
+                                        $detalles = $get('detalles') ?? [];
+                                        $totalGeneral = 0;
+                                        
+                                        foreach ($detalles as $detalle) {
+                                            if (isset($detalle['monto_total_linea'])) {
+                                                // Total General = suma de precios con IVA incluido
+                                                $totalGeneral += (float) str_replace(',', '', $detalle['monto_total_linea']);
+                                            }
                                         }
+                                        
+                                        return '₲ ' . number_format($totalGeneral, 0, ',', '.');
                                     })
-                                    ->extraAttributes(['class' => 'font-bold text-xl text-success-600']),
+                                    ->extraAttributes(['class' => 'text-xl font-bold text-success-600']),
                             ]),
                     ]),
             ]);

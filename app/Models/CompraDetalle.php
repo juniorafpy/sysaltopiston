@@ -17,10 +17,14 @@ class CompraDetalle extends Model
 
     protected $fillable = [
         'id_compra_cabecera',
+        'tip_comprobante',
+        'ser_comprobante',
+        'nro_comprobante',
         'cod_articulo',
         'cantidad',
         'precio_unitario',
         'porcentaje_iva',
+        'total_iva',
         'monto_total_linea',
     ];
 
@@ -28,6 +32,7 @@ class CompraDetalle extends Model
         'cantidad' => 'decimal:2',
         'precio_unitario' => 'decimal:2',
         'porcentaje_iva' => 'decimal:2',
+        'total_iva' => 'decimal:2',
         'monto_total_linea' => 'decimal:2',
     ];
 
@@ -71,9 +76,24 @@ class CompraDetalle extends Model
      */
     public function getCantidadRecibidaAttribute()
     {
+        // Obtener datos de la cabecera para la relación compuesta
+        $cabecera = $this->cabecera;
+        
+        if (!$cabecera) {
+            return 0;
+        }
+
         return DB::table('remision_detalle')
             ->join('remision_cabecera', 'remision_detalle.guia_remision_cabecera_id', '=', 'remision_cabecera.id')
-            ->where('remision_cabecera.compra_cabecera_id', $this->id_compra_cabecera)
+            ->where(function($query) use ($cabecera) {
+                // Buscar por ID (método antiguo) O por campos compuestos (método nuevo)
+                $query->where('remision_cabecera.compra_cabecera_id', $this->id_compra_cabecera)
+                    ->orWhere(function($q) use ($cabecera) {
+                        $q->where('remision_cabecera.tip_factura', $cabecera->tip_comprobante)
+                          ->where('remision_cabecera.ser_factura', $cabecera->ser_comprobante)
+                          ->where('remision_cabecera.nro_factura', $cabecera->nro_comprobante);
+                    });
+            })
             ->where('remision_detalle.articulo_id', $this->cod_articulo)
             ->where('remision_cabecera.estado', '!=', 'N') // Excluir anuladas
             ->sum('remision_detalle.cantidad_recibida') ?? 0;

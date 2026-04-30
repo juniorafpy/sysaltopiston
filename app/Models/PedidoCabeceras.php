@@ -20,11 +20,11 @@ class PedidoCabeceras extends Model
     use HasFactory;
 
     protected $fillable = [
-        'fec_pedido',
         'cod_empleado',
         'cod_sucursal',
         'usuario_alta',
         'fec_alta',
+        'fec_pedido',
         'estado'
     ];
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\PedidoCompraReporteController;
 use App\Http\Controllers\ProveedorPdfController;
 use App\Http\Controllers\RecepcionPdfController;
 use App\Http\Controllers\RecepcionVehiculoReporteController;
+use App\Http\Controllers\PresupuestoPdfController;
 use App\Models\OrdenServicio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -66,6 +67,11 @@ Route::get('/informes/pedidos-compra/pdf', [PedidoCompraReporteController::class
 // PDF de reporte de recepciones de vehículos
 Route::get('/informes/recepciones-vehiculos/pdf', [RecepcionVehiculoReporteController::class, 'pdf'])
     ->name('informes.recepciones-vehiculos.pdf')
+    ->middleware(['auth']);
+
+// PDF de presupuesto de compra
+Route::get('/presupuestos/{presupuesto}/pdf', [PresupuestoPdfController::class, 'imprimir'])
+    ->name('presupuestos.pdf')
     ->middleware(['auth']);
 
 // Manual de usuario del módulo Compras (PDF)

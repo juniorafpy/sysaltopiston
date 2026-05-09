@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\DiagnosticoResource\Pages;
 use App\Filament\Resources\PresupuestoVentaResource;
 use App\Models\Diagnostico;
+use App\Models\Mecanico;
 use App\Models\RecepcionVehiculo;
 use Filament\Forms;
 use Filament\Forms\Get;
@@ -13,6 +14,10 @@ use Filament\Tables;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Section;
+use Filament\Infolists\Components\Grid as InfolistGrid;
+use Filament\Infolists\Components\Section as InfolistSection;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\TextEntry;
 
 class DiagnosticoResource extends Resource
 {
@@ -21,6 +26,11 @@ class DiagnosticoResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationGroup = 'Servicios';
     protected static ?int $navigationSort = 8;
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->with(['sucursal']);
+    }
 
     public static function form(Forms\Form $form): Forms\Form
     {
@@ -112,6 +122,24 @@ class DiagnosticoResource extends Resource
                         Section::make('Diagnóstico y seguimiento')
                             ->icon('heroicon-o-wrench-screwdriver')
                             ->schema([
+                                Forms\Components\Select::make('cod_mecanico')
+                                    ->label('Mecánico')
+                                    ->relationship(
+                                        'mecanico',
+                                        'cod_mecanico',
+                                        fn ($query) => $query->with('empleado.persona')
+                                    )
+                                    ->getOptionLabelFromRecordUsing(function ($record) {
+                                        if ($record && $record->empleado && $record->empleado->persona) {
+                                            $nombre = trim(($record->empleado->persona->nombres ?? '') . ' ' . ($record->empleado->persona->apellidos ?? ''));
+                                            return !empty($nombre) ? $nombre : "Mecánico #{$record->cod_mecanico}";
+                                        }
+                                        return "Mecánico #{$record?->cod_mecanico}";
+                                    })
+                                    ->searchable(['empleado.persona.nombres', 'empleado.persona.apellidos'])
+                                    ->preload()
+                                    ->placeholder('Selecciona un mecánico'),
+
                                 Forms\Components\Textarea::make('diagnostico_mecanico')
                                     ->label('Diagnóstico del mecánico')
                                     ->placeholder('Describe el problema encontrado, observaciones técnicas y las pruebas realizadas.')
@@ -135,13 +163,19 @@ class DiagnosticoResource extends Resource
                                 Forms\Components\TextInput::make('nombre_sucursal')
                                     ->label('Sucursal')
                                     ->disabled()
-                                    ->dehydrated(false),
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(function (Forms\Components\TextInput $component, ?Diagnostico $record) {
+                                        $component->state($record?->sucursal?->descripcion ?? '—');
+                                    }),
 
                                 Forms\Components\Hidden::make('usuario_alta'),
                                 Forms\Components\TextInput::make('nombre_usuario')
                                     ->label('Usuario Alta')
                                     ->disabled()
-                                    ->dehydrated(false),
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(function (Forms\Components\TextInput $component, ?Diagnostico $record) {
+                                        $component->state($record?->usuario_alta ?? '—');
+                                    }),
 
                                 Forms\Components\Placeholder::make('fec_alta')
                                     ->label('Fecha Alta')
@@ -152,14 +186,120 @@ class DiagnosticoResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                InfolistSection::make('Datos de la recepción')
+                    ->icon('heroicon-o-identification')
+                    ->schema([
+                        InfolistGrid::make(2)->schema([
+                            TextEntry::make('id')
+                                ->label('N° Diagnóstico'),
+
+                            TextEntry::make('recepcionVehiculo.id')
+                                ->label('N° Recepción')
+                                ->formatStateUsing(fn ($state) => $state ? "#{$state}" : '—'),
+
+                            TextEntry::make('recepcionVehiculo.cliente.nombre_completo')
+                                ->label('Cliente')
+                                ->default('—'),
+
+                            TextEntry::make('recepcionVehiculo.vehiculo.matricula')
+                                ->label('Chapa')
+                                ->default('—'),
+
+                            TextEntry::make('recepcionVehiculo.vehiculo.marca.descripcion')
+                                ->label('Marca')
+                                ->default('—'),
+
+                            TextEntry::make('recepcionVehiculo.vehiculo.modelo.descripcion')
+                                ->label('Modelo')
+                                ->default('—'),
+
+                            TextEntry::make('recepcionVehiculo.motivo_ingreso')
+                                ->label('Motivo de ingreso')
+                                ->columnSpanFull()
+                                ->default('—'),
+                        ]),
+                    ]),
+
+                InfolistSection::make('Diagnóstico')
+                    ->icon('heroicon-o-wrench-screwdriver')
+                    ->schema([
+                        InfolistGrid::make(2)->schema([
+                            TextEntry::make('mecanico_nombre')
+                                ->label('Mecánico')
+                                ->state(function ($record) {
+                                    if ($record->mecanico && $record->mecanico->empleado) {
+                                        $empleado = $record->mecanico->empleado;
+                                        if ($empleado->persona) {
+                                            $nombre = trim(($empleado->persona->nombres ?? '') . ' ' . ($empleado->persona->apellidos ?? ''));
+                                            if ($nombre !== '') {
+                                                return $nombre;
+                                            }
+                                            return $empleado->persona->razon_social ?? "Mecánico #{$record->cod_mecanico}";
+                                        }
+                                        return $empleado->nombre ?? "Mecánico #{$record->cod_mecanico}";
+                                    }
+                                    return $record->cod_mecanico ? "Mecánico #{$record->cod_mecanico}" : '—';
+                                }),
+
+                            TextEntry::make('fecha_diagnostico')
+                                ->label('Fecha de diagnóstico')
+                                ->dateTime('d/m/Y H:i'),
+
+                            TextEntry::make('diagnostico_mecanico')
+                                ->label('Diagnóstico del mecánico')
+                                ->columnSpanFull(),
+
+                            TextEntry::make('observaciones')
+                                ->label('Observaciones')
+                                ->columnSpanFull()
+                                ->default('—'),
+                        ]),
+                    ]),
+
+                InfolistSection::make('Información del sistema')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->schema([
+                        InfolistGrid::make(2)->schema([
+                            TextEntry::make('usuario_alta')
+                                ->label('Usuario Alta')
+                                ->default('—'),
+
+                            TextEntry::make('sucursal.descripcion')
+                                ->label('Sucursal')
+                                ->default('—'),
+
+                            TextEntry::make('fec_alta')
+                                ->label('Fecha Alta')
+                                ->dateTime('d/m/Y H:i'),
+
+                            TextEntry::make('estado')
+                                ->label('Estado')
+                                ->badge()
+                                ->color(fn (string $state): string => match ($state) {
+                                    'Pendiente a presupuesto' => 'warning',
+                                    'Completado' => 'success',
+                                    default => 'gray',
+                                }),
+                        ]),
+                    ]),
+            ]);
+    }
+
     public static function table(Tables\Table $table): Tables\Table
     {
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with([
-                'recepcionVehiculo.vehiculo',
+                'recepcionVehiculo.vehiculo.marca',
+                'recepcionVehiculo.vehiculo.modelo',
                 'recepcionVehiculo.cliente.persona',
                 'recepcionVehiculo.empleado.persona',
-                'empleado.persona'
+                'empleado.persona',
+                'mecanico.empleado.persona',
+                'sucursal',
             ]))
             ->columns([
                 Tables\Columns\TextColumn::make('id')
@@ -173,9 +313,26 @@ class DiagnosticoResource extends Resource
                     ->label('Cliente')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('recepcionVehiculo.empleado_id')
+                Tables\Columns\TextColumn::make('cod_mecanico')
                     ->label('Mecánico')
                     ->formatStateUsing(function ($state, Diagnostico $record) {
+                        // Primero intenta mostrar el mecánico seleccionado
+                        if ($record->mecanico && $record->mecanico->empleado) {
+                            $empleado = $record->mecanico->empleado;
+                            if ($empleado->persona) {
+                                if ($empleado->persona->razon_social) {
+                                    return $empleado->persona->razon_social;
+                                }
+
+                                $nombre = trim(($empleado->persona->nombres ?? '') . ' ' . ($empleado->persona->apellidos ?? ''));
+                                if ($nombre !== '') {
+                                    return $nombre;
+                                }
+                            }
+                            return $empleado->nombre ?? "Mecánico #{$record->cod_mecanico}";
+                        }
+
+                        // Si no hay mecánico seleccionado, muestra el empleado de recepción
                         $empleado = $record->recepcionVehiculo?->empleado;
 
                         if (!$empleado) {
@@ -213,15 +370,20 @@ class DiagnosticoResource extends Resource
             ->filters([])
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make()->label('Ver'),
-                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\ViewAction::make()
+                        ->label('Ver')
+                        ->icon('heroicon-o-eye')
+                        ->color('info'),
+                    Tables\Actions\EditAction::make()
+                        ->label('Editar')
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning'),
                     Tables\Actions\Action::make('presupuesto')
                         ->label('Generar presupuesto')
                         ->icon('heroicon-o-document-currency-dollar')
                         ->color('primary')
-                        ->url(fn (Diagnostico $record) => PresupuestoVentaResource::getUrl('create', ['diagnostico_id' => $record->id]))
-                        ->openUrlInNewTab(),
-                        Tables\Actions\Action::make('imprimir')
+                        ->url(fn (Diagnostico $record) => PresupuestoVentaResource::getUrl('create', ['diagnostico_id' => $record->id])),
+                    /*Tables\Actions\Action::make('imprimir')
                         ->label('Imprimir')
                         ->icon('heroicon-o-printer')
                         ->color('success')
@@ -231,7 +393,7 @@ class DiagnosticoResource extends Resource
                         ->label('PDF')
                         ->icon('heroicon-o-arrow-down-tray')
                         ->url(fn ($record) => route('diagnosticos.pdf', $record))
-                        ->openUrlInNewTab(),
+                        ->openUrlInNewTab(),*/
                 ]),
             ])
             ->bulkActions([

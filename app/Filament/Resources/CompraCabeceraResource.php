@@ -1072,6 +1072,20 @@ class CompraCabeceraResource extends Resource
                             : null
                     ),
 
+                Tables\Columns\TextColumn::make('confirma')
+                    ->label('Confirmado')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'S' => 'Confirmado',
+                        'N' => 'Pendiente',
+                        default => 'Pendiente',
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'S' => 'success',
+                        'N' => 'warning',
+                        default => 'gray',
+                    }),
+
               /*  Tables\Columns\TextColumn::make('estado')
                     ->label('Estado')
                     ->sortable()
@@ -1139,6 +1153,27 @@ class CompraCabeceraResource extends Resource
                                 ->send();
                         })
                         ->visible(fn (CompraCabecera $record) => $record->estado !== 'Anulado'),
+
+                    Tables\Actions\Action::make('confirmar_factura')
+                        ->label('Confirmar Factura')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Confirmar Factura')
+                        ->modalDescription('¿Está seguro de confirmar esta factura?')
+                        ->modalSubmitActionLabel('Sí, confirmar')
+                        ->action(function (CompraCabecera $record) {
+                            $record->update([
+                                'confirma' => 'S',
+                                'fec_confirma' => now(),
+                                'usuario_confirma' => auth()->user()->name ?? 'Sistema',
+                            ]);
+                            Notification::make()
+                                ->title('✅ Factura confirmada')
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (CompraCabecera $record) => $record->confirma !== 'S'),
                 ])
                 ->tooltip('Acciones')
             ]);

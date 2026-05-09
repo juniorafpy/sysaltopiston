@@ -27,6 +27,15 @@ class CreateDiagnostico extends CreateRecord
         $this->data['cod_sucursal'] = $this->cod_sucursal;
         $this->data['nombre_sucursal'] = $this->nombre_sucursal;
         $this->data['nombre_usuario'] = $this->usuario_alta;
+
+        // Si el usuario autenticado es un mecánico, pre-cargar el código de mecánico
+        $user = auth()->user();
+        if ($user && $user->cod_empleado) {
+            $mecanico = \App\Models\Mecanico::where('cod_empleado', $user->cod_empleado)->first();
+            if ($mecanico) {
+                $this->data['cod_mecanico'] = $mecanico->cod_mecanico;
+            }
+        }
     }
 
     protected function mutateFormDataBeforeCreate(array $data): array

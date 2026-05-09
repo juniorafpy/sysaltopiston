@@ -20,6 +20,8 @@ use App\Models\Vehiculo;
 use App\Models\Marcas;
 use App\Models\Modelos;
 use App\Models\Color;
+use App\Models\TipoServicio;
+use App\Models\InventarioServicio;
 
 class RecepcionVehiculoResource extends Resource
 {
@@ -138,26 +140,13 @@ class RecepcionVehiculoResource extends Resource
                                 ->default('Ingresado')
                                 ->required(),
 
-                                Forms\Components\Select::make('empleado_id')
-                                ->label('Mecánico asignado')
-                                ->placeholder('Asignar un mecánico')
-                                ->options(function () {
-                                    return \App\Models\Empleados::with('persona')
-                                        ->whereHas('mecanico')
-                                        ->get()
-                                        ->mapWithKeys(function ($empleado) {
-                                            $persona = $empleado->persona;
-                                            if ($persona) {
-                                                $nombre = $persona->razon_social ?: trim($persona->nombres . ' ' . $persona->apellidos);
-                                                $label = "{$empleado->nombre} - {$nombre}";
-                                            } else {
-                                                $label = $empleado->nombre;
-                                            }
-                                            return [$empleado->cod_empleado => $label];
-                                        });
-                                })
+                            Forms\Components\Select::make('cod_tipo_servicio')
+                                ->label('Tipo de Servicio')
+                                ->placeholder('Seleccione un tipo de servicio')
+                                ->options(TipoServicio::all()->pluck('descripcion', 'cod_tipo_servicio'))
                                 ->searchable()
-                                ->preload(),
+                                ->preload()
+                                ->required(),
 
                         ])->columns(2),
 
@@ -173,38 +162,17 @@ class RecepcionVehiculoResource extends Resource
                             ->description('Marque los artículos que posee el vehículo al momento de la recepción')
                             ->icon('heroicon-o-clipboard-document-check')
                             ->schema([
-                                Forms\Components\Grid::make(3)->schema([
-                                    Forms\Components\Checkbox::make('inventario.extintor')
-                                        ->label('Extintor')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.valija')
-                                        ->label('Valija')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.rueda_auxilio')
-                                        ->label('Rueda auxilio')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.gato')
-                                        ->label('Gato')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.llave_ruedas')
-                                        ->label('Llave ruedas')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.triangulos_seguridad')
-                                        ->label('Triángulos')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.botiquin')
-                                        ->label('Botiquín')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.manual_vehiculo')
-                                        ->label('Manual')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.llave_repuesto')
-                                        ->label('Llave repuesto')
-                                        ->inline(),
-                                    Forms\Components\Checkbox::make('inventario.radio_estereo')
-                                        ->label('Radio')
-                                        ->inline(),
-                                ]),
+                                Forms\Components\CheckboxList::make('items_inventario')
+                                    ->label('Items de Inventario')
+                                    ->relationship(
+                                        name: 'itemsInventario',
+                                        titleAttribute: 'descripcion',
+                                        modifyQueryUsing: fn ($query) => $query->where('estado', 'A')->where('tipo', 'I')
+                                    )
+                                    ->columns(3)
+                                    ->gridDirection('row')
+                                    ->columnSpanFull(),
+                                
                                 Forms\Components\Select::make('inventario.nivel_combustible')
                                     ->label('Nivel de combustible')
                                     ->options([
@@ -216,6 +184,7 @@ class RecepcionVehiculoResource extends Resource
                                     ])
                                     ->placeholder('Nivel combustible')
                                     ->columnSpan(2),
+                                
                                 Forms\Components\Textarea::make('inventario.observaciones_inventario')
                                     ->label('Observaciones del inventario')
                                     ->placeholder('Detalles adicionales...')
@@ -243,6 +212,23 @@ class RecepcionVehiculoResource extends Resource
                                 ->label('Fecha Alta')
                                 ->content(fn () => now()->format('d/m/Y H:i')),
                         ]),
+
+                        Section::make('Daños Externos')
+                            ->description('Marque los daños externos del vehículo')
+                            ->icon('heroicon-o-exclamation-triangle')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('items_danos_externos')
+                                    ->label('')
+                                    ->relationship(
+                                        name: 'itemsInventario',
+                                        titleAttribute: 'descripcion',
+                                        modifyQueryUsing: fn ($query) => $query->where('estado', 'A')->where('tipo', 'E')
+                                    )
+                                    ->columns(1)
+                                    ->columnSpanFull(),
+                            ])
+                            ->compact()
+                            ->collapsible(),
                     ])->columnSpan(1),
                 ]),
             ])
@@ -253,9 +239,14 @@ class RecepcionVehiculoResource extends Resource
     {
         return $table
             ->modifyQueryUsing(fn ($query) =>
-                $query->with(['cliente.persona', 'vehiculo.modelo', 'empleado.persona'])
+                $query->with(['cliente.persona', 'vehiculo.modelo', 'empleado.persona', 'diagnosticos'])
             )
             ->columns([
+
+            Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
+                    
                 Tables\Columns\TextColumn::make('cliente.nombre_completo')
                     ->label('Cliente')
                     ->searchable(['cliente.persona.nombres', 'cliente.persona.apellidos', 'cliente.persona.razon_social']),
@@ -271,30 +262,23 @@ class RecepcionVehiculoResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('estado')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('empleado_id')
-                    ->label('Mecánico')
-                    ->formatStateUsing(function ($state, $record) {
-                        if (!$state || !$record->empleado) {
-                            return '-';
+                Tables\Columns\TextColumn::make('tipoServicio.descripcion')
+                    ->label('Tipo de Servicio')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\BadgeColumn::make('Diagnóstico')
+                    ->getStateUsing(function ($record) {
+                        if ($record->diagnosticos && count($record->diagnosticos) > 0) {
+                            return 'Diagnosticado';
                         }
-
-                        $empleado = $record->empleado;
-
-                        // Intentar obtener el nombre desde persona
-                        if ($empleado->persona) {
-                            if ($empleado->persona->razon_social) {
-                                return $empleado->persona->razon_social;
-                            }
-                            $nombre = trim(($empleado->persona->nombres ?? '') . ' ' . ($empleado->persona->apellidos ?? ''));
-                            if ($nombre) {
-                                return $nombre;
-                            }
-                        }
-
-                        // Si no hay persona, usar el nombre del empleado
-                        return $empleado->nombre ?? "Empleado #{$state}";
+                        return 'Pendiente';
                     })
-                    ->searchable(),
+                    ->color(function ($record): string {
+                        if ($record->diagnosticos && count($record->diagnosticos) > 0) {
+                            return 'success';
+                        }
+                        return 'warning';
+                    }),
             ])
             ->filters([
                 //
@@ -303,12 +287,12 @@ class RecepcionVehiculoResource extends Resource
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make()
                         ->label('Ver Detalles'),
-                    Tables\Actions\Action::make('imprimir_comprobante')
+                    /*Tables\Actions\Action::make('imprimir_comprobante')
                         ->label('Imprimir Comprobante')
                         ->icon('heroicon-o-printer')
                         ->color('success')
                         ->url(fn ($record) => route('recepcion-vehiculo.pdf', $record->id))
-                        ->openUrlInNewTab(),
+                        ->openUrlInNewTab(),*/
                     Tables\Actions\Action::make('registrar_diagnostico')
                         ->label('Registrar Diagnóstico')
                         ->icon('heroicon-o-wrench-screwdriver')

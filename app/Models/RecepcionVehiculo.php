@@ -22,6 +22,7 @@ class RecepcionVehiculo extends Model
         'estado',
         'empleado_id',
         'cod_mecanico',
+        'cod_tipo_servicio',
         'usuario_alta',
         'fec_alta',
     ];
@@ -59,4 +60,27 @@ class RecepcionVehiculo extends Model
     {
         return $this->hasOne(RecepcionInventario::class, 'recepcion_vehiculo_id', 'id');
     }
+
+     public function TipoServicio()
+    {
+        return $this->belongsTo(TipoServicio::class, 'cod_tipo_servicio', 'cod_tipo_servicio');
+    }
+
+    public function itemsInventario()
+    {
+        return $this->belongsToMany(
+            InventarioServicio::class,
+            'recepcion_vehiculo_items_inventario',
+            'recepcion_vehiculo_id',
+            'cod_inventario',
+            'id',
+            'cod_inventario'
+        );
+    }
+
+    public function diagnosticos()
+    {
+        return $this->hasMany(Diagnostico::class, 'recepcion_vehiculo_id', 'id');
+    }
+
 }

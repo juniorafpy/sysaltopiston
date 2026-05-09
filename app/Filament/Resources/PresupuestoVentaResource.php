@@ -80,7 +80,7 @@ class PresupuestoVentaResource extends Resource
                             ->default(fn () => request()->integer('diagnostico_id'))
                             ->disabled(fn () => request()->has('diagnostico_id'))
                             ->placeholder('Selecciona el diagnóstico')
-                            ->reactive()
+                            ->live()
                             ->afterStateUpdated(function ($state, callable $set, Forms\Get $get): void {
                                 if (! $state) {
                                     $set('cod_cliente', null);
@@ -99,14 +99,12 @@ class PresupuestoVentaResource extends Resource
                             ->columnSpan(3),
 
                         Forms\Components\Hidden::make('cod_cliente')
-                            ->dehydrated(true)
-                            ->default(fn ($get) => $get('cod_cliente') ??null),
+                            ->dehydrated(true),
 
                         Forms\Components\TextInput::make('cliente_nombre')
                             ->label('Cliente (Nombre)')
                             ->disabled()
                             ->dehydrated(false)
-                            ->reactive()
                             ->formatStateUsing(function ($state, $record, $get) {
                                 // Primero intentar traer desde el diagnóstico (recepcion -> cliente)
                                 $diagnosticoId = $get('diagnostico_id');
@@ -136,7 +134,6 @@ class PresupuestoVentaResource extends Resource
                             })
                             ->native(false)
                             ->displayFormat('d/m/Y')
-                            ->reactive()
                             ->live()
                             ->required(),
 
@@ -155,7 +152,6 @@ class PresupuestoVentaResource extends Resource
                                 'Rechazado' => 'Rechazado',
                             ])
                             ->default('Pendiente')
-                            ->reactive()
                             ->live()
                             ->required(),
 
@@ -183,10 +179,11 @@ class PresupuestoVentaResource extends Resource
                             ->minItems(1)
                             ->colStyles([
                                 'cod_articulo'        => 'width: 40%;',
-                                'cantidad'            => 'width: 80px;',
-                                'precio_unitario'     => 'width: 150px;',
-                                'porcentaje_descuento'=> 'width: 100px;',
-                                'total'               => 'width: 150px;',
+                                'cantidad'            => 'width: 70px;',
+                                'precio_unitario'     => 'width: 120px;',
+                                'porcentaje_impuesto' => 'width: 65px;',
+                                'porcentaje_descuento'=> 'width: 75px;',
+                                'total'               => 'width: 120px;',
                             ])
                             ->columnSpanFull()
                             ->schema([
@@ -197,10 +194,9 @@ class PresupuestoVentaResource extends Resource
                                     ->preload()
                                     ->placeholder('Buscar artículo...')
                                     ->required()
-                                    ->reactive()
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $set, callable $get): void {
-                                        if (! $state) {
+                                        if (!$state) {
                                             $set('precio_unitario', null);
                                             $set('cantidad', 0);
                                             $set('porcentaje_impuesto', null);
@@ -210,22 +206,18 @@ class PresupuestoVentaResource extends Resource
 
                                         $articulo = Articulos::with('impuesto')->find($state);
 
-                                        if (! $articulo) {
+                                        if (!$articulo) {
                                             return;
                                         }
 
-                                        // Cargar precio del artículo
                                         $precio = floatval($articulo->precio ?? 0);
                                         $set('precio_unitario', $precio);
 
-                                        // Inicializar cantidad en 0 para que el usuario ingrese
-                                        $set('cantidad', 0);
+                                        $set('cantidad', 1);
 
-                                        // Traer IVA del artículo, si no tiene, usar 10% por defecto
                                         $porcentajeIva = floatval($articulo->impuesto?->porcentaje ?? 10);
                                         $set('porcentaje_impuesto', $porcentajeIva);
 
-                                        // Verificar si hay descuento en promoción vigente
                                         $descuentoPromocion = Promocion::getDescuentoVigente($state);
                                         if ($descuentoPromocion !== null) {
                                             $set('porcentaje_descuento', $descuentoPromocion);
@@ -241,55 +233,50 @@ class PresupuestoVentaResource extends Resource
                                 Forms\Components\TextInput::make('cantidad')
                                     ->label('Cant.')
                                     ->numeric()
-                                    ->minValue(0)
+                                    ->minValue(1)
                                     ->step(0.01)
                                     ->required()
-                                    ->default(0)
-                                    ->extraInputAttributes(['class' => 'text-right'])
-                                    ->reactive()
-                                    ->live()
+                                    ->default(1)
+                                    ->extraInputAttributes([
+                                        'class' => 'text-right',
+                                        'onblur' => '$wire.$refresh()',
+                                    ])
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get): void {
-                                        if ($state < 0) {
-                                            $set('cantidad', 0);
-                                            return;
+                                        if ($state < 1) {
+                                            $set('cantidad', 1);
                                         }
                                         static::syncDetalleImportes($set, $get);
                                     }),
 
                                 Forms\Components\TextInput::make('precio_unitario')
-                                    ->label('Precio Unit.')
+                                    ->label('Precio')
                                     ->numeric()
-                                    ->prefix('Gs.')
-                                    ->minValue(0)
+                                    ->minValue(1)
                                     ->step(0.01)
                                     ->required()
                                     ->extraInputAttributes(['class' => 'text-right'])
-                                    ->reactive()
-                                    ->live()
+                                    ->live(onBlur: true)
                                     ->dehydrated(true)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get): void {
                                         if ($state < 0) {
                                             $set('precio_unitario', 0);
-                                            return;
                                         }
                                         static::syncDetalleImportes($set, $get);
                                     }),
 
                                 Forms\Components\TextInput::make('porcentaje_impuesto')
-                                    ->label('% IVA')
+                                    ->label('IVA')
                                     ->numeric()
                                     ->minValue(0)
                                     ->maxValue(100)
                                     ->step(0.01)
-                                    ->suffix('%')
                                     ->default(10)
                                     ->extraInputAttributes(['class' => 'text-right'])
-                                    ->reactive()
-                                    ->live()
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get): void {
                                         if ($state < 0) {
                                             $set('porcentaje_impuesto', 0);
-                                            return;
                                         }
                                         static::syncDetalleImportes($set, $get);
                                     }),
@@ -301,14 +288,11 @@ class PresupuestoVentaResource extends Resource
                                     ->minValue(0)
                                     ->maxValue(100)
                                     ->step(0.01)
-                                    ->suffix('%')
                                     ->extraInputAttributes(['class' => 'text-right'])
-                                    ->reactive()
-                                    ->live()
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get): void {
                                         if ($state < 0) {
                                             $set('porcentaje_descuento', 0);
-                                            return;
                                         }
                                         static::syncDetalleImportes($set, $get);
                                     })
@@ -323,27 +307,47 @@ class PresupuestoVentaResource extends Resource
                                     }),
 
                                 Forms\Components\TextInput::make('monto_total')
-                                    ->label('Total Gs.')
+                                    ->label('Total')
                                     ->numeric()
-                                    ->prefix('Gs.')
                                     ->default(0)
                                     ->extraInputAttributes(['class' => 'text-right font-semibold'])
                                     ->readOnly()
                                     ->dehydrated(false),
 
-                                // ── Campos calculados ocultos (se guardan en BD) ──
                                 Forms\Components\Hidden::make('descuento_aplicado')->default(false),
                                 Forms\Components\Hidden::make('monto_descuento')->default(0),
                                 Forms\Components\Hidden::make('subtotal')->default(0),
                                 Forms\Components\Hidden::make('monto_impuesto')->default(0),
                             ])
                             ->live()
-                            ->afterStateUpdated(function (callable $get, callable $set): void {
-                                static::syncTotales($get, $set);
+                            ->afterStateUpdated(function ($state, callable $set): void {
+                                if (!$state || !is_array($state)) {
+                                    return;
+                                }
+                                
+                                $articulos = [];
+                                foreach ($state as $index => $detalle) {
+                                    $codArticulo = $detalle['cod_articulo'] ?? null;
+                                    if ($codArticulo) {
+                                        if (in_array($codArticulo, $articulos)) {
+                                            \Filament\Notifications\Notification::make()
+                                                ->title('Artículo duplicado')
+                                                ->body('El artículo ya se encuentra en el detalle. Se eliminará la fila duplicada.')
+                                                ->danger()
+                                                ->send();
+                                            unset($state[$index]);
+                                            $set('detalles', array_values($state));
+                                            return;
+                                        }
+                                        $articulos[] = $codArticulo;
+                                    }
+                                }
+                                
+                                static::syncTotales($state, $set);
                             })
                             ->deleteAction(function (Forms\Components\Actions\Action $action) {
                                 return $action->after(function (callable $get, callable $set): void {
-                                    static::syncTotales($get, $set);
+                                    static::syncTotales($get('detalles') ?? [], $set);
                                 });
                             })
                             ->addActionLabel('Agregar artículo')
@@ -364,7 +368,8 @@ class PresupuestoVentaResource extends Resource
                                     ->extraInputAttributes(['class' => 'text-right'])
                                     ->readOnly()
                                     ->default(0)
-                                    ->dehydrated(false),
+                                    ->dehydrated(false)
+                                    ->live(),
 
                                 Forms\Components\TextInput::make('impuestos_totales')
                                     ->label('IVA total')
@@ -373,7 +378,8 @@ class PresupuestoVentaResource extends Resource
                                     ->extraInputAttributes(['class' => 'text-right'])
                                     ->readOnly()
                                     ->default(0)
-                                    ->dehydrated(false),
+                                    ->dehydrated(false)
+                                    ->live(),
 
                                 Forms\Components\TextInput::make('total')
                                     ->label('Total general')
@@ -381,7 +387,8 @@ class PresupuestoVentaResource extends Resource
                                     ->prefix('Gs.')
                                     ->extraInputAttributes(['class' => 'text-right font-semibold'])
                                     ->readOnly()
-                                    ->default(0),
+                                    ->default(0)
+                                    ->live(),
                             ]),
                     ]),
             ]);
@@ -471,7 +478,6 @@ class PresupuestoVentaResource extends Resource
         $porcentajeDescuento = (float) ($get('porcentaje_descuento') ?? 0);
         $porcentajeIva = (float) ($get('porcentaje_impuesto') ?? 0);
 
-        // Si no hay artículo seleccionado, limpiar todo
         if (empty($get('cod_articulo'))) {
             $set('monto_total', 0);
             $set('monto_descuento', 0);
@@ -480,31 +486,28 @@ class PresupuestoVentaResource extends Resource
             return;
         }
 
-        // Calcular subtotal sin descuento
-        $subtotalSinDescuento = round($cantidad * $precio, 2);
+        // 1. Total línea (Precio final * Cantidad)
+        $totalLinea = $cantidad * $precio;
 
-        // Calcular monto de descuento
-        $montoDescuento = round($subtotalSinDescuento * ($porcentajeDescuento / 100), 2);
+        // 2. Descuento sobre el total línea
+        $montoDescuento = round($totalLinea * ($porcentajeDescuento / 100), 2);
+        $totalConDescuento = $totalLinea - $montoDescuento;
 
-        // Calcular subtotal con descuento
-        $subtotal = round($subtotalSinDescuento - $montoDescuento, 2);
-
-        // Calcular IVA sobre el subtotal con descuento
-        $iva = round($subtotal * ($porcentajeIva / 100), 2);
+        // 3. Extraer IVA (El precio ya incluye IVA)
+        // Subtotal = TotalConDescuento / (1 + IVA/100)
+        $factorIva = 1 + ($porcentajeIva / 100);
+        $subtotal = round($totalConDescuento / $factorIva, 2);
+        $montoImpuesto = round($totalConDescuento - $subtotal, 2);
 
         $set('monto_descuento', $montoDescuento);
         $set('subtotal', $subtotal);
-        $set('monto_impuesto', $iva);
-        $set('monto_total', round($subtotal + $iva, 2));
-
-        static::syncTotales($get, $set);
+        $set('monto_impuesto', $montoImpuesto);
+        $set('monto_total', round($totalConDescuento, 2));
     }
 
-    protected static function syncTotales(callable $get, callable $set): void
+    protected static function syncTotales(array $detalles, callable $set): void
     {
-        $detalles = collect($get('detalles') ?? []);
-
-        [$subtotal, $iva, $total] = static::summarizeDetalles($detalles->toArray());
+        [$subtotal, $iva, $total] = static::summarizeDetalles($detalles);
 
         $set('subtotal_general', $subtotal);
         $set('impuestos_totales', $iva);

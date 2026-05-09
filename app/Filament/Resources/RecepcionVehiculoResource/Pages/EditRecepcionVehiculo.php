@@ -42,12 +42,12 @@ class EditRecepcionVehiculo extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\Action::make('imprimir')
+          /*  Actions\Action::make('imprimir')
                 ->label('Imprimir Comprobante')
                 ->icon('heroicon-o-printer')
                 ->color('success')
                 ->url(fn () => route('recepcion-vehiculo.pdf', $this->record->id))
-                ->openUrlInNewTab(),
+                ->openUrlInNewTab(),*/
         ];
     }
 }

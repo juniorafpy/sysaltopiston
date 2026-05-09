@@ -77,3 +77,5 @@ class Promocion extends Model
             ->where('fecha_fin', '>=', $hoy);
     }
 }
+    
+

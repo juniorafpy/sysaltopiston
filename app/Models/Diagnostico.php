@@ -16,7 +16,7 @@ class Diagnostico extends Model
     protected $fillable = [
         'recepcion_vehiculo_id',
         'cod_sucursal',
-        'empleado_id',
+        'cod_mecanico',
         'fecha_diagnostico',
         'diagnostico_mecanico',
         'observaciones',
@@ -44,5 +44,10 @@ class Diagnostico extends Model
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class, 'cod_sucursal', 'cod_sucursal');
+    }
+
+    public function mecanico()
+    {
+        return $this->belongsTo(Mecanico::class, 'cod_mecanico', 'cod_mecanico');
     }
 }

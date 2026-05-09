@@ -75,4 +75,12 @@ class User extends Authenticatable {
         return $this->belongsTo(Personas::class, 'cod_persona', 'cod_persona');
     }
 
+    /**
+     * Relación con el mecánico del usuario (si tiene)
+     */
+    public function mecanico(): BelongsTo
+    {
+        return $this->belongsTo(Mecanico::class, 'cod_empleado', 'cod_empleado');
+    }
+
 }

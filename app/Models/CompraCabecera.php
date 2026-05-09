@@ -32,15 +32,16 @@ class CompraCabecera extends Model
         'monto_general',
         'usuario_alta',
         'fecha_alta',
-        'usuario_mod',
-        'fecha_mod',
+        'confirma',
+        'fec_confirma',
+        'usuario_confirma',
     ];
 
     protected $casts = [
         'fec_comprobante' => 'date',
         'fec_vencimiento' => 'date',
         'fecha_alta' => 'datetime',
-        'fecha_mod' => 'datetime',
+        'fec_confirma' => 'datetime',
         'monto_gravado' => 'decimal:2',
         'monto_tot_impuesto' => 'decimal:2',
         'monto_general' => 'decimal:2',
@@ -60,11 +61,6 @@ class CompraCabecera extends Model
             if (!$compra->fecha_alta) {
                 $compra->fecha_alta = now();
             }
-        });
-
-        static::updating(function ($compra) {
-            $compra->usuario_mod = auth()->user()->name ?? 'Sistema';
-            $compra->fecha_mod = now();
         });
     }
 
@@ -106,11 +102,6 @@ class CompraCabecera extends Model
     public function usuarioAlta()
     {
         return $this->belongsTo(User::class, 'usuario_alta', 'id');
-    }
-
-    public function usuarioMod()
-    {
-        return $this->belongsTo(User::class, 'usuario_mod', 'id');
     }
 
     /**

@@ -39,8 +39,8 @@ class Articulos extends Model
         'costo',
         'usuario_alta',
         'fec_alta',
-        'usuario_mod',
-        'fec_mod',
+       // 'usuario_mod',
+       // 'fec_mod',
     ];
 
     protected $casts = [

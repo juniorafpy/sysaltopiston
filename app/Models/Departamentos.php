@@ -19,4 +19,9 @@ class Departamentos extends Model
         'descripcion',
         'cod_pais'
     ];
+
+    public function pais()
+    {
+        return $this->belongsTo(Pais::class, 'cod_pais', 'cod_pais');
+    }
 }

@@ -23,7 +23,7 @@ class PresupuestoVentaResource extends Resource
 {
     protected static ?string $model = PresupuestoVenta::class;
 
-    protected static ?string $navigationGroup = 'Servicios';
+    protected static ?string $navigationGroup = 'Gestión Servicios';
     protected static ?string $navigationLabel = 'Presupuesto de venta';
     protected static ?string $navigationIcon = 'heroicon-o-document-currency-dollar';
     protected static ?int $navigationSort = 15;

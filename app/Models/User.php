@@ -29,6 +29,10 @@ class User extends Authenticatable {
         'cod_sucursal',
         'cod_empleado',
         'cod_persona',
+        'usuario_alta',
+        'fec_alta',
+        'intentos_fallidos',
+        'bloqueado',
     ];
 
     /**

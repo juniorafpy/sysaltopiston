@@ -24,7 +24,7 @@ class DiagnosticoResource extends Resource
     protected static ?string $model = Diagnostico::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
-    protected static ?string $navigationGroup = 'Servicios';
+    protected static ?string $navigationGroup = 'Gestión Servicios';
     protected static ?int $navigationSort = 8;
 
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder

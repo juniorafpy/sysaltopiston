@@ -19,7 +19,7 @@ class PaisResource extends Resource
 {
     protected static ?string $model = Pais::class;
 
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Compras';
     protected static ?int $navigationSort = 2;
     protected static ?string $navigationIcon = 'heroicon-o-flag';
 

@@ -25,7 +25,7 @@ class OrdenServicioResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Lista de Orden de Servicios';
 
-    protected static ?string $navigationGroup = 'Servicios';
+    protected static ?string $navigationGroup = 'Gestión Servicios';
 
     protected static ?int $navigationSort = 20;
 

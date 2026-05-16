@@ -33,7 +33,7 @@ class ReclamoResource extends Resource
     protected static ?string $modelLabel = 'Reclamo';
 
     protected static ?string $pluralModelLabel = 'Reclamos';
-    protected static ?string $navigationGroup = 'Servicios';
+    protected static ?string $navigationGroup = 'Gestión Servicios';
     //protected static ?string $navigationGroup = 'Servicio Técnico';
 
     protected static ?int $navigationSort = 22;

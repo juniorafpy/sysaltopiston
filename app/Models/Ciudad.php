@@ -19,4 +19,9 @@ class Ciudad extends Model
         'descripcion',
         'cod_departamento'
     ];
+
+    public function departamento()
+    {
+        return $this->belongsTo(Departamentos::class, 'cod_departamento', 'cod_departamento');
+    }
 }

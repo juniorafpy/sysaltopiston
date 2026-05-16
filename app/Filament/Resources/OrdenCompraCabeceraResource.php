@@ -28,7 +28,7 @@ class OrdenCompraCabeceraResource extends Resource
     protected static ?string $model = OrdenCompraCabecera::class;
 
     // Ajusta el ícono y el nombre
-     protected static ?string $navigationGroup = 'Compras';
+     protected static ?string $navigationGroup = 'Gestión Compras';
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $modelLabel = 'Orden de Compra';
     protected static ?string $pluralModelLabel = 'Ordenes de Compra';

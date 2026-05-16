@@ -28,7 +28,10 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(\App\Filament\Pages\Login::class)
+            ->pages([
+                \App\Filament\Pages\Dashboard::class,
+            ])
 
 
             ->plugins([
@@ -51,10 +54,12 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('Principal')
                     ->icon('heroicon-o-home'),
-                   NavigationGroup::make()
-                    ->label('Compras'),
                 NavigationGroup::make()
-                    ->label('Servicios'),
+                    ->label('Referenciales'),
+                NavigationGroup::make()
+                    ->label('Gestión Compras'),
+                NavigationGroup::make()
+                    ->label('Gestión Servicios'),
                 NavigationGroup::make()
                     ->label('Ventas'),
                 NavigationGroup::make()
@@ -63,6 +68,7 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Ayuda'),
 
             ])
+            ->renderHook('panels::head.start', fn() => '<link rel="stylesheet" href="'.asset('css/filament-admin.css').'">')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

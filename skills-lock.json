@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "resource": {
+      "source": "mwguerra/claude-code-plugins",
+      "sourceType": "github",
+      "skillPath": "filament-specialist/skills/resource/SKILL.md",
+      "computedHash": "79be9abf46768993c7b3ee53735b6a0232ef32678ee9927cedf2f5d5f65454b8"
+    }
+  }
+}

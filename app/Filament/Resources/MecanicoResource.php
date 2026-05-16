@@ -18,7 +18,7 @@ class MecanicoResource extends Resource
     protected static ?string $slug = 'mecanicos';
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Servicios';
     protected static ?string $navigationLabel = 'Mecánicos';
     protected static ?string $modelLabel = 'Mecánico';
     protected static ?string $pluralModelLabel = 'Mecánicos';
@@ -123,7 +123,6 @@ class MecanicoResource extends Resource
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
-              //      Tables\Actions\DeleteAction::make(),
                 ]),
             ]);
     }

@@ -18,17 +18,14 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ActionGroup;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Tables\Columns\BooleanColumn;
 use Filament\Forms\Components\DateTimePicker;
 use App\Filament\Resources\ProveedorResource\Pages;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\ProveedorResource\RelationManagers;
 
 class ProveedorResource extends Resource
 {
     protected static ?string $model = Proveedor::class;
 
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Compras';
     protected static ?string $navigationIcon = 'heroicon-o-truck';
     protected static ?string $navigationLabel = 'Proveedores';
     protected static ?string $modelLabel = 'Proveedor';
@@ -39,7 +36,6 @@ class ProveedorResource extends Resource
     {
         return $form
             ->schema([
-                // 🎨 SECCIÓN 1: Datos del Proveedor
                 Section::make('🏢 Información del Proveedor')
                     ->description('Seleccione la persona que será registrada como proveedor')
                     ->icon('heroicon-o-building-storefront')
@@ -47,7 +43,6 @@ class ProveedorResource extends Resource
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                // Persona asociada
                                 Select::make('cod_persona')
                                     ->label('Persona')
                                     ->relationship('personas_pro', 'nombres')
@@ -60,12 +55,9 @@ class ProveedorResource extends Resource
                                     ->validationMessages([
                                         'unique' => 'La persona seleccionada ya está registrada como proveedor.',
                                     ])
-                                   // ->helperText('Busque y seleccione la persona registrada')
                                     ->placeholder('Buscar persona...')
-                                    //->createOptionModalHeading('Crear Nueva Persona')
                                     ->columnSpan(2),
 
-                                // Estado
                                 Toggle::make('estado')
                                     ->label('Estado Activo')
                                     ->helperText('Desactive para dar de baja al proveedor')
@@ -75,7 +67,6 @@ class ProveedorResource extends Resource
                             ]),
                     ]),
 
-                // 🎨 SECCIÓN 2: Información de Auditoría
                 Section::make('📋 Información de Registro')
                     ->description('Datos de auditoría del sistema')
                     ->icon('heroicon-o-clock')
@@ -109,7 +100,6 @@ class ProveedorResource extends Resource
                 Tables\Columns\TextColumn::make('cod_proveedor')
                     ->label('#'),
 
-
                 Tables\Columns\TextColumn::make('personas_pro.nombre_completo')
                     ->label('Nombre del Proveedor')
                     ->searchable(['nombres', 'apellidos'])
@@ -125,13 +115,6 @@ class ProveedorResource extends Resource
                     ->weight('medium')
                     ->searchable(),
 
-               /* Tables\Columns\TextColumn::make('personas_pro.ci_ruc')
-                    ->label('CI/RUC')
-                    ->searchable()
-                    ->copyable()
-                    ->copyMessage('CI/RUC copiado')
-                    ->icon('heroicon-o-identification'),*/
-
                 Tables\Columns\IconColumn::make('estado')
                     ->label('Estado')
                     ->boolean()
@@ -139,19 +122,14 @@ class ProveedorResource extends Resource
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('danger'),
-                    //->sortable(),
 
                 Tables\Columns\TextColumn::make('usuario_alta')
                     ->label('Registrado por')
-                    //->sortable()
-                    //->toggleable(isToggledHiddenByDefault: true)
                     ->icon('heroicon-o-user-circle'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha de Registro')
                     ->dateTime('d/m/Y H:i')
-                  //  ->sortable()
-                  //  ->toggleable(isToggledHiddenByDefault: true)
                     ->icon('heroicon-o-calendar'),
             ])
             ->headerActions([
@@ -186,7 +164,7 @@ class ProveedorResource extends Resource
     {
         return [
             'index' => Pages\ListProveedors::route('/'),
-            // 'create' => Pages\CreateProveedor::route('/create'), // Deshabilitado - usando modal en ListProveedors
+            'create' => Pages\CreateProveedor::route('/create'),
             'edit' => Pages\EditProveedor::route('/{record}/edit'),
         ];
     }

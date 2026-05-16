@@ -45,7 +45,7 @@ class CompraCabeceraResource extends Resource
 
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
-    protected static ?string $navigationGroup = 'Compras'; // <-- Asegúrate de que tenga un icono
+    protected static ?string $navigationGroup = 'Gestión Compras';
     protected static ?string $navigationLabel = 'Facturas de Compra'; // <-- Opcional, pero útil
     protected static ?string $modelLabel = 'Factura de Compra';
 

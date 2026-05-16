@@ -40,7 +40,7 @@ class GuiaRemisionResource extends Resource
     protected static ?string $model = GuiaRemisionCabecera::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
-    protected static ?string $navigationGroup = 'Compras';
+    protected static ?string $navigationGroup = 'Gestión Compras';
     protected static ?string $navigationLabel = 'Nota de Remisión';
 
     protected static ?int $navigationSort = 5;

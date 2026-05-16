@@ -18,7 +18,7 @@ class NotaCreditoDebitoCompraResource extends Resource
     protected static ?string $model = NotaCreditoDebitoCompra::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-      protected static ?string $navigationGroup = 'Compras';
+      protected static ?string $navigationGroup = 'Gestión Compras';
     protected static ?string $navigationLabel = 'Nota de Crédito/Débito';
 
     protected static ?int $navigationSort = 6;

@@ -27,7 +27,7 @@ class RecepcionVehiculoResource extends Resource
 {
     protected static ?string $model = RecepcionVehiculo::class;
 
-    protected static ?string $navigationGroup = 'Servicios';
+    protected static ?string $navigationGroup = 'Gestión Servicios';
     protected static ?string $navigationIcon = 'heroicon-o-inbox-arrow-down';
     protected static ?string $modelLabel = 'Recepción de Vehículo';
     protected static ?string $pluralModelLabel = 'Recepciones de Vehículos';

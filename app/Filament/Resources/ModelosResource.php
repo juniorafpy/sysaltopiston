@@ -17,7 +17,7 @@ class ModelosResource extends Resource
 {
     protected static ?string $model = Modelos::class;
 
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Compras';
     protected static ?int $navigationSort = 4;
     protected static ?string $navigationIcon = 'heroicon-o-flag';
 

@@ -30,7 +30,7 @@ class PersonasResource extends Resource
 {
     protected static ?string $model = Personas::class;
 
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Servicios';
     protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Personas';
     protected static ?string $modelLabel = 'Persona';

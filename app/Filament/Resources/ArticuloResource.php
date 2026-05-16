@@ -4,9 +4,8 @@ namespace App\Filament\Resources;
 
 use Filament\Forms;
 use Filament\Tables;
-use App\Models\Articulo;
-use Filament\Forms\Form;
 use App\Models\Articulos;
+use Filament\Forms\Form;
 use App\Models\Impuesto;
 use App\Models\TipoRepuesto;
 use Filament\Tables\Table;
@@ -18,19 +17,14 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
-use Filament\Tables\Columns\BadgeColumn;
-use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\IconColumn;
-use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\ArticuloResource\Pages;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\ArticuloResource\RelationManagers;
 
 class ArticuloResource extends Resource
 {
     protected static ?string $model = Articulos::class;
 
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Compras';
 
     protected static ?int $navigationSort = 5;
 
@@ -100,13 +94,6 @@ class ArticuloResource extends Resource
                                         $modelo = \App\Models\Modelos::create($data);
                                         return $modelo->cod_modelo;
                                     }),
-
-                               /* Select::make('cod_tip_articulo')
-                                    ->label('Tipo de Artículo')
-                                    ->options(fn () => \App\Models\TipoArticulos::pluck('descripcion', 'cod_tip_articulo'))
-                                    ->searchable()
-                                    ->preload()
-                                    ->required(),*/
 
                                 Select::make('cod_tipo_repuesto')
                                     ->label('Categoría Repuesto')
@@ -236,12 +223,6 @@ class ArticuloResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                /*TextColumn::make('tipo_articulo_ar.descripcion')
-                    ->label('Tipo')
-                    ->badge()
-                    ->color('info')
-                    ->searchable(),*/
-
                 TextColumn::make('tipoRepuesto.descripcion')
                     ->label('Categoría')
                     ->badge()
@@ -267,15 +248,13 @@ class ArticuloResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                //    Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                 ]),
             ])
-
-                        ->defaultSort('fec_alta', 'desc')
+            ->defaultSort('fec_alta', 'desc')
             ->persistSortInSession()
-           ->persistSearchInSession()
-           ->persistFiltersInSession();
+            ->persistSearchInSession()
+            ->persistFiltersInSession();
     }
 
     public static function getRelations(): array

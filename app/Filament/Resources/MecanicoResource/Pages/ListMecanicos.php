@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MecanicoResource\Pages;
 
 use App\Filament\Resources\MecanicoResource;
+use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
 class ListMecanicos extends ListRecords
@@ -11,6 +12,8 @@ class ListMecanicos extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            Actions\CreateAction::make(),
+        ];
     }
 }

@@ -15,7 +15,7 @@ class ColorResource extends Resource
     protected static ?string $model = Color::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-swatch';
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Compras';
     protected static ?string $modelLabel = 'Color';
     protected static ?string $pluralModelLabel = 'Colores';
     protected static ?int $navigationSort = 4;

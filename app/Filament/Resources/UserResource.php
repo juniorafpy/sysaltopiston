@@ -70,6 +70,20 @@ class UserResource extends Resource
                             ->dehydrated(fn ($state) => filled($state))
                             ->maxLength(255)
                             ->helperText('Dejar en blanco para mantener la contraseña actual'),
+
+                        Forms\Components\TextInput::make('usuario_alta')
+                            ->label('Usuario Alta')
+                            ->default(fn () => auth()->user()->name)
+                            ->disabled()
+                            ->dehydrated()
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('fec_alta')
+                            ->label('Fecha Alta')
+                            ->default(now()->format('d/m/Y'))
+                            ->disabled()
+                            ->dehydrated()
+                            ->columnSpan(1),
                     ])
                     ->columns(2),
 

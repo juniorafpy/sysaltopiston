@@ -14,32 +14,33 @@ class LockUserAfterFailedLogin
 {
         public function handle(Failed $event)
         {
-            // Verificar si el email es válido
-            $user = User::where('email', request()->email)->first();
+            // Verificar si el name es válido (case-insensitive)
+            $inputName = request()->name ?? request()->data['name'] ?? null;
+            $user = User::whereRaw('LOWER(name) = ?', [strtolower($inputName)])->first();
 
             if (!$user) {
-                Log::warning("Intento fallido con email no registrado: " . request()->email);
+                Log::warning("Intento fallido con name no registrado: " . $inputName);
                 return;
             }
 
-            if ($user->is_locked) {
-                Log::warning("El usuario {$user->email} ya está bloqueado.");
+            if ($user->bloqueado === 'S') {
+                Log::warning("El usuario {$user->name} ya está bloqueado.");
                 return;
             }
 
             // Manejo de intentos fallidos
             $limiter = app(RateLimiter::class);
-            $key = 'login_attempts:' . $user->email;
+            $key = 'login_attempts:' . $user->name;
             $maxAttempts = 3; // Número de intentos antes de bloquear
 
             $limiter->hit($key, 60); // Registrar intento fallido
 
-            Log::info("Intento fallido para {$user->email}. Intentos: " . $limiter->attempts($key));
+            Log::info("Intento fallido para {$user->name}. Intentos: " . $limiter->attempts($key));
 
             // Si supera los intentos, bloquear al usuario
             if ($limiter->attempts($key) >= $maxAttempts) {
-                $user->update(['is_locked' => true]);
-                Log::info("Usuario {$user->email} bloqueado.");
+                $user->update(['bloqueado' => 'S']);
+                Log::info("Usuario {$user->name} bloqueado.");
             }
         }
 

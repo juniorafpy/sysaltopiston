@@ -8,4 +8,17 @@ class CreateRole extends \BezhanSalleh\FilamentShield\Resources\RoleResource\Pag
     {
         return static::getResource()::getUrl('index');
     }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        // Fusionar permisos filtrados con los normales
+        if (isset($data['filtered_permissions']) && is_array($data['filtered_permissions'])) {
+            foreach ($data['filtered_permissions'] as $filteredPerm) {
+                $permName = explode(' (', $filteredPerm)[0];
+                $data[$permName] = true;
+            }
+        }
+
+        return parent::mutateFormDataBeforeCreate($data);
+    }
 }

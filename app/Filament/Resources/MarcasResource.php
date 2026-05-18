@@ -30,6 +30,12 @@ class MarcasResource extends Resource
                     ->maxLength(50)
                     ->required(),
 
+                Forms\Components\Toggle::make('estado')
+                    ->label('Estado')
+                    ->default(true)
+                    ->formatStateUsing(fn ($state) => $state === 'A')
+                    ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I'),
+
                     Forms\Components\Hidden::make('usuario_alta')
                     ->default(fn () =>auth()->user()->name)  //asigna automaticamente el usuario
                    ->label('Usuario Alta'),
@@ -50,15 +56,27 @@ class MarcasResource extends Resource
                 Tables\Columns\TextColumn::make('descripcion')
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
+                    ->colors([
+                        'success' => 'A',
+                        'danger' => 'I',
+                    ]),
+
                     Tables\Columns\TextColumn::make('usuario_alta')
                     ->searchable(),
                     Tables\Columns\TextColumn::make('fec_alta')
                     ->dateTime()
-                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y H:i:s')),
+                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y')),
             ])
 
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalHeading('Editar Marca')
+                    ->modalSubmitActionLabel('Guardar'),
             ]);
 
     }
@@ -74,8 +92,6 @@ class MarcasResource extends Resource
     {
         return [
             'index' => Pages\ListMarcas::route('/'),
-            'create' => Pages\CreateMarcas::route('/create'),
-            'edit' => Pages\EditMarcas::route('/{record}/edit'),
         ];
     }
 }

@@ -34,13 +34,16 @@ class AdminPanelProvider extends PanelProvider
             ])
 
 
+            ->resources([
+                \App\Filament\Resources\RoleResource::class,
+            ])
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->plugins([
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
             ])
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 \App\Filament\Pages\Dashboard::class,
@@ -69,6 +72,47 @@ class AdminPanelProvider extends PanelProvider
 
             ])
             ->renderHook('panels::head.start', fn() => '<link rel="stylesheet" href="'.asset('css/filament-admin.css').'">')
+            ->renderHook('panels::body.end', fn() => '
+                <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+                <script>
+                    document.addEventListener("livewire:initialized", () => {
+                        const Toast = Swal.mixin({
+                            toast: true,
+                            position: "top-end",
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true,
+                        });
+
+                        Livewire.on("swal:error", (data) => {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Error",
+                                text: data.message,
+                                confirmButtonText: "Aceptar",
+                                confirmButtonColor: "#dc2626"
+                            });
+                        });
+
+                        Livewire.on("swal:success", (data) => {
+                            Toast.fire({
+                                icon: "success",
+                                title: data.message
+                            });
+                        });
+
+                        Livewire.on("documento-duplicado", (data) => {
+                            Swal.fire({
+                                icon: "warning",
+                                title: "Documento ya registrado",
+                                html: `El número de documento <b>${data.documento}</b> ya está registrado en la persona con <b>ID: ${data.id}</b>`,
+                                confirmButtonText: "Aceptar",
+                                confirmButtonColor: "#f59e0b"
+                            });
+                        });
+                    });
+                </script>
+            ')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

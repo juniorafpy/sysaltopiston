@@ -20,6 +20,7 @@ class Login extends BaseLogin
                 TextInput::make('name')
                     ->label('Usuario')
                     ->required()
+                    ->maxLength(6)
                     ->autocomplete(),
                 TextInput::make('password')
                     ->label('Contraseña')

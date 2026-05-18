@@ -7,6 +7,7 @@ use Filament\Tables;
 use App\Models\Articulos;
 use Filament\Forms\Form;
 use App\Models\Impuesto;
+use App\Models\Marcas;
 use App\Models\TipoRepuesto;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
@@ -63,7 +64,8 @@ class ArticuloResource extends Resource
 
                                 Select::make('cod_marca')
                                     ->label('Marca')
-                                    ->options(fn () => \App\Models\Marcas::pluck('descripcion', 'cod_marca'))
+                                    ->options(fn () => Marcas::where('estado', 'A')
+                                    ->pluck('descripcion', 'cod_marca'))
                                     ->searchable()
                                     ->preload()
                                     ->required()
@@ -80,7 +82,7 @@ class ArticuloResource extends Resource
 
                                 Select::make('cod_modelo')
                                     ->label('Modelo')
-                                    ->options(fn () => \App\Models\Modelos::pluck('descripcion', 'cod_modelo'))
+                                    ->options(fn () => \App\Models\Modelos::where('estado', 'A')->pluck('descripcion', 'cod_modelo'))
                                     ->searchable()
                                     ->preload()
                                     ->required()
@@ -105,11 +107,12 @@ class ArticuloResource extends Resource
 
                                 Select::make('cod_medida')
                                     ->label('Unidad de Medida')
-                                    ->options(fn () => \App\Models\Medidas::pluck('descripcion', 'cod_medida'))
+                                    ->options(fn () => \App\Models\Medidas::where('estado', 'A') 
+                                    ->pluck('descripcion', 'cod_medida'))
                                     ->searchable()
                                     ->preload()
                                     ->required()
-                                    ->placeholder('Unuidad de medida'),
+                                    ->placeholder('Unidad de medida'),
                             ]),
                     ]),
 
@@ -126,7 +129,8 @@ class ArticuloResource extends Resource
                                     ->minValue(0)
                                     ->step(1000)
                                     ->helperText('Precio de compra del artículo')
-                                    ->live(onBlur: true),
+                                    ->disabled()
+                                    ->dehydrated(),
 
                                 TextInput::make('precio')
                                     ->label('Precio de Venta')
@@ -231,6 +235,7 @@ class ArticuloResource extends Resource
 
                 IconColumn::make('activo')
                     ->label('Estado')
+                    ->getStateUsing(fn ($record) => $record->getAttributes()['activo'] === 'S')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')

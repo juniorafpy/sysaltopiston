@@ -53,30 +53,33 @@ class ModelosResource extends Resource
             ->columns([
 
                 Tables\Columns\TextColumn::make('cod_modelo') 
-               // ->label('Cod_Modelo')
-                ->width('1%')
-                ->alignment('center'), // Agregar la columna para 'cod_pais'
+                // ->label('Cod_Modelo')
+                 ->width('1%')
+                 ->alignment('center'), // Agregar la columna para 'cod_pais'
 
                 Tables\Columns\TextColumn::make('descripcion')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('cod_marca')
-                    ->numeric(),
-                    Tables\Columns\TextColumn::make('desc_marca')
+                Tables\Columns\TextColumn::make('desc_marca')
+                    ->label('Marca')
                     ->getStateUsing(function ($record) {
-                        // Obtiene la descripción asociada con cod_marca
-                        return $record->marca ? $record->marca->descripcion : 'N/A'; // Asegúrate de que la relación "marca" exista en el modelo
+                        return $record->marca ? $record->marca->descripcion : 'N/A';
                     })
-                   
                     ->extraAttributes(['class' => 'text-left']),
                     
-                    Tables\Columns\TextColumn::make('usuario_alta')
+                Tables\Columns\TextColumn::make('usuario_alta')
                     ->searchable(),
-                    Tables\Columns\TextColumn::make('fec_alta')
+                Tables\Columns\TextColumn::make('fec_alta')
                     ->dateTime()
                     ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y H:i:s')), 
             ])
             ->filters([
                 //
+            ])
+            ->actions([
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalHeading('Editar Modelo')
+                    ->modalSubmitActionLabel('Guardar'),
             ]);
             
             
@@ -93,8 +96,6 @@ class ModelosResource extends Resource
     {
         return [
             'index' => Pages\ListModelos::route('/'),
-            'create' => Pages\CreateModelos::route('/create'),
-            'edit' => Pages\EditModelos::route('/{record}/edit'),
         ];
     }
 }

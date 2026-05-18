@@ -84,6 +84,14 @@ class UserResource extends Resource
                             ->disabled()
                             ->dehydrated()
                             ->columnSpan(1),
+
+                        Forms\Components\Toggle::make('bloqueado')
+                            ->label('Usuario Bloqueado')
+                            ->default(false)
+                            ->helperText('Activar para bloquear el acceso del usuario')
+                            ->formatStateUsing(fn ($state) => $state === 'S')
+                            ->dehydrateStateUsing(fn ($state) => $state ? 'S' : 'N')
+                            ->columnSpan(2),
                     ])
                     ->columns(2),
 
@@ -107,7 +115,7 @@ class UserResource extends Resource
 
 
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nombre')
+                    ->label('Usuario')
                     ->searchable()
                     ->sortable(),
 
@@ -131,28 +139,27 @@ class UserResource extends Resource
                     ->separator(',')
                     ->default('Sin rol'),
 
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Fecha Creación')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('bloqueado')
+                    ->label('Bloqueado')
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => $record->bloqueado === 'S')
+                    ->trueIcon('heroicon-o-lock-closed')
+                    ->falseIcon('heroicon-o-lock-open')
+                    ->trueColor('danger')
+                    ->falseColor('success'),
 
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->label('Última Actualización')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+
             ])
-            ->filters([
+           /* ->filters([
                 Tables\Filters\SelectFilter::make('cod_sucursal')
                     ->label('Sucursal')
                     ->relationship('sucursal', 'descripcion')
                     ->multiple()
                     ->preload(),
-            ])
+            ])*/
             ->actions([
                 Tables\Actions\EditAction::make(),
-            //    Tables\Actions\DeleteAction::make(),
+                //Tables\Actions\DeleteAction::make(),
             ]);
 
     }

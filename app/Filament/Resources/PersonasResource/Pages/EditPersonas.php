@@ -45,8 +45,29 @@ class EditPersonas extends EditRecord
         return $this->getResource()::getUrl('index');
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $isFisica = ($data['ind_fisica'] === 'S' || $data['ind_fisica'] === true || $data['ind_fisica'] === 1);
+        $data['tipo_persona'] = $isFisica ? 'F' : 'J';
+        return $data;
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data['ind_fisica'] = $data['tipo_persona'] === 'F' ? 'S' : 'N';
+        $data['ind_juridica'] = $data['tipo_persona'] === 'J' ? 'S' : 'N';
+        $data['ind_activo'] = ($data['ind_activo'] === 'S' || $data['ind_activo'] === true) ? 'S' : 'N';
+        unset($data['tipo_persona']);
+        return $data;
+    }
+
     protected function getSavedNotificationTitle(): ?string
     {
-        return 'Persona actualizada exitosamente';
+        return null;
+    }
+
+    protected function afterSave(): void
+    {
+        $this->dispatch('swal:success', message: 'Persona actualizada exitosamente.');
     }
 }

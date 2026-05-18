@@ -9,4 +9,6 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateSucursal extends CreateRecord
 {
     protected static string $resource = SucursalResource::class;
+
+    protected static bool $canCreateAnother = false;
 }

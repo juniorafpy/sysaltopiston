@@ -18,9 +18,10 @@ class Sucursal extends Model
     public $timestamps = false;
 
     protected $fillable =[
-        //'cod_pais',
         'descripcion',
-
+        'estado',
+        'usuario_alta',
+        'fec_alta',
     ]; //campos para visualizar
 
      public function usuario_suc (): BelongsTo

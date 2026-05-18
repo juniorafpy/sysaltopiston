@@ -32,14 +32,36 @@ class DepartamentosResource extends Resource
                             ->label('Descripción')
                             ->required()
                             ->maxLength(100)
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true)
+                            ->dehydrateStateUsing(fn ($state) => strtoupper($state))
+                            ->afterStateUpdated(fn ($state, callable $set) => $set('descripcion', strtoupper($state))),
                         Forms\Components\Select::make('cod_pais')
                             ->label('País')
                             ->relationship('pais', 'descripcion')
                             ->required()
                             ->searchable()
                             ->preload(),
-                    ]),
+                        Forms\Components\TextInput::make('usuario_alta')
+                            ->label('Usuario Alta')
+                            ->default(fn () => auth()->user()->name)
+                            ->disabled()
+                            ->dehydrated()
+                            ->columnSpan(1),
+                        Forms\Components\DatePicker::make('fec_alta')
+                            ->label('Fecha Alta')
+                            ->default(now())
+                            ->disabled()
+                            ->dehydrated()
+                            ->displayFormat('d/m/Y')
+                            ->columnSpan(1),
+                        Forms\Components\Toggle::make('estado')
+                            ->label('Estado')
+                            ->default(true)
+                            ->formatStateUsing(fn ($state) => $state === 'A')
+                            ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I')
+                            ->columnSpan(1),
+                    ])
+                    ->columns(2),
             ]);
     }
 
@@ -59,18 +81,30 @@ class DepartamentosResource extends Resource
                     ->label('País')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('usuario_alta')
+                    ->label('Usuario Alta'),
+                Tables\Columns\TextColumn::make('fec_alta')
+                    ->label('Fecha Alta')
+                    ->date('d/m/Y'),
+                Tables\Columns\BadgeColumn::make('estado')
+                    ->label('Estado')
+                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
+                    ->colors([
+                        'success' => 'A',
+                        'danger' => 'I',
+                    ]),
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->after(function ($record, $action) {
+                        $action->getLivewire()->dispatch('swal:success', message: 'Departamento actualizado exitosamente.');
+                    }),
             ])
             ->defaultSort('descripcion', 'asc');
     }
@@ -86,8 +120,6 @@ class DepartamentosResource extends Resource
     {
         return [
             'index' => Pages\ListDepartamentos::route('/'),
-            'create' => Pages\CreateDepartamentos::route('/create'),
-            'edit' => Pages\EditDepartamentos::route('/{record}/edit'),
         ];
     }
 }

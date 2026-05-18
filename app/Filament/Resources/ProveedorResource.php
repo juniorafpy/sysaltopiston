@@ -36,11 +36,8 @@ class ProveedorResource extends Resource
     {
         return $form
             ->schema([
-                Section::make('🏢 Información del Proveedor')
-                    ->description('Seleccione la persona que será registrada como proveedor')
-                    ->icon('heroicon-o-building-storefront')
-                    ->collapsible()
-                    ->schema([
+               
+             
                         Grid::make(2)
                             ->schema([
                                 Select::make('cod_persona')
@@ -51,10 +48,6 @@ class ProveedorResource extends Resource
                                     ->preload()
                                     ->optionsLimit(5)
                                     ->required()
-                                    ->unique('proveedores', 'cod_persona', ignoreRecord: true)
-                                    ->validationMessages([
-                                        'unique' => 'La persona seleccionada ya está registrada como proveedor.',
-                                    ])
                                     ->placeholder('Buscar persona...')
                                     ->columnSpan(2),
 
@@ -65,13 +58,8 @@ class ProveedorResource extends Resource
                                     ->inline(false)
                                     ->columnSpan(2),
                             ]),
-                    ]),
+                
 
-                Section::make('📋 Información de Registro')
-                    ->description('Datos de auditoría del sistema')
-                    ->icon('heroicon-o-clock')
-                    ->collapsed()
-                    ->schema([
                         Grid::make(2)
                             ->schema([
                                 TextInput::make('usuario_alta')
@@ -79,7 +67,7 @@ class ProveedorResource extends Resource
                                     ->default(auth()->user()->name)
                                     ->disabled()
                                     ->dehydrated(false)
-                                    ->prefix('👤'),
+                                    ,
 
                                 DateTimePicker::make('fec_alta')
                                     ->label('Fecha de Registro')
@@ -87,9 +75,9 @@ class ProveedorResource extends Resource
                                     ->disabled()
                                     ->dehydrated(false)
                                     ->displayFormat('d/m/Y H:i')
-                                    ->prefix('📅'),
-                            ]),
-                    ]),
+                                    ,
+                        ]),
+                  
             ]);
     }
 
@@ -164,7 +152,6 @@ class ProveedorResource extends Resource
     {
         return [
             'index' => Pages\ListProveedors::route('/'),
-            'create' => Pages\CreateProveedor::route('/create'),
             'edit' => Pages\EditProveedor::route('/{record}/edit'),
         ];
     }

@@ -34,62 +34,48 @@ class EmpleadosResource extends Resource
                             ->label('Persona')
                             ->relationship('persona', 'cod_persona')
                             ->getOptionLabelFromRecordUsing(fn ($record) =>
-                                "{$record->nombre_completo} - {$record->nro_documento}"
+                                "{$record->nombre_completo}"
                             )
                             ->searchable(['nombres', 'apellidos', 'nro_documento'])
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->unique(
+                                table: 'empleados',
+                                column: 'cod_persona',
+                                ignorable: fn ($record) => $record,
+                            )
+                            ->validationMessages([
+                                'unique' => 'Esta persona ya está registrada como empleado.',
+                            ])
+                            ->columnSpan(2),
 
                         Forms\Components\TextInput::make('email')
                             ->label('Correo Electrónico')
                             ->email()
                             ->maxLength(100)
-                            ->helperText('Email corporativo del empleado'),
-
-                        Forms\Components\DatePicker::make('fec_alta')
-                            ->label('Fecha de Alta')
-                            ->default(now())
-                            ->required()
-                            ->displayFormat('d/m/Y')
-                            ->native(false),
+                            ->helperText('Email corporativo del empleado')
+                            ->columnSpan(2),
 
                         Forms\Components\Select::make('cod_cargo')
                             ->label('Cargo')
                             ->relationship('cargo', 'descripcion')
-
                             ->preload()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('descripcion')
-                                    ->label('Descripción del Cargo')
-                                    ->required()
-                                    ->maxLength(100),
-                                Forms\Components\Textarea::make('responsabilidades')
-                                    ->label('Responsabilidades')
-                                    ->rows(3)
-                                    ->maxLength(500),
-                                Forms\Components\Select::make('area')
-                                    ->label('Área')
-                                    ->options([
-                                        'Gerencia' => 'Gerencia',
-                                        'Administrativa' => 'Administrativa',
-                                        'Técnica' => 'Técnica',
-                                        'Ventas' => 'Ventas',
-                                        'Logística' => 'Logística',
-                                        'Servicios Generales' => 'Servicios Generales',
-                                    ])
-                                    ->required(),
-                                Forms\Components\Toggle::make('activo')
-                                    ->label('Activo')
-                                    ->default(true),
-                            ])
-                            ->createOptionModalHeading('Crear Nuevo Cargo')
-                            ->helperText('Selecciona el cargo o crea uno nuevo'),
+                            ->columnSpan(1),
+
+                        Forms\Components\DatePicker::make('fec_ingreso')
+                            ->label('Fecha de Ingreso')
+                            ->default(now())
+                            ->required()
+                            ->displayFormat('d/m/Y')
+                            ->native(false)
+                            ->columnSpan(1),
 
                         Forms\Components\Toggle::make('activo')
                             ->label('Activo')
                             ->default(true)
                             ->inline(false)
-                            ->helperText('Desactivar para dar de baja al empleado'),
+                            ->helperText('Desactivar para dar de baja al empleado')
+                            ->columnSpan(2),
                     ])
                     ->columns(2),
             ]);
@@ -104,16 +90,13 @@ class EmpleadosResource extends Resource
 
                 Tables\Columns\TextColumn::make('persona.nombre_completo')
                     ->label('Nombre Completo')
-                    ->searchable(['personas.nombres', 'personas.apellidos'])
-                    ->description(fn (Empleados $record): string =>
-                        $record->persona->nro_documento ?? ''
-                    ),
+                    ->searchable(['personas.nombres', 'personas.apellidos']),
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->icon('heroicon-o-envelope'),
 
-                Tables\Columns\TextColumn::make('fec_alta')
-                    ->label('Fecha Alta')
+                Tables\Columns\TextColumn::make('fec_Ingreso')
+                    ->label('Fecha de Ingreso')
                     ->date('d/m/Y'),
 
                 Tables\Columns\TextColumn::make('cargo.descripcion')

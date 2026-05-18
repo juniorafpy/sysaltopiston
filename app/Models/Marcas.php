@@ -17,10 +17,9 @@ class Marcas extends Model
     public $timestamps = false;
 
     protected $fillable =[
-        //'cod_pais',
         'descripcion',
         'usuario_alta',
-        'fec_alta'
-    
+        'fec_alta',
+        'estado',
     ]; //campos para visualizar
 }

@@ -13,7 +13,17 @@ class ListDepartamentos extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->createAnother(false)
+                ->modalSubmitActionLabel('Guardar')
+                ->successNotificationTitle(null)
+                ->mutateFormDataUsing(function (array $data): array {
+                    $data['usuario_alta'] = auth()->user()->name;
+                    $data['fec_alta'] = now();
+                    $data['estado'] = 'A';
+                    return $data;
+                })
+                ->after(fn () => $this->dispatch('swal:success', message: 'Departamento creado exitosamente.')),
         ];
     }
 }

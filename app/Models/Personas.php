@@ -21,10 +21,16 @@ class Personas extends Model
     'nombres', 'apellidos', 'razon_social', 'sexo', 'email', 'fec_nacimiento',
     'direccion', 'cod_estado_civil','edad',
     'cod_pais', 'cod_departamento', 'ind_activo',
-    'ind_juridica', 'ind_fisica', 'usuario_alta', 'fec_alta', 'nro_documento'
+    'ind_juridica', 'ind_fisica', 'usuario_alta', 'fec_alta', 'nro_documento', 'div'
 
     ]; //campos para visualizar
 
+
+    protected $casts = [
+        'ind_activo' => 'boolean',
+        'ind_fisica' => 'boolean',
+        'ind_juridica' => 'boolean',
+    ];
 
     public static function boot()
 {

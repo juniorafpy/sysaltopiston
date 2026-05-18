@@ -17,7 +17,10 @@ class Ciudad extends Model
 
     protected $fillable =[
         'descripcion',
-        'cod_departamento'
+        'cod_departamento',
+        'usuario_alta',
+        'fec_alta',
+        'estado',
     ];
 
     public function departamento()

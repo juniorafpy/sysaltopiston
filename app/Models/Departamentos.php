@@ -17,7 +17,10 @@ class Departamentos extends Model
 
     protected $fillable =[
         'descripcion',
-        'cod_pais'
+        'cod_pais',
+        'usuario_alta',
+        'fec_alta',
+        'estado',
     ];
 
     public function pais()

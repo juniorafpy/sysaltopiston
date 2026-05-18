@@ -32,10 +32,17 @@ class SucursalResource extends Resource
                             ->required()
                             ->maxLength(100)
                             ->unique(ignoreRecord: true),
+
+                        Forms\Components\Toggle::make('estado')
+                            ->label('Estado')
+                            ->default(true)
+                            ->formatStateUsing(fn ($state) => $state === 'A')
+                            ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I'),
+                            //->helperText('Activar para estado activo (A), desactivar para inactivo (I)'),
                     ]),
 
-                Forms\Components\Section::make('Información de Auditoría')
-                    ->schema([
+               
+                    
                         Forms\Components\TextInput::make('usuario_alta')
                             ->label('Usuario de Registro')
                             ->default(fn () => auth()->user()->name)
@@ -43,15 +50,13 @@ class SucursalResource extends Resource
                             ->dehydrated()
                             ->columnSpan(1),
 
-                        Forms\Components\TextInput::make('fec_alta')
+                        Forms\Components\DatePicker::make('fec_alta')
                             ->label('Fecha de Registro')
-                            ->default(now()->toDateTimeString())
+                            ->default(now())
                             ->disabled()
                             ->dehydrated()
+                            ->displayFormat('d/m/Y')
                             ->columnSpan(1),
-                    ])
-                    ->columns(2)
-                    ->collapsed(),
             ]);
     }
 
@@ -67,26 +72,32 @@ class SucursalResource extends Resource
                     ->label('Descripción')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
+                    ->colors([
+                        'success' => 'A',
+                        'danger' => 'I',
+                    ]),
                 Tables\Columns\TextColumn::make('usuario_alta')
-                    ->label('Usuario Alta')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Usuario Alta'),
+                    
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
                     ->dateTime()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y')),
+                    
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar'),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
+           
             ->defaultSort('descripcion', 'asc');
     }
 
@@ -101,8 +112,6 @@ class SucursalResource extends Resource
     {
         return [
             'index' => Pages\ListSucursals::route('/'),
-            'create' => Pages\CreateSucursal::route('/create'),
-            'edit' => Pages\EditSucursal::route('/{record}/edit'),
         ];
     }
 }

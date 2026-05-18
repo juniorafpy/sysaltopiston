@@ -10,11 +10,26 @@ class EditArticulo extends EditRecord
 {
     protected static string $resource = ArticuloResource::class;
 
-    protected function getHeaderActions(): array
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
+
+    protected function getFormActions(): array
     {
         return [
-            Actions\ViewAction::make(),
-            Actions\DeleteAction::make(),
+            $this->getSaveFormAction()->label('Guardar'),
+            $this->getCancelFormAction(),
         ];
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return null;
+    }
+
+    protected function afterSave(): void
+    {
+        $this->dispatch('swal:success', message: 'Artículo actualizado exitosamente.');
     }
 }

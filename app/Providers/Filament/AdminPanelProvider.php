@@ -60,6 +60,10 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('Referenciales'),
                 NavigationGroup::make()
+                    ->label('Referenciales/Servicios'),
+                NavigationGroup::make()
+                    ->label('Referenciales/Ventas'),
+                NavigationGroup::make()
                     ->label('Gestión Compras'),
                 NavigationGroup::make()
                     ->label('Gestión Servicios'),

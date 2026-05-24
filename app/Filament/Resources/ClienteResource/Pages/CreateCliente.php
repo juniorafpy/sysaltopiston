@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ClienteResource\Pages;
 
 use App\Filament\Resources\ClienteResource;
 use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
 use Illuminate\Database\QueryException;
@@ -11,6 +12,23 @@ use Illuminate\Database\QueryException;
 class CreateCliente extends CreateRecord
 {
     protected static string $resource = ClienteResource::class;
+    protected static bool $canCreateAnother = false;
+
+    protected function getCreateFormAction(): Action
+    {
+        return parent::getCreateFormAction()
+            ->label('Guardar');
+    }
+
+    protected function getCreatedNotificationTitle(): ?string
+    {
+        return null;
+    }
+
+    protected function afterCreate(): void
+    {
+        $this->dispatch('swal:success', message: 'Cliente registrado exitosamente.');
+    }
 
     protected function getRedirectUrl(): string
     {

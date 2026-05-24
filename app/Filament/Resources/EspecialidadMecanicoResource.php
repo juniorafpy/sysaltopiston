@@ -32,26 +32,30 @@ class EspecialidadMecanicoResource extends Resource
                             ->required()
                             ->maxLength(100)
                             ->unique(ignoreRecord: true),
+
+                        Forms\Components\Toggle::make('estado')
+                            ->label('Estado')
+                            ->default(true)
+                            ->formatStateUsing(fn ($state) => $state === 'A')
+                            ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I'),
+
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('usuario_alta')
+                                ->label('Usuario de Registro')
+                                ->default(fn () => auth()->user()->name)
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
+
+                            Forms\Components\DatePicker::make('fec_alta')
+                                ->label('Fecha de Registro')
+                                ->default(now())
+                                ->disabled()
+                                ->dehydrated()
+                                ->displayFormat('d/m/Y')
+                                ->columnSpan(1),
+                        ]),
                     ]),
-
-                Forms\Components\Section::make('Información de Auditoría')
-                    ->schema([
-                        Forms\Components\TextInput::make('usuario_alta')
-                            ->label('Usuario de Registro')
-                            ->default(fn () => auth()->user()->name)
-                            ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(1),
-
-                        Forms\Components\TextInput::make('fec_alta')
-                            ->label('Fecha de Registro')
-                            ->default(now()->toDateTimeString())
-                            ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(1),
-                    ])
-                    ->columns(2)
-                    ->collapsed(),
             ]);
     }
 
@@ -67,25 +71,34 @@ class EspecialidadMecanicoResource extends Resource
                     ->label('Descripción')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
+                    ->colors([
+                        'success' => 'A',
+                        'danger' => 'I',
+                    ]),
                 Tables\Columns\TextColumn::make('usuario_alta')
                     ->label('Usuario Alta')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
                     ->dateTime()
+                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y'))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Especialidad actualizada exitosamente.');
+                    }),
             ])
             ->defaultSort('descripcion', 'asc');
     }
@@ -101,8 +114,6 @@ class EspecialidadMecanicoResource extends Resource
     {
         return [
             'index' => Pages\ListEspecialidadMecanicos::route('/'),
-            'create' => Pages\CreateEspecialidadMecanico::route('/create'),
-            'edit' => Pages\EditEspecialidadMecanico::route('/{record}/edit'),
         ];
     }
 }

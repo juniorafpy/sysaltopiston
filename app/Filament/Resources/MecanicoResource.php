@@ -26,57 +26,97 @@ class MecanicoResource extends Resource
 
     public static function form(Form $form): Form
     {
-        return $form->schema([
-            Forms\Components\Section::make('Información del Mecánico')
-                ->description('Seleccione el empleado que será registrado como mecánico')
-                ->icon('heroicon-o-wrench-screwdriver')
-                ->schema([
-                    Forms\Components\Grid::make(2)->schema([
+        return $form
+            ->schema([
+                Forms\Components\Section::make('Datos del Mecánico')
+                    ->schema([
                         Forms\Components\Select::make('cod_empleado')
                             ->label('Empleado')
-                            ->relationship('empleado', 'nombre')
-                            ->getOptionLabelFromRecordUsing(function ($record) {
-                                $persona = $record->persona;
+                            ->searchable()
+                            ->options(function () {
+                                return \App\Models\Empleados::with('persona')
+                                    ->whereHas('persona')
+                                    ->limit(10)
+                                    ->get()
+                                    ->mapWithKeys(function ($empleado) {
+                                        $persona = $empleado->persona;
+                                        if ($persona) {
+                                            $nombre = $persona->razon_social ?: trim($persona->nombres . ' ' . $persona->apellidos);
+                                            return [$empleado->cod_empleado => "{$empleado->cod_empleado} - {$nombre} ({$persona->nro_documento})"];
+                                        }
+                                        return [$empleado->cod_empleado => $empleado->cod_empleado];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getSearchResultsUsing(function (string $search): array {
+                                return \App\Models\Empleados::with('persona')
+                                    ->whereHas('persona', function ($query) use ($search) {
+                                        $query->where('nombres', 'ilike', "%{$search}%")
+                                            ->orWhere('apellidos', 'ilike', "%{$search}%")
+                                            ->orWhere('razon_social', 'ilike', "%{$search}%")
+                                            ->orWhere('nro_documento', 'ilike', "%{$search}%");
+                                    })
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($empleado) {
+                                        $persona = $empleado->persona;
+                                        if ($persona) {
+                                            $nombre = $persona->razon_social ?: trim($persona->nombres . ' ' . $persona->apellidos);
+                                            return [$empleado->cod_empleado => "{$empleado->cod_empleado} - {$nombre} ({$persona->nro_documento})"];
+                                        }
+                                        return [$empleado->cod_empleado => $empleado->cod_empleado];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelUsing(function ($value): ?string {
+                                $empleado = \App\Models\Empleados::with('persona')->find($value);
+                                if (!$empleado) return null;
+                                $persona = $empleado->persona;
                                 if ($persona) {
                                     $nombre = $persona->razon_social ?: trim($persona->nombres . ' ' . $persona->apellidos);
-                                    return "{$record->nombre} - {$nombre} ({$persona->nro_documento})";
+                                    return "{$empleado->cod_empleado} - {$nombre} ({$persona->nro_documento})";
                                 }
-                                return $record->nombre;
+                                return $empleado->cod_empleado;
                             })
-                            ->searchable(['nombre'])
-                            ->preload()
                             ->required()
                             ->unique('mecanico', 'cod_empleado', ignoreRecord: true)
                             ->validationMessages([
                                 'unique' => 'Este empleado ya está registrado como mecánico.',
                             ])
-                            ->helperText('Seleccione el empleado que ejercerá como mecánico')
                             ->columnSpan(2),
-                    ]),
-                ]),
 
-            Forms\Components\Section::make('Información del Sistema')
-                ->description('Datos de auditoría')
-                ->icon('heroicon-o-clock')
-                ->collapsed()
-                ->schema([
-                    Forms\Components\Grid::make(2)->schema([
-                        Forms\Components\TextInput::make('usuario_alta')
-                            ->label('Usuario de Registro')
-                            ->default(fn () => auth()->user()->name ?? 'Sistema')
-                            ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(1),
+                        Forms\Components\Select::make('cod_especialidad')
+                            ->label('Especialidad')
+                            ->relationship('especialidad', 'descripcion')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->columnSpan(2),
 
-                        Forms\Components\TextInput::make('fec_alta')
-                            ->label('Fecha de Registro')
-                            ->default(now()->toDateTimeString())
-                            ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(1),
+                        Forms\Components\Toggle::make('estado')
+                            ->label('Estado')
+                            ->default(true)
+                            ->formatStateUsing(fn ($state) => $state === 'A')
+                            ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I'),
+
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('usuario_alta')
+                                ->label('Usuario de Registro')
+                                ->default(fn () => auth()->user()->name)
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
+
+                            Forms\Components\DatePicker::make('fec_alta')
+                                ->label('Fecha de Registro')
+                                ->default(now())
+                                ->disabled()
+                                ->dehydrated()
+                                ->displayFormat('d/m/Y')
+                                ->columnSpan(1),
+                        ]),
                     ]),
-                ]),
-        ]);
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -84,7 +124,7 @@ class MecanicoResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('cod_mecanico')
-                    ->label('#')
+                    ->label('Código')
                     ->sortable()
                     ->searchable(),
 
@@ -104,27 +144,51 @@ class MecanicoResource extends Resource
                         return '-';
                     }),
 
-                Tables\Columns\TextColumn::make('empleado.cargo.descripcion')
+              /*  Tables\Columns\TextColumn::make('empleado.cargo.descripcion')
                     ->label('Cargo')
                     ->badge()
-                    ->color('info'),
+                    ->color('info'),*/
+
+                Tables\Columns\TextColumn::make('especialidad.descripcion')
+                    ->label('Especialidad')
+                    ->badge()
+                    ->color('success'),
+
+                Tables\Columns\TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
+                    ->colors([
+                        'success' => 'A',
+                        'danger' => 'I',
+                    ]),
 
                 Tables\Columns\TextColumn::make('usuario_alta')
-                    ->label('Registrado por'),
+                    ->label('Usuario Alta'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
-                    ->dateTime('d/m/Y'),
+                    ->dateTime()
+                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y')),
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
-                    Tables\Actions\EditAction::make(),
-                ]),
-            ]);
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Mecánico actualizado exitosamente.');
+                    }),
+                Tables\Actions\DeleteAction::make()
+                    ->successNotificationTitle(null)
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Mecánico eliminado exitosamente.');
+                    }),
+            ])
+            ->defaultSort('cod_mecanico', 'asc');
     }
 
     public static function getRelations(): array
@@ -138,8 +202,6 @@ class MecanicoResource extends Resource
     {
         return [
             'index' => Pages\ListMecanicos::route('/'),
-            'create' => Pages\CreateMecanico::route('/create'),
-            'edit' => Pages\EditMecanico::route('/{record}/edit'),
         ];
     }
 }

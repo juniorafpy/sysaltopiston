@@ -23,7 +23,7 @@ class ClienteResource extends Resource
     protected static ?string $recordTitleAttribute = 'cod_cliente';
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
-    protected static ?string $navigationGroup = 'Definiciones';
+    protected static ?string $navigationGroup = 'Referenciales/Ventas';
     protected static ?string $navigationLabel = 'Clientes';
     protected static ?string $modelLabel = 'Cliente';
     protected static ?string $pluralModelLabel = 'Clientes';
@@ -32,63 +32,57 @@ class ClienteResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Información del Cliente')
-                ->description('Seleccione la persona y configure el estado del cliente')
+            Forms\Components\Section::make('Datos del Cliente')
+                ->description('Seleccione la persona que será registrada como cliente')
                 ->icon('heroicon-o-user-group')
                 ->schema([
-                    Forms\Components\Grid::make(2)->schema([
-                        Forms\Components\Select::make('cod_persona')
-                            ->label('Persona')
-                            ->relationship('persona', 'nro_documento')
-                            ->getOptionLabelFromRecordUsing(function ($record) {
-                                $nombre = $record->razon_social ?: trim($record->nombres . ' ' . $record->apellidos);
-                                return "{$record->nro_documento} - {$nombre}";
-                            })
-                            ->searchable(['nro_documento', 'nombres', 'apellidos', 'razon_social'])
-                            ->preload()
-                            ->required()
-                            ->unique('clientes', 'cod_persona', ignoreRecord: true)
-                            ->validationMessages([
-                                'unique' => 'Esta persona ya está registrada como cliente.',
-                            ])
-                            ->helperText('Seleccione la persona que será registrada como cliente')
-                            ->createOptionUsing(function (array $data) {
-                                $persona = Personas::create($data);
-                                return $persona->cod_persona;
-                            })
-                            ->columnSpan(2),
+                    Forms\Components\Select::make('cod_persona')
+                        ->label('Persona')
+                        ->relationship('persona', 'nro_documento')
+                        ->getOptionLabelFromRecordUsing(function ($record) {
+                            $nombre = $record->razon_social ?: trim($record->nombres . ' ' . $record->apellidos);
+                            return "{$record->nro_documento} - {$nombre}";
+                        })
+                        ->searchable(['nro_documento', 'nombres', 'apellidos', 'razon_social'])
+                        ->preload()
+                        ->required()
+                        ->unique('clientes', 'cod_persona', ignoreRecord: true)
+                        ->validationMessages([
+                            'unique' => 'Esta persona ya está registrada como cliente.',
+                        ])
+                        ->placeholder('Buscar por documento, nombre o razón social...')
+                        ->createOptionUsing(function (array $data) {
+                            $persona = Personas::create($data);
+                            return $persona->cod_persona;
+                        })
+                        ->columnSpan(2),
 
-                        Forms\Components\Select::make('estado')
-                            ->label('Estado')
-                            ->options([
-                                'A' => 'Activo',
-                                'I' => 'Inactivo',
-                            ])
-                            ->default('A')
-                            ->required()
-                            ->native(false)
-                            ->columnSpan(1),
-                    ]),
-                ]),
+                    Forms\Components\Toggle::make('estado')
+                        ->label('Estado Activo')
+                        ->default(true)
+                        ->formatStateUsing(fn ($state) => $state === 'A')
+                        ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I')
+                        ->onIcon('heroicon-o-check-circle')
+                        ->offIcon('heroicon-o-x-circle')
+                        ->onColor('success')
+                        ->offColor('danger')
+                        ->helperText('Active para habilitar este cliente')
+                        ->columnSpan(1),
 
-            Forms\Components\Section::make('Información del Sistema')
-                ->description('Datos de auditoría')
-                ->icon('heroicon-o-clock')
-                ->collapsed()
-                ->schema([
                     Forms\Components\Grid::make(2)->schema([
                         Forms\Components\TextInput::make('usuario_alta')
-                            ->label('Usuario de Registro')
+                            ->label('Registrado por')
                             ->default(fn () => auth()->user()->name)
                             ->disabled()
                             ->dehydrated()
                             ->columnSpan(1),
 
-                        Forms\Components\TextInput::make('fec_alta')
+                        Forms\Components\DatePicker::make('fec_alta')
                             ->label('Fecha de Registro')
-                            ->default(now()->toDateTimeString())
+                            ->default(now())
                             ->disabled()
                             ->dehydrated()
+                            ->displayFormat('d/m/Y')
                             ->columnSpan(1),
                     ]),
                 ]),
@@ -113,23 +107,21 @@ class ClienteResource extends Resource
                 Tables\Columns\TextColumn::make('nombre_completo')
                     ->label('Nombre / Razón Social')
                     ->searchable(['persona.nombres', 'persona.apellidos', 'persona.razon_social'])
-                    ->weight('medium'),
+                    ->weight('medium')
+                    ->limit(40)
+                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
+                        $state = $column->getState();
+                        if (strlen($state) > 40) {
+                            return $state;
+                        }
+                        return null;
+                    }),
 
                 Tables\Columns\TextColumn::make('persona.email')
                     ->label('Email')
                     ->searchable()
-                    ->icon('heroicon-o-envelope'),
-
-                Tables\Columns\TextColumn::make('persona.direccion')
-                    ->label('Dirección')
-                    ->limit(30)
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        if (strlen($state) <= 30) {
-                            return null;
-                        }
-                        return $state;
-                    }),
+                    ->icon('heroicon-o-envelope')
+                    ->limit(30),
 
                 Tables\Columns\BadgeColumn::make('estado')
                     ->label('Estado')
@@ -142,16 +134,23 @@ class ClienteResource extends Resource
                         'I' => 'Inactivo',
                         default => $state,
                     }),
-                Tables\Columns\TextColumn::make('usuario_alta')
-                    ->label('Registrado por'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fecha Alta')
-                    ->dateTime('d/m/Y H:i')
-
+                    ->dateTime('d/m/Y')
+                    ->sortable(),
+            ])
+            ->filters([
+                //
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Cliente actualizado exitosamente.');
+                    }),
             ])
             ->defaultSort('cod_cliente', 'desc');
     }
@@ -167,9 +166,6 @@ class ClienteResource extends Resource
     {
         return [
             'index' => Pages\ListClientes::route('/'),
-            'create' => Pages\CreateCliente::route('/create'),
-            'edit' => Pages\EditCliente::route('/{record}/edit'),
-            'view' => Pages\ViewCliente::route('/{record}'),
         ];
     }
 

@@ -16,7 +16,11 @@ class EditCliente extends EditRecord
     {
         return [
             Actions\ViewAction::make(),
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->successNotificationTitle(null)
+                ->after(function () {
+                    $this->dispatch('swal:success', message: 'Cliente eliminado exitosamente.');
+                }),
             Actions\Action::make('desactivar')
                 ->label('Desactivar Cliente')
                 ->icon('heroicon-o-x-circle')
@@ -27,12 +31,7 @@ class EditCliente extends EditRecord
                 ->modalDescription('¿Está seguro que desea desactivar este cliente? Podrá reactivarlo posteriormente.')
                 ->action(function ($record) {
                     $record->update(['estado' => 'I']);
-
-                    Notification::make()
-                        ->success()
-                        ->title('Cliente desactivado')
-                        ->body('El cliente ha sido desactivado correctamente.')
-                        ->send();
+                    $this->dispatch('swal:success', message: 'Cliente desactivado correctamente.');
                 }),
             Actions\Action::make('activar')
                 ->label('Activar Cliente')
@@ -42,14 +41,19 @@ class EditCliente extends EditRecord
                 ->requiresConfirmation()
                 ->action(function ($record) {
                     $record->update(['estado' => 'A']);
-
-                    Notification::make()
-                        ->success()
-                        ->title('Cliente activado')
-                        ->body('El cliente ha sido activado correctamente.')
-                        ->send();
+                    $this->dispatch('swal:success', message: 'Cliente activado correctamente.');
                 }),
         ];
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return null;
+    }
+
+    protected function afterSave(): void
+    {
+        $this->dispatch('swal:success', message: 'Cliente actualizado exitosamente.');
     }
 
     protected function getRedirectUrl(): string

@@ -54,8 +54,8 @@ class EditPersonas extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $data['ind_fisica'] = $data['tipo_persona'] === 'F' ? 'S' : 'N';
-        $data['ind_juridica'] = $data['tipo_persona'] === 'J' ? 'S' : 'N';
+        $data['ind_fisica'] = $data['tipo_persona'] === 'F';
+        $data['ind_juridica'] = $data['tipo_persona'] === 'J';
         $data['ind_activo'] = ($data['ind_activo'] === 'S' || $data['ind_activo'] === true) ? 'S' : 'N';
         unset($data['tipo_persona']);
         return $data;

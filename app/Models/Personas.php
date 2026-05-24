@@ -20,14 +20,13 @@ class Personas extends Model
     protected $fillable =[
     'nombres', 'apellidos', 'razon_social', 'sexo', 'email', 'fec_nacimiento',
     'direccion', 'cod_estado_civil','edad',
-    'cod_pais', 'cod_departamento', 'ind_activo',
+    'cod_pais', 'cod_departamento', 'cod_ciudad', 'cod_documento', 'telefono', 'ind_activo',
     'ind_juridica', 'ind_fisica', 'usuario_alta', 'fec_alta', 'nro_documento', 'div'
 
     ]; //campos para visualizar
 
 
     protected $casts = [
-        'ind_activo' => 'boolean',
         'ind_fisica' => 'boolean',
         'ind_juridica' => 'boolean',
     ];
@@ -55,7 +54,10 @@ class Personas extends Model
 
 public function getNombreCompletoAttribute(): string
 {
-    return "{$this->nombres}, {$this->apellidos}";
+    if ($this->ind_juridica && $this->razon_social) {
+        return $this->razon_social;
+    }
+    return trim("{$this->nombres} {$this->apellidos}");
 }
 
 public function facturas()
@@ -73,9 +75,39 @@ public function pais()
     return $this->belongsTo(Pais::class, 'cod_pais', 'cod_pais');
 }
 
-public function departamento()
-{
-    return $this->belongsTo(Departamentos::class, 'cod_departamento', 'cod_departamento');
-}
+    public function departamento()
+    {
+        return $this->belongsTo(Departamentos::class, 'cod_departamento', 'cod_departamento');
+    }
+
+    public function ciudad()
+    {
+        return $this->belongsTo(Ciudad::class, 'cod_ciudad', 'cod_ciudad');
+    }
+
+    public function getTipoDocumentoDescAttribute(): ?string
+    {
+        return $this->tipoDocumento?->descripcion;
+    }
+
+    public function getPaisDescAttribute(): ?string
+    {
+        return $this->pais?->descripcion;
+    }
+
+    public function getDepartamentoDescAttribute(): ?string
+    {
+        return $this->departamento?->descripcion;
+    }
+
+    public function getCiudadDescAttribute(): ?string
+    {
+        return $this->ciudad?->descripcion;
+    }
+
+    public function tipoDocumento()
+    {
+        return $this->belongsTo(TipoDocumento::class, 'cod_documento', 'tipo_documento');
+    }
 
 }

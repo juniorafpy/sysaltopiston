@@ -17,7 +17,9 @@ class Mecanico extends Model
     protected $fillable = [
         'cod_empleado',
         'usuario_alta',
-        'fec_alta'
+        'fec_alta',
+        'estado',
+        'cod_especialidad'
     ];
 
     protected $casts = [
@@ -30,5 +32,10 @@ class Mecanico extends Model
     public function empleado(): BelongsTo
     {
         return $this->belongsTo(Empleados::class, 'cod_empleado', 'cod_empleado');
+    }
+
+    public function especialidad(): BelongsTo
+    {
+        return $this->belongsTo(EspecialidadMecanico::class, 'cod_especialidad', 'cod_especialidad');
     }
 }

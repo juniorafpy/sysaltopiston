@@ -125,6 +125,21 @@ class PersonasResource extends Resource
                                     ->maxLength(2)
                                     ->extraInputAttributes(['style' => 'max-width: 4rem;'])
                                     ->placeholder('DV'),
+
+                                Select::make('cod_documento')
+                                    ->label('Tipo de Documento')
+                                    ->options(function () {
+                                        return \App\Models\TipoDocumento::whereNotNull('descripcion')
+                                            ->pluck('descripcion', 'tipo_documento');
+                                    })
+                                    ->getOptionLabelUsing(function ($value): ?string {
+                                        $doc = \App\Models\TipoDocumento::find($value);
+                                        return $doc?->descripcion ?? null;
+                                    })
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->columnSpan(1),
                             ]),
                     ]),
 
@@ -181,6 +196,13 @@ class PersonasResource extends Resource
                                     ->label('Correo Electrónico')
                                     ->email()
                                     ->placeholder('ejemplo@correo.com')
+                                    ->columnSpan(1),
+
+                                TextInput::make('telefono')
+                                    ->label('Teléfono')
+                                    ->tel()
+                                    ->maxLength(20)
+                                    ->placeholder('0981 123 456')
                                     ->columnSpan(1),
 
                                 DatePicker::make('fec_nacimiento')
@@ -354,6 +376,15 @@ class PersonasResource extends Resource
                     ->label('Email')
                     ->icon('heroicon-o-envelope'),
 
+                Tables\Columns\TextColumn::make('telefono')
+                    ->label('Teléfono')
+                    ->icon('heroicon-o-phone'),
+
+                Tables\Columns\TextColumn::make('tipoDocumento.descripcion')
+                    ->label('Tipo Doc.')
+                    ->badge()
+                    ->color('info'),
+
 
                 Tables\Columns\IconColumn::make('ind_activo')
                     ->label('Estado')
@@ -368,19 +399,61 @@ class PersonasResource extends Resource
             ->defaultSort('fec_alta', 'desc')
 
             ->actions([
-                ActionGroup::make([
-                    Tables\Actions\ViewAction::make()
-                        ->label('Ver')
-                        ->icon('heroicon-m-eye')
-                        ->color('info'),
+                Tables\Actions\ViewAction::make()
+                    ->label('Ver')
+                    ->icon('heroicon-m-eye')
+                    ->color('info')
+                    ->modal()
+                    ->modalHeading('Detalles de la Persona')
+                    ->form([
+                        Grid::make(3)->schema([
+                            TextInput::make('nro_documento')->label('Documento')->disabled(),
+                            TextInput::make('div')->label('DV')->disabled(),
+                            TextInput::make('tipo_persona_view')
+                                ->label('Tipo')
+                                ->default(fn ($record) => $record->ind_fisica ? 'Física' : 'Jurídica')
+                                ->disabled(),
+                        ]),
+                        Grid::make(2)->schema([
+                            TextInput::make('nombres')->label('Nombres')->disabled(),
+                            TextInput::make('apellidos')->label('Apellidos')->disabled(),
+                        ]),
+                        TextInput::make('razon_social')->label('Razón Social')->disabled(),
+                        Grid::make(3)->schema([
+                            TextInput::make('email')->label('Email')->disabled(),
+                            TextInput::make('telefono')->label('Teléfono')->disabled(),
+                            TextInput::make('direccion')->label('Dirección')->disabled(),
+                        ]),
+                        Grid::make(3)->schema([
+                            TextInput::make('tipo_documento_desc')
+                                ->label('Tipo de Documento')
+                                ->default(fn ($record) => $record->tipo_documento_desc)
+                                ->disabled(),
+                            TextInput::make('pais_desc')
+                                ->label('País')
+                                ->default(fn ($record) => $record->pais_desc)
+                                ->disabled(),
+                            TextInput::make('departamento_desc')
+                                ->label('Departamento')
+                                ->default(fn ($record) => $record->departamento_desc)
+                                ->disabled(),
+                        ]),
+                        Grid::make(2)->schema([
+                            TextInput::make('ciudad_desc')
+                                ->label('Ciudad')
+                                ->default(fn ($record) => $record->ciudad_desc)
+                                ->disabled(),
+                            TextInput::make('ind_activo')
+                                ->label('Estado')
+                                ->formatStateUsing(fn ($state) => $state === 'S' ? 'Activo' : 'Inactivo')
+                                ->disabled(),
+                        ]),
+                    ]),
 
-                    Tables\Actions\EditAction::make()
-                        ->label('Editar')
-                        ->icon('heroicon-m-pencil-square')
-                        ->color('warning'),
-
-                    
-                ])
+                Tables\Actions\EditAction::make()
+                    ->label('Editar')
+                    ->icon('heroicon-m-pencil-square')
+                    ->color('warning'),
             ]);
     }
 

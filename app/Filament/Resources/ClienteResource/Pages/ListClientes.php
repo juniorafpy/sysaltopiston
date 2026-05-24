@@ -14,7 +14,14 @@ class ListClientes extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-                ->label('Nuevo Cliente'),
+                ->label('Nuevo Cliente')
+                ->modal()
+                ->modalSubmitActionLabel('Guardar')
+                ->createAnother(false)
+                ->successNotificationTitle(null)
+                ->after(function () {
+                    $this->dispatch('swal:success', message: 'Cliente registrado exitosamente.');
+                }),
         ];
     }
 }

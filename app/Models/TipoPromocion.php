@@ -19,5 +19,6 @@ class TipoPromocion extends Model
         'descripcion',
         'usuario_alta',
         'fec_alta',
+        'estado',
     ];
 }

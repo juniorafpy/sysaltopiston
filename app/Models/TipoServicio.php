@@ -17,6 +17,9 @@ class TipoServicio extends Model
 
     protected $fillable = [
         'descripcion',
+        'usuario_alta',
+        'fec_alta',
+        'estado',
     ];
     
 }

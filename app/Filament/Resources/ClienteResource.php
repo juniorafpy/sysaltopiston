@@ -46,7 +46,6 @@ class ClienteResource extends Resource
                         ->searchable(['nro_documento', 'nombres', 'apellidos', 'razon_social'])
                         ->preload()
                         ->required()
-                        ->unique('clientes', 'cod_persona', ignoreRecord: true)
                         ->validationMessages([
                             'unique' => 'Esta persona ya está registrada como cliente.',
                         ])
@@ -148,6 +147,15 @@ class ClienteResource extends Resource
                     ->modal()
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = Cliente::where('cod_persona', $data['cod_persona'])
+                            ->where('cod_cliente', '!=', $record->cod_cliente)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'Esta persona ya está registrada como cliente.');
+                            $action->halt();
+                        }
+                    })
                     ->after(function ($record, $livewire) {
                         $livewire->dispatch('swal:success', message: 'Cliente actualizado exitosamente.');
                     }),

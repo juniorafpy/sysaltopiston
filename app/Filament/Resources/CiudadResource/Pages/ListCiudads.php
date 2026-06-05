@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CiudadResource\Pages;
 
 use App\Filament\Resources\CiudadResource;
+use App\Models\Ciudad;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
@@ -14,16 +15,21 @@ class ListCiudads extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-                ->createAnother(false)
                 ->modalSubmitActionLabel('Guardar')
+                ->createAnother(false)
                 ->successNotificationTitle(null)
-                ->mutateFormDataUsing(function (array $data): array {
-                    $data['usuario_alta'] = auth()->user()->name;
-                    $data['fec_alta'] = now();
-                    $data['estado'] = 'A';
-                    return $data;
+                ->before(function (array $data, \Filament\Actions\StaticAction $action) {
+                    $existe = Ciudad::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                        ->where('cod_departamento', $data['cod_departamento'])
+                        ->exists();
+                    if ($existe) {
+                        $this->dispatch('swal:error', message: 'La ciudad ya está registrada en ese departamento.');
+                        $action->halt();
+                    }
                 })
-                ->after(fn () => $this->dispatch('swal:success', message: 'Ciudad creada exitosamente.')),
+                ->after(function () {
+                    $this->dispatch('swal:success', message: 'Ciudad registrada exitosamente.');
+                }),
         ];
     }
 }

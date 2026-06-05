@@ -47,7 +47,7 @@ class ReclamoPolicy
      */
     public function delete(User $user, Reclamo $reclamo): bool
     {
-        return $user->can('delete_reclamo');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class ReclamoPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_reclamo');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class ReclamoPolicy
      */
     public function forceDelete(User $user, Reclamo $reclamo): bool
     {
-        return $user->can('force_delete_reclamo');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class ReclamoPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_reclamo');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class ReclamoPolicy
      */
     public function restore(User $user, Reclamo $reclamo): bool
     {
-        return $user->can('restore_reclamo');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class ReclamoPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_reclamo');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class ReclamoPolicy
      */
     public function replicate(User $user, Reclamo $reclamo): bool
     {
-        return $user->can('replicate_reclamo');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class ReclamoPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_reclamo');
+        return $user->can('{{ Reorder }}');
     }
 }

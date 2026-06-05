@@ -23,6 +23,11 @@ class Departamentos extends Model
         'estado',
     ];
 
+    public function setDescripcionAttribute($value)
+    {
+        $this->attributes['descripcion'] = strtoupper(trim($value));
+    }
+
     public function pais()
     {
         return $this->belongsTo(Pais::class, 'cod_pais', 'cod_pais');

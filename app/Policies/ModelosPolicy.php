@@ -47,7 +47,7 @@ class ModelosPolicy
      */
     public function delete(User $user, Modelos $modelos): bool
     {
-        return $user->can('delete_modelos');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class ModelosPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_modelos');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class ModelosPolicy
      */
     public function forceDelete(User $user, Modelos $modelos): bool
     {
-        return $user->can('force_delete_modelos');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class ModelosPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_modelos');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class ModelosPolicy
      */
     public function restore(User $user, Modelos $modelos): bool
     {
-        return $user->can('restore_modelos');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class ModelosPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_modelos');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class ModelosPolicy
      */
     public function replicate(User $user, Modelos $modelos): bool
     {
-        return $user->can('replicate_modelos');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class ModelosPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_modelos');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -47,7 +47,7 @@ class ProveedorPolicy
      */
     public function delete(User $user, Proveedor $proveedor): bool
     {
-        return $user->can('delete_proveedor');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class ProveedorPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_proveedor');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class ProveedorPolicy
      */
     public function forceDelete(User $user, Proveedor $proveedor): bool
     {
-        return $user->can('force_delete_proveedor');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class ProveedorPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_proveedor');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class ProveedorPolicy
      */
     public function restore(User $user, Proveedor $proveedor): bool
     {
-        return $user->can('restore_proveedor');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class ProveedorPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_proveedor');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class ProveedorPolicy
      */
     public function replicate(User $user, Proveedor $proveedor): bool
     {
-        return $user->can('replicate_proveedor');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class ProveedorPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_proveedor');
+        return $user->can('{{ Reorder }}');
     }
 }

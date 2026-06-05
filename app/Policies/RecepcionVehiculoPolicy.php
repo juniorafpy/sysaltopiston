@@ -47,7 +47,7 @@ class RecepcionVehiculoPolicy
      */
     public function delete(User $user, RecepcionVehiculo $recepcionVehiculo): bool
     {
-        return $user->can('delete_recepcion::vehiculo');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class RecepcionVehiculoPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_recepcion::vehiculo');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class RecepcionVehiculoPolicy
      */
     public function forceDelete(User $user, RecepcionVehiculo $recepcionVehiculo): bool
     {
-        return $user->can('force_delete_recepcion::vehiculo');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class RecepcionVehiculoPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_recepcion::vehiculo');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class RecepcionVehiculoPolicy
      */
     public function restore(User $user, RecepcionVehiculo $recepcionVehiculo): bool
     {
-        return $user->can('restore_recepcion::vehiculo');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class RecepcionVehiculoPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_recepcion::vehiculo');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class RecepcionVehiculoPolicy
      */
     public function replicate(User $user, RecepcionVehiculo $recepcionVehiculo): bool
     {
-        return $user->can('replicate_recepcion::vehiculo');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class RecepcionVehiculoPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_recepcion::vehiculo');
+        return $user->can('{{ Reorder }}');
     }
 }

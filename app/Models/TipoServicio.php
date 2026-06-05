@@ -21,5 +21,10 @@ class TipoServicio extends Model
         'fec_alta',
         'estado',
     ];
+
+    public function setDescripcionAttribute($value)
+    {
+        $this->attributes['descripcion'] = strtoupper(trim($value));
+    }
     
 }

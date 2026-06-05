@@ -7,6 +7,8 @@ use App\Models\Cobro;
 use App\Models\Factura;
 use App\Models\EntidadBancaria;
 use App\Models\Personas;
+use App\Models\AperturaCaja;
+use App\Forms\Components\FacturasSelector;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -29,177 +31,92 @@ class CobroResource extends Resource
     {
         return $form
             ->schema([
-                // Información de Caja
-                Forms\Components\Section::make('Información de Caja')
+                // Header: Cliente y Fecha
+                Forms\Components\Section::make()
                     ->schema([
-                        Forms\Components\Placeholder::make('apertura_info')
-                            ->label('Apertura de Caja Actual')
-                            ->content(function () {
-                                $usuario = Auth::user();
-                                if (!$usuario->empleado) {
-                                    return '⚠️ Tu usuario no está asociado a un empleado';
-                                }
-
-                                $aperturaCaja = \App\Models\AperturaCaja::where('cod_cajero', $usuario->empleado->cod_empleado)
-                                    ->where('fecha_cierre', null)
-                                    ->orderBy('cod_apertura', 'desc')
-                                    ->first();
-
-                                if (!$aperturaCaja) {
-                                    return '❌ No tienes una caja abierta';
-                                }
-
-                                return "✅ Apertura N° {$aperturaCaja->cod_apertura} - Fecha: " .
-                                       $aperturaCaja->fecha_apertura->format('d/m/Y') .
-                                       " - Monto inicial: Gs. " . number_format($aperturaCaja->monto_apertura, 0, ',', '.');
-                            })
-                            ->columnSpanFull(),
-                    ])
-                    ->collapsible()
-                    ->collapsed(false),
-
-                // Información General
-                Forms\Components\Section::make('Información General')
-                    ->schema([
-                        Forms\Components\Select::make('cod_cliente')
-                            ->label('Cliente')
-                            ->options(function () {
-                                // Clientes con facturas a crédito pendientes
-                                return Personas::whereHas('facturas', function ($query) {
-                                    $query->where('condicion_venta', 'Crédito')
-                                          ->where('estado', 'Emitida');
+                        Forms\Components\Grid::make(3)->schema([
+                            Forms\Components\Select::make('cod_cliente')
+                                ->label('Cliente')
+                                ->options(function () {
+                                    return Personas::whereHas('facturas', function ($query) {
+                                        $query->where('condicion_venta', 'Crédito')
+                                              ->where('estado', 'Emitida');
+                                    })
+                                    ->get()
+                                    ->mapWithKeys(fn ($c) => [$c->cod_persona => $c->nombre_completo]);
                                 })
-                                ->get()
-                                ->filter(function ($cliente) {
-                                    // Verificar que tenga al menos una factura con saldo pendiente
-                                    return $cliente->facturas()
-                                        ->where('condicion_venta', 'Crédito')
-                                        ->where('estado', 'Emitida')
-                                        ->get()
-                                        ->filter(fn ($factura) => $factura->getSaldoConNotas() > 0)
-                                        ->count() > 0;
+                                ->searchable()
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (callable $set) {
+                                    $set('detalles', []);
                                 })
-                                ->mapWithKeys(function ($cliente) {
-                                    return [$cliente->cod_persona => $cliente->nombre_completo];
-                                });
-                            })
-                            ->searchable()
-                            ->required()
-                            ->live()
-                            ->disabled(fn (string $operation) => $operation === 'edit')
-                            ->columnSpan(2),
+                                ->columnSpan(2)
+                                ->prefixIcon('heroicon-o-user'),
 
-                        Forms\Components\DatePicker::make('fecha_cobro')
-                            ->label('Fecha de Cobro')
-                            ->default(now())
-                            ->required()
-                            ->maxDate(now())
-                            ->disabled(fn (string $operation) => $operation === 'edit'),
+                            Forms\Components\DatePicker::make('fecha_cobro')
+                                ->label('Fecha')
+                                ->default(now())
+                                ->required()
+                                ->maxDate(now())
+                                ->native(false)
+                                ->prefixIcon('heroicon-o-calendar'),
+                        ]),
                     ])
-                    ->columns(3),
+                    ->compact(),
 
-                // Facturas y Cuotas a Cobrar
-                Forms\Components\Section::make('Facturas y Cuotas a Cobrar')
+                // Grid principal: Facturas (70%) | Resumen (30%)
+                Forms\Components\Grid::make(10)->schema([
+                // Facturas a Cobrar
+                Forms\Components\Section::make('Facturas a Cobrar')
+                    ->columnSpan(7)
                     ->schema([
-                        Forms\Components\Repeater::make('detalles')
-                            ->label('')
-                            ->schema([
-                                Forms\Components\Select::make('cod_factura')
-                                    ->label('Factura')
-                                    ->options(function (Get $get) {
-                                        $codCliente = $get('../../cod_cliente');
-                                        if (!$codCliente) {
-                                            return [];
-                                        }
-
-                                        return Factura::where('cod_cliente', $codCliente)
-                                            ->where('condicion_venta', 'Crédito')
-                                            ->where('estado', 'Emitida')
-                                            ->with('condicionCompra')
-                                            ->get()
-                                            ->filter(function ($factura) {
-                                                return $factura->getSaldoConNotas() > 0;
-                                            })
-                                            ->mapWithKeys(function ($factura) {
-                                                $saldo = $factura->getSaldoConNotas();
-                                                $diasCuota = $factura->condicionCompra->cant_cuota ?? 0;
-                                                $cuotasInfo = $diasCuota > 0 ? " ({$diasCuota} días)" : "";
-
-                                                return [
-                                                    $factura->cod_factura =>
-                                                    "{$factura->numero_factura}{$cuotasInfo} - Saldo: Gs. " .
-                                                    number_format($saldo, 0, ',', '.')
-                                                ];
-                                            });
-                                    })
-                                    ->searchable()
-                                    ->required()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, $state) {
-                                        if ($state) {
-                                            $factura = Factura::with('condicionCompra')->find($state);
-                                            if ($factura) {
-                                                $diasCuota = $factura->condicionCompra->cant_cuota ?? 0;
-                                                $numeroCuotas = $diasCuota > 0 ? ($diasCuota / 30) : 1;
-                                                $montoPorCuota = $numeroCuotas > 0 ? ($factura->total_general / $numeroCuotas) : $factura->total_general;
-
-                                                $set('numero_cuota', 1);
-                                                $set('monto_cuota', $montoPorCuota);
-                                            }
-                                        }
-                                    })
-                                    ->columnSpan(2),
-
-                                Forms\Components\TextInput::make('numero_cuota')
-                                    ->label('N° Cuota')
-                                    ->numeric()
-                                    ->default(1)
-                                    ->minValue(1)
-                                    ->required()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                        if ($get('cod_factura') && $state) {
-                                            $factura = Factura::with('condicionCompra')->find($get('cod_factura'));
-                                            if ($factura) {
-                                                $diasCuota = $factura->condicionCompra->cant_cuota ?? 0;
-                                                $numeroCuotas = $diasCuota > 0 ? ($diasCuota / 30) : 1;
-                                                $montoPorCuota = $numeroCuotas > 0 ? ($factura->total_general / $numeroCuotas) : $factura->total_general;
-
-                                                $set('monto_cuota', $montoPorCuota);
-                                            }
-                                        }
-                                    })
-                                    ->helperText('Número de cuota a pagar'),
-
-                                Forms\Components\TextInput::make('monto_cuota')
-                                    ->label('Monto')
-                                    ->numeric()
-                                    ->required()
-                                    ->prefix('Gs.')
-                                    ->live()
-                                    ->afterStateUpdated(function (Get $get, callable $set) {
-                                        self::calcularTotales($get, $set);
-                                    }),
-                            ])
-                            ->columns(4)
-                            ->defaultItems(1)
-                            ->addActionLabel('Agregar Factura/Cuota')
-                            ->reorderable(false)
-                            ->collapsible()
-                            ->itemLabel(fn (array $state): ?string =>
-                                $state['cod_factura'] ?
-                                "Factura - Cuota {$state['numero_cuota']}" :
-                                'Nueva factura/cuota'
-                            ),
-
-                        Forms\Components\Placeholder::make('total_detalles')
-                            ->label('Total a Cobrar')
-                            ->content(function (Get $get) {
-                                $detalles = $get('detalles') ?? [];
-                                $total = collect($detalles)->sum('monto_cuota');
-                                return 'Gs. ' . number_format($total, 0, ',', '.');
-                            }),
+                        FacturasSelector::make('detalles')
+                            ->label(''),
+                    ])
+                    ->headerActions([
+                        Forms\Components\Actions\Action::make('total_facturas')
+                            ->label(fn (callable $get) => 'Total: Gs. ' . number_format(collect($get('detalles') ?? [])->sum('monto_cuota'), 0, ',', '.'))
+                            ->color('success')
+                            ->disabled(),
                     ]),
+
+                    // Resumen del Cobro
+                    Forms\Components\Section::make('Resumen')
+                        ->columnSpan(3)
+                        ->schema([
+                            Forms\Components\Placeholder::make('total_cobrar')
+                                ->label('Total a Cobrar')
+                                ->content(function (Get $get) {
+                                    $total = collect($get('detalles') ?? [])->sum('monto_cuota');
+                                    return new \Illuminate\Support\HtmlString('<div class="text-2xl font-bold text-success-600">Gs. ' . number_format($total, 0, ',', '.') . '</div>');
+                                }),
+
+                            Forms\Components\Placeholder::make('total_recibido')
+                                ->label('Total Recibido')
+                                ->content(function (Get $get) {
+                                    $total = collect($get('formas_pago') ?? [])->sum('monto');
+                                    return new \Illuminate\Support\HtmlString('<div class="text-2xl font-bold text-primary-600">Gs. ' . number_format($total, 0, ',', '.') . '</div>');
+                                }),
+
+                            Forms\Components\Placeholder::make('diferencia')
+                                ->label('Diferencia')
+                                ->content(function (Get $get) {
+                                    $cobrar = collect($get('detalles') ?? [])->sum('monto_cuota');
+                                    $recibido = collect($get('formas_pago') ?? [])->sum('monto');
+                                    $diff = $recibido - $cobrar;
+                                    
+                                    if ($diff == 0) {
+                                        return new \Illuminate\Support\HtmlString('<div class="text-xl font-bold text-gray-600">Gs. 0</div>');
+                                    } elseif ($diff > 0) {
+                                        return new \Illuminate\Support\HtmlString('<div class="text-xl font-bold text-warning-600">+ Gs. ' . number_format($diff, 0, ',', '.') . '</div>');
+                                    } else {
+                                        return new \Illuminate\Support\HtmlString('<div class="text-xl font-bold text-danger-600">- Gs. ' . number_format(abs($diff), 0, ',', '.') . '</div>');
+                                    }
+                                }),
+                        ])
+                        ->compact(),
+                ]),
 
                 // Formas de Pago
                 Forms\Components\Section::make('Formas de Pago')
@@ -208,13 +125,12 @@ class CobroResource extends Resource
                             ->label('')
                             ->schema([
                                 Forms\Components\Select::make('tipo_transaccion')
-                                    ->label('Tipo')
+                                    ->label('Método')
                                     ->options([
-                                        'efectivo' => 'Efectivo',
-                                        'tarjeta_credito' => 'Tarjeta de Crédito',
-                                        'tarjeta_debito' => 'Tarjeta de Débito',
-                                        'cheque' => 'Cheque',
-                                        'transferencia' => 'Transferencia',
+                                        'efectivo' => '💵 Efectivo',
+                                        'tarjeta_credito' => '💳 Tarjeta Crédito',
+                                        'tarjeta_debito' => '💳 Tarjeta Débito',
+                                        'transferencia' => '🏦 Transferencia',
                                     ])
                                     ->required()
                                     ->live()
@@ -226,168 +142,52 @@ class CobroResource extends Resource
                                     ->required()
                                     ->prefix('Gs.')
                                     ->live()
-                                    ->afterStateUpdated(function (Get $get, callable $set) {
-                                        self::calcularTotales($get, $set);
-                                    })
                                     ->columnSpan(2),
 
                                 Forms\Components\Select::make('cod_entidad_bancaria')
                                     ->label('Banco')
                                     ->options(EntidadBancaria::activas()->pluck('nombre', 'cod_entidad_bancaria'))
                                     ->searchable()
-                                    ->visible(fn (Get $get): bool =>
-                                        in_array($get('tipo_transaccion'), ['tarjeta_credito', 'tarjeta_debito', 'cheque', 'transferencia'])
-                                    )
-                                    ->required(fn (Get $get): bool =>
-                                        in_array($get('tipo_transaccion'), ['tarjeta_credito', 'tarjeta_debito', 'cheque', 'transferencia'])
-                                    )
-                                    ->columnSpan(2),
-
-                                Forms\Components\TextInput::make('numero_voucher')
-                                    ->label('N° Voucher')
-                                    ->maxLength(50)
-                                    ->visible(fn (Get $get): bool =>
-                                        in_array($get('tipo_transaccion'), ['tarjeta_credito', 'tarjeta_debito'])
-                                    )
-                                    ->required(fn (Get $get): bool =>
-                                        in_array($get('tipo_transaccion'), ['tarjeta_credito', 'tarjeta_debito'])
-                                    )
-                                    ->columnSpan(2),
-
-                                Forms\Components\TextInput::make('numero_cheque')
-                                    ->label('N° Cheque')
-                                    ->maxLength(50)
-                                    ->visible(fn (Get $get): bool => $get('tipo_transaccion') === 'cheque')
-                                    ->required(fn (Get $get): bool => $get('tipo_transaccion') === 'cheque')
+                                    ->visible(fn (Get $get): bool => in_array($get('tipo_transaccion'), ['tarjeta_credito', 'tarjeta_debito', 'transferencia']))
                                     ->columnSpan(2),
                             ])
-                            ->columns(4)
+                            ->columns(6)
                             ->defaultItems(1)
-                            ->addActionLabel('Agregar Forma de Pago')
-                            ->reorderable(false)
-                            ->collapsible()
-                            ->itemLabel(fn (array $state): ?string =>
-                                $state['tipo_transaccion'] ?
-                                ucfirst(str_replace('_', ' ', $state['tipo_transaccion'])) :
-                                'Nueva forma de pago'
-                            ),
-
-                        Forms\Components\Grid::make(2)
-                            ->schema([
-                                Forms\Components\Placeholder::make('total_formas_pago')
-                                    ->label('Total Formas de Pago')
-                                    ->content(function (Get $get) {
-                                        $formasPago = $get('formas_pago') ?? [];
-                                        $total = collect($formasPago)->sum('monto');
-                                        return 'Gs. ' . number_format($total, 0, ',', '.');
-                                    }),
-
-                                Forms\Components\Placeholder::make('diferencia')
-                                    ->label('Diferencia')
-                                    ->content(function (Get $get) {
-                                        $detalles = $get('detalles') ?? [];
-                                        $formasPago = $get('formas_pago') ?? [];
-
-                                        $totalDetalles = collect($detalles)->sum('monto_cuota');
-                                        $totalFormasPago = collect($formasPago)->sum('monto');
-                                        $diferencia = $totalFormasPago - $totalDetalles;
-
-                                        $icon = $diferencia == 0 ? '✅' : '⚠️';
-
-                                        return $icon . ' Gs. ' . number_format($diferencia, 0, ',', '.');
-                                    }),
-                            ]),
-                    ]),
+                            ->addActionLabel('+ Agregar Pago')
+                            ->reorderable(false),
+                    ])
+                    ->compact(),
 
                 // Observaciones
                 Forms\Components\Section::make()
                     ->schema([
                         Forms\Components\Textarea::make('observaciones')
                             ->label('Observaciones')
-                            ->rows(3)
-                            ->columnSpanFull(),
-                    ]),
+                            ->rows(2)
+                            ->columnSpanFull()
+                            ->placeholder('Notas adicionales (opcional)'),
+                    ])
+                    ->compact(),
             ]);
-    }
-
-    protected static function calcularTotales(Get $get, callable $set): void
-    {
-        $detalles = $get('../../detalles') ?? [];
-        $formasPago = $get('../../formas_pago') ?? [];
-
-        $totalDetalles = collect($detalles)->sum('monto_cuota');
-        $totalFormasPago = collect($formasPago)->sum('monto');
-
-        $set('../../monto_total', $totalDetalles);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('cod_cobro')
-                    ->label('N° Cobro')
-                    ->sortable()
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('fecha_cobro')
-                    ->label('Fecha')
-                    ->date('d/m/Y')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('cliente.nombre_completo')
-                    ->label('Cliente')
-                    ->searchable()
-                    ->limit(30),
-
-                Tables\Columns\TextColumn::make('monto_total')
-                    ->label('Monto Total')
-                    ->money('PYG', divideBy: 1)
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('aperturaCaja.cod_apertura')
-                    ->label('Apertura')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('detalles_count')
-                    ->label('Facturas')
-                    ->counts('detalles')
-                    ->badge()
-                    ->color('info'),
-
-                Tables\Columns\TextColumn::make('formasPago_count')
-                    ->label('Formas Pago')
-                    ->counts('formasPago')
-                    ->badge()
-                    ->color('success'),
-
-                Tables\Columns\TextColumn::make('usuario.name')
-                    ->label('Registrado por')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Creado')
-                    ->dateTime('d/m/Y H:i')
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
+                Tables\Columns\TextColumn::make('cod_cobro')->label('N°')->sortable()->searchable(),
+                Tables\Columns\TextColumn::make('fecha_cobro')->label('Fecha')->date('d/m/Y')->sortable(),
+                Tables\Columns\TextColumn::make('cliente.nombre_completo')->label('Cliente')->searchable()->limit(30),
+                Tables\Columns\TextColumn::make('monto_total')->label('Monto')->money('PYG', divideBy: 1)->sortable(),
+                Tables\Columns\TextColumn::make('usuario_alta')->label('Usuario'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
             ])
-            ->bulkActions([
-                //
-            ])
             ->defaultSort('fecha_cobro', 'desc');
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
+    public static function getRelations(): array { return []; }
 
     public static function getPages(): array
     {

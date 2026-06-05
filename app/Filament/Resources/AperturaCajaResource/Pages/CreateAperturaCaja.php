@@ -18,20 +18,9 @@ class CreateAperturaCaja extends CreateRecord
     {
         $user = Auth::user();
 
-        // Validar que el usuario tenga un empleado asociado
-        if (!$user->empleado) {
-            Notification::make()
-                ->danger()
-                ->title('Error: Sin empleado asociado')
-                ->body('Tu usuario no está asociado a un empleado. Contacta al administrador.')
-                ->persistent()
-                ->send();
-
-            $this->halt();
-        }
-
-        // Validar que el cajero no tenga otra caja abierta
-        if (AperturaCaja::cajeroTieneCajaAbierta($user->empleado->cod_empleado)) {
+        if (AperturaCaja::where('usuario', $user->name)
+            ->where('estado', 'Abierta')
+            ->exists()) {
             Notification::make()
                 ->danger()
                 ->title('Error: Ya tiene una caja abierta')
@@ -42,23 +31,15 @@ class CreateAperturaCaja extends CreateRecord
             $this->halt();
         }
 
-        // Si cod_cajero no está en el formulario (por defecto debería estar)
-        // asignarlo automáticamente desde el empleado del usuario
-        if (!isset($data['cod_cajero']) || !$data['cod_cajero']) {
-            $data['cod_cajero'] = $user->empleado->cod_empleado;
-        }
-
+        $data['usuario'] = $user->name;
         $data['cod_sucursal'] = $user->cod_sucursal ?? null;
         $data['estado'] = 'Abierta';
-        $data['usuario_alta'] = $user->id;
         $data['fecha_alta'] = now();
 
-        // Asegurar que fecha y hora tengan valores válidos
-        $data['fecha_apertura'] = $data['fecha_apertura'] ?? now()->toDateString();
-        $data['hora_apertura'] = $data['hora_apertura'] ?? now()->format('H:i:s');
-
         return $data;
-    }    protected function getCreatedNotification(): ?Notification
+    }
+
+    protected function getCreatedNotification(): ?Notification
     {
         return Notification::make()
             ->success()

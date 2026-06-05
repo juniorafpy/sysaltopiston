@@ -47,7 +47,7 @@ class NotaPolicy
      */
     public function delete(User $user, Nota $nota): bool
     {
-        return $user->can('delete_nota');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class NotaPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_nota');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class NotaPolicy
      */
     public function forceDelete(User $user, Nota $nota): bool
     {
-        return $user->can('force_delete_nota');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class NotaPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_nota');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class NotaPolicy
      */
     public function restore(User $user, Nota $nota): bool
     {
-        return $user->can('restore_nota');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class NotaPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_nota');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class NotaPolicy
      */
     public function replicate(User $user, Nota $nota): bool
     {
-        return $user->can('replicate_nota');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class NotaPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_nota');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -47,7 +47,7 @@ class FacturaPolicy
      */
     public function delete(User $user, Factura $factura): bool
     {
-        return $user->can('delete_factura');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class FacturaPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_factura');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class FacturaPolicy
      */
     public function forceDelete(User $user, Factura $factura): bool
     {
-        return $user->can('force_delete_factura');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class FacturaPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_factura');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class FacturaPolicy
      */
     public function restore(User $user, Factura $factura): bool
     {
-        return $user->can('restore_factura');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class FacturaPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_factura');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class FacturaPolicy
      */
     public function replicate(User $user, Factura $factura): bool
     {
-        return $user->can('replicate_factura');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class FacturaPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_factura');
+        return $user->can('{{ Reorder }}');
     }
 }

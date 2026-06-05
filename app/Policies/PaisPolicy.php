@@ -47,7 +47,7 @@ class PaisPolicy
      */
     public function delete(User $user, Pais $pais): bool
     {
-        return $user->can('delete_pais');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class PaisPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_pais');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class PaisPolicy
      */
     public function forceDelete(User $user, Pais $pais): bool
     {
-        return $user->can('force_delete_pais');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class PaisPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_pais');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class PaisPolicy
      */
     public function restore(User $user, Pais $pais): bool
     {
-        return $user->can('restore_pais');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class PaisPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_pais');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class PaisPolicy
      */
     public function replicate(User $user, Pais $pais): bool
     {
-        return $user->can('replicate_pais');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class PaisPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_pais');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -9,6 +9,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Closure;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -39,7 +40,6 @@ class PaisResource extends Resource
                 ->required(),
             Forms\Components\Toggle::make('estado')
                 ->label('Activo')
-                ///->helperText('Activado = S, desactivado = N')
                 ->default(true)
                 ->formatStateUsing(fn ($state) => $state !== 'N')
                 ->dehydrateStateUsing(fn ($state) => $state ? 'S' : 'N')
@@ -48,12 +48,13 @@ class PaisResource extends Resource
                 ->label('Usuario Alta')
                 ->default(fn () => auth()->user()->name)
                 ->disabled()
-                ->dehydrateStateUsing(fn ($state) => $state ?? auth()->user()->name),
+                ->dehydrated(),
             Forms\Components\TextInput::make('fec_alta')
                 ->label('Fecha Alta')
-                ->default(fn () => now()->format('d/m/Y H:i'))
+                ->default(now())
                 ->disabled()
-                ->dehydrateStateUsing(fn ($state) => now()),
+                ->dehydrated()
+                ->hidden(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\CreateRecord),
         ]);
     }
 
@@ -74,13 +75,15 @@ class PaisResource extends Resource
                 Tables\Columns\TextColumn::make('usuario_alta'),
                 Tables\Columns\TextColumn::make('fec_alta')->date('d/m/Y'),
             ])
+            ->filters([
+                //
+            ])
             ->actions([
-                Tables\Actions\EditAction::make()// editar en lateral
-               //Tables\Actions\DeleteAction::make(),}}\Filament\Tables\Actions\EditAction::make()
-        ->label('Editar')
-        ->slideOver()                 // panel lateral (tu CSS lo manda a la IZQUIERDA)
-        ->modalHeading('Editar país')
-        ->modalWidth('lg'),
+                Tables\Actions\EditAction::make()
+                    ->label('Editar')
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar'),
+                Tables\Actions\DeleteAction::make(),
             ]);
     }
 

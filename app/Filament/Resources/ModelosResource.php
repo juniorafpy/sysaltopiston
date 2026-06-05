@@ -31,19 +31,33 @@ class ModelosResource extends Resource
                 /*Forms\Components\TextInput::make('cod_marca')
                     ->numeric(),*/
                     Forms\Components\Select::make('cod_marca')
-                    ->label('Marca') // Etiqueta para el campo
+                    ->label('Marca')
                     ->options(function () {
-                        return \App\Models\Marcas::pluck('descripcion', 'cod_marca'); // Asumiendo que 'nombre' es el nombre de la marca y 'cod_marca' es el código
+                        return \App\Models\Marcas::pluck('descripcion', 'cod_marca');
                     })
-                    ->searchable() // Permite buscar entre las opciones
-                    ->required(), // Hacer que este campo sea obligatorio si es necesario
-                   
-                    Forms\Components\Hidden::make('usuario_alta')
-                    ->default(fn () =>auth()->user()->name)  //asigna automaticamente el usuario
-                   ->label('Usuario Alta'),
+                    ->searchable()
+                    ->required(),
 
-                    Forms\Components\Hidden::make('fec_alta')
-                    ->default(now()->toDateTimeString()), // Fecha actual,
+                Forms\Components\Toggle::make('estado')
+                    ->label('Estado')
+                    ->default(true)
+                    ->formatStateUsing(fn ($state) => $state === 'A')
+                    ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I'),
+                   
+                Forms\Components\Grid::make(2)->schema([
+                    Forms\Components\TextInput::make('usuario_alta')
+                        ->label('Usuario Alta')
+                        ->default(fn () => auth()->user()->name)
+                        ->disabled()
+                        ->dehydrated(),
+
+                    Forms\Components\DatePicker::make('fec_alta')
+                        ->label('Fecha Alta')
+                        ->default(now())
+                        ->disabled()
+                        ->dehydrated()
+                        ->displayFormat('d/m/Y'),
+                ]),
             ]);
     }
 
@@ -65,6 +79,15 @@ class ModelosResource extends Resource
                         return $record->marca ? $record->marca->descripcion : 'N/A';
                     })
                     ->extraAttributes(['class' => 'text-left']),
+
+                Tables\Columns\TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
+                    ->colors([
+                        'success' => 'A',
+                        'danger' => 'I',
+                    ]),
                     
                 Tables\Columns\TextColumn::make('usuario_alta')
                     ->searchable(),
@@ -79,7 +102,21 @@ class ModelosResource extends Resource
                 Tables\Actions\EditAction::make()
                     ->modal()
                     ->modalHeading('Editar Modelo')
-                    ->modalSubmitActionLabel('Guardar'),
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = \App\Models\Modelos::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_marca', $data['cod_marca'])
+                            ->where('cod_modelo', '!=', $record->cod_modelo)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'El modelo ya está registrado para esa marca.');
+                            $action->halt();
+                        }
+                    })
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Modelo actualizado exitosamente.');
+                    }),
             ]);
             
             

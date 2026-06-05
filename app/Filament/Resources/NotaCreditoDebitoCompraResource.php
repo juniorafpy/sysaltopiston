@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\NotaCreditoDebitoCompraResource\Pages;
 use App\Filament\Resources\NotaCreditoDebitoCompraResource\RelationManagers;
 use App\Models\NotaCreditoDebitoCompra;
+use App\Models\CompraCabecera;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -29,10 +30,40 @@ class NotaCreditoDebitoCompraResource extends Resource
             Forms\Components\Section::make('Datos del Comprobante')
                 ->schema([
                     Forms\Components\Grid::make(4)->schema([
+                        // 1. Proveedor: campo principal que habilita el resto
+                        Forms\Components\Select::make('cod_proveedor')
+                            ->label('Proveedor')
+                            ->relationship('proveedor', 'cod_proveedor')
+                            ->getOptionLabelFromRecordUsing(function ($record) {
+                                return $record->personas_pro ? ($record->personas_pro->razon_social ?: trim($record->personas_pro->nombres . ' ' . $record->personas_pro->apellidos)) : $record->cod_proveedor;
+                            })
+                            ->searchable(['personas_pro.nro_documento', 'personas_pro.nombres', 'personas_pro.apellidos', 'personas_pro.razon_social'])
+                            ->preload()
+                            ->required()
+                            ->columnSpan(2)
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                // Al cambiar proveedor, resetear factura y datos relacionados
+                                $set('id_compra_cabecera', null);
+                                $set('ser_comprobante', null);
+                                $set('timbrado', null);
+                                $set('nro_comprobante', null);
+                                $set('fec_comprobante', now());
+                                $set('detalles', []);
+                                $set('total_general', 0);
+                            }),
+
+                        // 2. Factura de Compra: se habilita solo cuando hay proveedor seleccionado
                         Forms\Components\Select::make('id_compra_cabecera')
                             ->label('Buscar Factura de Compra')
-                            ->options(function () {
-                                return \App\Models\CompraCabecera::with('proveedor')
+                            ->options(function (callable $get) {
+                                $codProveedor = $get('cod_proveedor');
+                                if (!$codProveedor) {
+                                    return [];
+                                }
+
+                                return CompraCabecera::where('cod_proveedor', $codProveedor)
+                                    ->with('proveedor')
                                     ->get()
                                     ->mapWithKeys(function ($compra) {
                                         $label = sprintf(
@@ -41,39 +72,46 @@ class NotaCreditoDebitoCompraResource extends Resource
                                             $compra->ser_comprobante,
                                             $compra->nro_comprobante,
                                             $compra->proveedor->nombre ?? 'Sin proveedor',
-                                            $compra->fec_comprobante->format('d/m/Y')
+                                            $compra->fec_comprobante?->format('d/m/Y')
                                         );
                                         return [$compra->id_compra_cabecera => $label];
                                     })
                                     ->toArray();
                             })
                             ->searchable()
-                            ->reactive()
                             ->required()
                             ->columnSpan(2)
+                            ->disabled(fn (callable $get) => !$get('cod_proveedor'))
+                            ->live()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if (empty($state)) {
-                                    $set('cod_proveedor', null);
-                                    $set('proveedor_name', null);
+                                    $set('ser_comprobante', null);
+                                    $set('timbrado', null);
+                                    $set('nro_comprobante', null);
+                                    $set('fec_comprobante', now());
                                     $set('detalles', []);
+                                    $set('total_general', 0);
                                     return;
                                 }
 
-                                $compra = \App\Models\CompraCabecera::find($state);
+                                $compra = CompraCabecera::find($state);
                                 if (!$compra) {
-                                    $set('cod_proveedor', null);
-                                    $set('proveedor_name', null);
+                                    $set('ser_comprobante', null);
+                                    $set('timbrado', null);
+                                    $set('nro_comprobante', null);
+                                    $set('fec_comprobante', now());
                                     $set('detalles', []);
+                                    $set('total_general', 0);
                                     return;
                                 }
 
-                                // Establecer proveedor desde la compra
-                                $set('cod_proveedor', $compra->cod_proveedor);
-                                $set('proveedor_name', $compra->proveedor ? $compra->proveedor->nombre : null);
+                                // Prellenar campos del comprobante desde la factura
                                 $set('ser_comprobante', $compra->ser_comprobante);
                                 $set('timbrado', $compra->timbrado);
+                                $set('nro_comprobante', $compra->nro_comprobante);
+                                $set('fec_comprobante', $compra->fec_comprobante);
 
-                                // Cargar detalles de la compra
+                                // Cargar detalles de la compra como base para la nota
                                 $detalles = $compra->detalles->map(function ($detalle) {
                                     return [
                                         'cod_articulo' => $detalle->cod_articulo,
@@ -85,19 +123,19 @@ class NotaCreditoDebitoCompraResource extends Resource
                                 })->toArray();
 
                                 $set('detalles', $detalles);
+                                $set('total_general', collect($detalles)->sum('monto_total_linea'));
                             }),
-                        Forms\Components\TextInput::make('proveedor_name')
-                            ->label('Proveedor')
-                            ->disabled()
-                            ->columnSpan(2),
+
+                        // 3. Tipo de Nota y Motivo
                         Forms\Components\Select::make('tip_comprobante')
                             ->label('Tipo de Nota')
                             ->options(['NC' => 'Nota de Crédito', 'ND' => 'Nota de Débito'])
                             ->required()
-                            ->reactive()
+                            ->live()
                             ->afterStateUpdated(function ($state, callable $set) {
-                                $set('cod_motivo', null); // Limpiar motivo al cambiar tipo
+                                $set('cod_motivo', null);
                             }),
+
                         Forms\Components\Select::make('cod_motivo')
                             ->label('Motivo')
                             ->options(function (callable $get) {
@@ -112,7 +150,6 @@ class NotaCreditoDebitoCompraResource extends Resource
                             })
                             ->searchable()
                             ->required()
-                            ->reactive()
                             ->helperText(function (callable $get) {
                                 $motivoId = $get('cod_motivo');
                                 if (!$motivoId) {
@@ -132,29 +169,36 @@ class NotaCreditoDebitoCompraResource extends Resource
                                 return implode(' | ', $textos);
                             })
                             ->columnSpan(2),
+
+                        // 4. Datos del Comprobante de la Nota (campos manuales del proveedor)
                         Forms\Components\TextInput::make('ser_comprobante')
                             ->label('Serie')
                             ->required()
                             ->maxLength(10),
+
                         Forms\Components\TextInput::make('timbrado')
                             ->label('Timbrado')
                             ->required()
                             ->maxLength(20),
+
                         Forms\Components\TextInput::make('nro_comprobante')
                             ->label('Nro. Comprobante')
                             ->required()
                             ->maxLength(20),
+
                         Forms\Components\DatePicker::make('fec_comprobante')
                             ->label('Fecha')
                             ->default(now())
                             ->required(),
+
                         Forms\Components\Textarea::make('observacion')
                             ->label('Motivo o Descripción')
                             ->rows(2)
                             ->columnSpan(3),
-                        Forms\Components\Hidden::make('cod_proveedor')->required(),
                     ])
                 ]),
+
+            // 5. Detalle de la Nota (Repeater con cálculo reactivo)
             Forms\Components\Section::make('Detalle de la Nota')
                 ->schema([
                     Forms\Components\Repeater::make('detalles')
@@ -167,60 +211,80 @@ class NotaCreditoDebitoCompraResource extends Resource
                                 ->searchable()
                                 ->required()
                                 ->columnSpan(4),
+
                             Forms\Components\TextInput::make('cantidad')
                                 ->label('Cantidad')
                                 ->numeric()
                                 ->required()
-                                ->reactive()
+                                ->live()
                                 ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                    $precio = $get('precio_unitario') ?? 0;
-                                    $iva = $get('porcentaje_iva') ?? 10;
+                                    $precio = (float) ($get('precio_unitario') ?? 0);
+                                    $iva = (float) ($get('porcentaje_iva') ?? 10);
                                     $subtotal = $state * $precio;
                                     $montoIva = $subtotal * ($iva / 100);
-                                    $set('monto_total_linea', $subtotal + $montoIva);
+                                    $set('monto_total_linea', round($subtotal + $montoIva, 0));
+                                    
+                                    $detalles = $get('../../detalles') ?? [];
+                                    $totalGeneral = collect($detalles)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
+                                    $set('../../total_general', round($totalGeneral, 0));
                                 })
-                                ->columnSpan(2),
+                                ->columnSpan(1),
+
                             Forms\Components\TextInput::make('precio_unitario')
                                 ->label('Precio')
                                 ->numeric()
                                 ->required()
-                                ->reactive()
+                                ->live()
                                 ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                    $cantidad = $get('cantidad') ?? 0;
-                                    $iva = $get('porcentaje_iva') ?? 10;
+                                    $cantidad = (float) ($get('cantidad') ?? 0);
+                                    $iva = (float) ($get('porcentaje_iva') ?? 10);
                                     $subtotal = $cantidad * $state;
                                     $montoIva = $subtotal * ($iva / 100);
-                                    $set('monto_total_linea', $subtotal + $montoIva);
+                                    $set('monto_total_linea', round($subtotal + $montoIva, 0));
+                                    
+                                    $detalles = $get('../../detalles') ?? [];
+                                    $totalGeneral = collect($detalles)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
+                                    $set('../../total_general', round($totalGeneral, 0));
                                 })
                                 ->columnSpan(2),
+
                             Forms\Components\TextInput::make('porcentaje_iva')
                                 ->label('IVA %')
                                 ->numeric()
                                 ->default(10)
                                 ->required()
-                                ->reactive()
+                                ->live()
                                 ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                    $cantidad = $get('cantidad') ?? 0;
-                                    $precio = $get('precio_unitario') ?? 0;
+                                    $cantidad = (float) ($get('cantidad') ?? 0);
+                                    $precio = (float) ($get('precio_unitario') ?? 0);
                                     $subtotal = $cantidad * $precio;
                                     $montoIva = $subtotal * ($state / 100);
-                                    $set('monto_total_linea', $subtotal + $montoIva);
+                                    $set('monto_total_linea', round($subtotal + $montoIva, 0));
+                                    
+                                    $detalles = $get('../../detalles') ?? [];
+                                    $totalGeneral = collect($detalles)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
+                                    $set('../../total_general', round($totalGeneral, 0));
                                 })
                                 ->columnSpan(1),
+
                             Forms\Components\TextInput::make('monto_total_linea')
                                 ->label('Total')
                                 ->numeric()
                                 ->disabled()
                                 ->dehydrated()
+                                ->prefix('Gs.')
                                 ->columnSpan(1),
                         ])
                         ->columns(10)
                         ->default([])
-                        ->reactive()
+                        ->live()
                         ->afterStateUpdated(function (callable $set, $state) {
-                            $totalGeneral = collect($state)->sum('monto_total_linea');
-                            $set('total_general', $totalGeneral);
-                        }),
+                            $totalGeneral = collect($state)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
+                            $set('total_general', round($totalGeneral, 0));
+                        })
+                        ->deletable()
+                        ->reorderable(),
+
                     Forms\Components\Grid::make(5)->schema([
                         Forms\Components\Placeholder::make('empty')
                             ->columnSpan(4),
@@ -281,12 +345,9 @@ class NotaCreditoDebitoCompraResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                //
             ])
             ->defaultSort('fec_comprobante', 'desc');
     }

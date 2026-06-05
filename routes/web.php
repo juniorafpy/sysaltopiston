@@ -7,6 +7,7 @@ use App\Http\Controllers\ProveedorPdfController;
 use App\Http\Controllers\RecepcionPdfController;
 use App\Http\Controllers\RecepcionVehiculoReporteController;
 use App\Http\Controllers\PresupuestoPdfController;
+use App\Http\Controllers\Api\FacturasPendientesController;
 use App\Models\OrdenServicio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -106,3 +107,7 @@ Route::get('/ayuda/compras/manual.pdf', function (Request $request) {
         ->header('Content-Type', 'application/pdf')
         ->header('Content-Disposition', $disposition . '; filename="' . $filename . '"');
 })->name('ayuda.compras.pdf')->middleware(['auth']);
+
+// API para obtener facturas pendientes de un cliente
+Route::get('/api/facturas-pendientes/{codCliente}', [FacturasPendientesController::class, 'index'])
+    ->middleware(['auth']);

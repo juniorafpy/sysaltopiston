@@ -47,7 +47,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function delete(User $user, OrdenCompraCabecera $ordenCompraCabecera): bool
     {
-        return $user->can('delete_orden::compra::cabecera');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_orden::compra::cabecera');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function forceDelete(User $user, OrdenCompraCabecera $ordenCompraCabecera): bool
     {
-        return $user->can('force_delete_orden::compra::cabecera');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_orden::compra::cabecera');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function restore(User $user, OrdenCompraCabecera $ordenCompraCabecera): bool
     {
-        return $user->can('restore_orden::compra::cabecera');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_orden::compra::cabecera');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class OrdenCompraCabeceraPolicy
      */
     public function replicate(User $user, OrdenCompraCabecera $ordenCompraCabecera): bool
     {
-        return $user->can('replicate_orden::compra::cabecera');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class OrdenCompraCabeceraPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_orden::compra::cabecera');
+        return $user->can('{{ Reorder }}');
     }
 }

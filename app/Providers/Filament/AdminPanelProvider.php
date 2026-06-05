@@ -93,6 +93,7 @@ class AdminPanelProvider extends PanelProvider
                                 icon: "error",
                                 title: "Error",
                                 text: data.message,
+                                width: "350px",
                                 confirmButtonText: "Aceptar",
                                 confirmButtonColor: "#dc2626"
                             });
@@ -114,6 +115,50 @@ class AdminPanelProvider extends PanelProvider
                                 confirmButtonColor: "#f59e0b"
                             });
                         });
+
+                        // Interceptar errores de validación de Livewire
+                        Livewire.hook("request", ({ uri, options, payload, respond, succeed, fail }) => {
+                            respond((response) => {
+                                if (response.effects && response.effects.errors) {
+                                    const errors = Object.values(response.effects.errors).flat();
+                                    if (errors.length > 0) {
+                                        Swal.fire({
+                                            icon: "error",
+                                            title: "Error de validación",
+                                            html: errors.join("<br>"),
+                                            width: "400px",
+                                            confirmButtonText: "Aceptar",
+                                            confirmButtonColor: "#dc2626"
+                                        });
+                                    }
+                                }
+                            });
+                        });
+
+                        // Aplicar scroll al Repeater de detalles buscando el Section por título
+                        const applyRepeaterScroll = () => {
+                            // Buscar el Section que contiene "Facturas a Cobrar"
+                            const sections = document.querySelectorAll(".fi-section");
+                            sections.forEach(section => {
+                                const heading = section.querySelector(".fi-section-header-heading");
+                                if (heading && heading.textContent.includes("Facturas a Cobrar")) {
+                                    // Buscar específicamente el contenedor de items del Repeater
+                                    const repeaterItems = section.querySelector(".fi-fo-repeater-items");
+                                    if (repeaterItems && !repeaterItems.dataset.scrollApplied) {
+                                        repeaterItems.style.maxHeight = "400px";
+                                        repeaterItems.style.overflowY = "auto";
+                                        repeaterItems.style.paddingRight = "8px";
+                                        repeaterItems.dataset.scrollApplied = "true";
+                                    }
+                                }
+                            });
+                        };
+
+                        // Aplicar al cargar la página
+                        applyRepeaterScroll();
+
+                        // Verificar periódicamente cada 500ms
+                        setInterval(applyRepeaterScroll, 500);
                     });
                 </script>
             ')

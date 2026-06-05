@@ -32,7 +32,6 @@ class DepartamentosResource extends Resource
                             ->label('Descripción')
                             ->required()
                             ->maxLength(100)
-                            ->unique(ignoreRecord: true)
                             ->dehydrateStateUsing(fn ($state) => strtoupper($state))
                             ->afterStateUpdated(fn ($state, callable $set) => $set('descripcion', strtoupper($state))),
                         Forms\Components\Select::make('cod_pais')
@@ -102,8 +101,18 @@ class DepartamentosResource extends Resource
                     ->modal()
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
-                    ->after(function ($record, $action) {
-                        $action->getLivewire()->dispatch('swal:success', message: 'Departamento actualizado exitosamente.');
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = Departamentos::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_pais', $data['cod_pais'])
+                            ->where('cod_departamento', '!=', $record->cod_departamento)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'El departamento ya está registrado en ese país.');
+                            $action->halt();
+                        }
+                    })
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Departamento actualizado exitosamente.');
                     }),
             ])
             ->defaultSort('descripcion', 'asc');

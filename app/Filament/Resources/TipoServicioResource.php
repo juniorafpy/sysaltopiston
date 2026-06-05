@@ -31,7 +31,8 @@ class TipoServicioResource extends Resource
                             ->label('Descripción')
                             ->required()
                             ->maxLength(100)
-                            ->unique(ignoreRecord: true),
+                            ->dehydrateStateUsing(fn ($state) => strtoupper($state))
+                            ->afterStateUpdated(fn ($state, callable $set) => $set('descripcion', strtoupper($state))),
 
                         Forms\Components\Toggle::make('estado')
                             ->label('Estado')
@@ -94,10 +95,18 @@ class TipoServicioResource extends Resource
                     ->modal()
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = TipoServicio::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_tipo_servicio', '!=', $record->cod_tipo_servicio)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'El tipo de servicio ya está registrado.');
+                            $action->halt();
+                        }
+                    })
                     ->after(function ($record, $livewire) {
                         $livewire->dispatch('swal:success', message: 'Tipo de servicio actualizado exitosamente.');
                     }),
-                
             ])
             ->defaultSort('descripcion', 'asc');
     }

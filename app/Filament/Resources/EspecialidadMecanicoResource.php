@@ -31,7 +31,8 @@ class EspecialidadMecanicoResource extends Resource
                             ->label('Descripción')
                             ->required()
                             ->maxLength(100)
-                            ->unique(ignoreRecord: true),
+                            ->dehydrateStateUsing(fn ($state) => strtoupper($state))
+                            ->afterStateUpdated(fn ($state, callable $set) => $set('descripcion', strtoupper($state))),
 
                         Forms\Components\Toggle::make('estado')
                             ->label('Estado')
@@ -96,6 +97,15 @@ class EspecialidadMecanicoResource extends Resource
                     ->modal()
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = EspecialidadMecanico::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_especialidad', '!=', $record->cod_especialidad)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'La especialidad ya está registrada.');
+                            $action->halt();
+                        }
+                    })
                     ->after(function ($record, $livewire) {
                         $livewire->dispatch('swal:success', message: 'Especialidad actualizada exitosamente.');
                     }),

@@ -3,10 +3,9 @@
 namespace App\Filament\Resources\CobroResource\Pages;
 
 use App\Filament\Resources\CobroResource;
-use App\Models\Cobro;
-use Filament\Resources\Pages\CreateRecord;
+use App\Models\AperturaCaja;
 use Filament\Notifications\Notification;
-use Illuminate\Database\Eloquent\Model;
+use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
 
 class CreateCobro extends CreateRecord
@@ -15,121 +14,65 @@ class CreateCobro extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
-    protected function mutateFormDataBeforeCreate(array $data): array
+    public function mount(): void
     {
-        // Validar que los totales coincidan
-        $detalles = $data['detalles'] ?? [];
-        $formasPago = $data['formas_pago'] ?? [];
+        $user = Auth::user();
 
-        $totalDetalles = collect($detalles)->sum('monto_cuota');
-        $totalFormasPago = collect($formasPago)->sum('monto');
-
-        if ($totalDetalles != $totalFormasPago) {
-            Notification::make()
-                ->title('Error de validación')
-                ->danger()
-                ->body("El total a cobrar (Gs. " . number_format($totalDetalles, 0, ',', '.') .
-                       ") no coincide con el total de formas de pago (Gs. " . number_format($totalFormasPago, 0, ',', '.') . ")")
-                ->persistent()
-                ->send();
-
-            $this->halt();
-        }
-
-        // Validar que no se superen los saldos pendientes
-        foreach ($detalles as $detalle) {
-            $factura = \App\Models\Factura::find($detalle['cod_factura']);
-            $saldoPendiente = $factura->getSaldoConNotas();
-
-            if ($detalle['monto_cuota'] > $saldoPendiente) {
-                Notification::make()
-                    ->title('Error de validación')
-                    ->danger()
-                    ->body("El monto de la factura {$factura->numero_factura} (Gs. " .
-                           number_format($detalle['monto_cuota'], 0, ',', '.') .
-                           ") supera el saldo pendiente (Gs. " .
-                           number_format($saldoPendiente, 0, ',', '.') . ")")
-                    ->persistent()
-                    ->send();
-
-                $this->halt();
-            }
-        }
-
-        // Obtener la apertura de caja actual
-        $usuario = Auth::user();
-        if (!$usuario->empleado) {
-            Notification::make()
-                ->title('Error')
-                ->danger()
-                ->body('Tu usuario no está asociado a un empleado')
-                ->persistent()
-                ->send();
-
-            $this->halt();
-        }
-
-        $aperturaCaja = \App\Models\AperturaCaja::where('cod_cajero', $usuario->empleado->cod_empleado)
-            ->where('fecha_cierre', null)
-            ->orderBy('cod_apertura', 'desc')
+        $apertura = AperturaCaja::where('usuario', $user->name)
+            ->where('estado', 'Abierta')
             ->first();
 
-        if (!$aperturaCaja) {
+        if (!$apertura) {
             Notification::make()
-                ->title('Error')
                 ->danger()
-                ->body('No tienes una caja abierta')
+                ->title('Caja Cerrada')
+                ->body('No tienes una caja abierta. Debes abrir caja antes de registrar un cobro.')
                 ->persistent()
                 ->send();
 
+            $this->redirect($this->getResource()::getUrl('index'));
+        }
+    }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $user = Auth::user();
+        $apertura = AperturaCaja::where('usuario', $user->name)
+            ->where('estado', 'Abierta')
+            ->first();
+
+        if (!$apertura) {
+            $this->redirect($this->getResource()::getUrl('index'));
+        }
+
+        $total = collect($data['detalles'] ?? [])->sum('monto_cuota');
+        $totalPagado = collect($data['formas_pago'] ?? [])->sum('monto');
+
+        if (abs($total - $totalPagado) > 1) {
+            Notification::make()
+                ->warning()
+                ->title('Diferencia de montos')
+                ->body('El total a cobrar no coincide con el total recibido. Verifique los montos.')
+                ->persistent()
+                ->send();
             $this->halt();
         }
 
-        $data['cod_apertura'] = $aperturaCaja->cod_apertura;
-        $data['monto_total'] = $totalDetalles;
+        $data['cod_apertura'] = $apertura->cod_apertura;
+        $data['monto_total'] = $total;
+        $data['usuario_alta'] = $user->name;
+        $data['fecha_alta'] = now();
 
         return $data;
     }
 
-    protected function handleRecordCreation(array $data): Model
+    protected function getCreatedNotification(): ?Notification
     {
-        // Usar el método crearCobroCompleto del modelo
-        return Cobro::crearCobroCompleto($data);
-    }
-
-    protected function afterCreate(): void
-    {
-        $cobro = $this->record;
-        $detalles = $cobro->detalles;
-        $formasPago = $cobro->formasPago;
-
-        // Contar facturas únicas
-        $facturasUnicas = $detalles->pluck('cod_factura')->unique()->count();
-        $totalCuotas = $detalles->count();
-
-        // Notificación principal
-        Notification::make()
-            ->title('Cobro registrado exitosamente')
+        return Notification::make()
             ->success()
-            ->body("Se registró el cobro N° {$cobro->cod_cobro} por Gs. " .
-                   number_format($cobro->monto_total, 0, ',', '.') .
-                   " | {$facturasUnicas} factura(s) | {$totalCuotas} cuota(s) | " .
-                   "{$formasPago->count()} forma(s) de pago")
-            ->send();
-
-        // Verificar si alguna factura quedó cancelada
-        foreach ($detalles->pluck('cod_factura')->unique() as $codFactura) {
-            $factura = \App\Models\Factura::find($codFactura);
-            $saldoPendiente = $factura->getSaldoConNotas();
-
-            if ($saldoPendiente <= 0) {
-                Notification::make()
-                    ->title('Factura cancelada')
-                    ->success()
-                    ->body("La factura {$factura->numero_factura} ha sido cancelada completamente.")
-                    ->send();
-            }
-        }
+            ->title('Cobro registrado')
+            ->body('El cobro se ha realizado exitosamente.')
+            ->duration(5000);
     }
 
     protected function getRedirectUrl(): string

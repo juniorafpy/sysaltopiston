@@ -47,7 +47,7 @@ class OrdenServicioPolicy
      */
     public function delete(User $user, OrdenServicio $ordenServicio): bool
     {
-        return $user->can('delete_orden::servicio');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class OrdenServicioPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_orden::servicio');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class OrdenServicioPolicy
      */
     public function forceDelete(User $user, OrdenServicio $ordenServicio): bool
     {
-        return $user->can('force_delete_orden::servicio');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class OrdenServicioPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_orden::servicio');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class OrdenServicioPolicy
      */
     public function restore(User $user, OrdenServicio $ordenServicio): bool
     {
-        return $user->can('restore_orden::servicio');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class OrdenServicioPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_orden::servicio');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class OrdenServicioPolicy
      */
     public function replicate(User $user, OrdenServicio $ordenServicio): bool
     {
-        return $user->can('replicate_orden::servicio');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class OrdenServicioPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_orden::servicio');
+        return $user->can('{{ Reorder }}');
     }
 }

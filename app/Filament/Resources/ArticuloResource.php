@@ -60,6 +60,8 @@ class ArticuloResource extends Resource
                                     ->label('Activo')
                                     ->default(true)
                                     ->inline(false)
+                                    ->formatStateUsing(fn ($state) => $state === 'A')
+                                    ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I')
                                     ->helperText('Artículo disponible'),
 
                                 Select::make('cod_marca')
@@ -235,7 +237,7 @@ class ArticuloResource extends Resource
 
                 IconColumn::make('activo')
                     ->label('Estado')
-                    ->getStateUsing(fn ($record) => $record->getAttributes()['activo'] === 'S')
+                    ->getStateUsing(fn ($record) => $record->getAttributes()['activo'] === 'A')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
@@ -252,9 +254,13 @@ class ArticuloResource extends Resource
                     ->sortable(),
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\EditAction::make(),
-                ]),
+                Tables\Actions\EditAction::make()
+                    ->modal()
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Artículo actualizado exitosamente.');
+                    }),
             ])
             ->defaultSort('fec_alta', 'desc')
             ->persistSortInSession()
@@ -273,9 +279,6 @@ class ArticuloResource extends Resource
     {
         return [
             'index' => Pages\ListArticulos::route('/'),
-            'create' => Pages\CreateArticulo::route('/create'),
-            'view' => Pages\ViewArticulo::route('/{record}'),
-            'edit' => Pages\EditArticulo::route('/{record}/edit'),
         ];
     }
 }

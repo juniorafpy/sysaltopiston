@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\DepartamentosResource\Pages;
 
 use App\Filament\Resources\DepartamentosResource;
+use App\Models\Departamentos;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
@@ -14,16 +15,21 @@ class ListDepartamentos extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-                ->createAnother(false)
                 ->modalSubmitActionLabel('Guardar')
+                ->createAnother(false)
                 ->successNotificationTitle(null)
-                ->mutateFormDataUsing(function (array $data): array {
-                    $data['usuario_alta'] = auth()->user()->name;
-                    $data['fec_alta'] = now();
-                    $data['estado'] = 'A';
-                    return $data;
+                ->before(function (array $data, \Filament\Actions\StaticAction $action) {
+                    $existe = Departamentos::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                        ->where('cod_pais', $data['cod_pais'])
+                        ->exists();
+                    if ($existe) {
+                        $this->dispatch('swal:error', message: 'El departamento ya está registrado en ese país.');
+                        $action->halt();
+                    }
                 })
-                ->after(fn () => $this->dispatch('swal:success', message: 'Departamento creado exitosamente.')),
+                ->after(function () {
+                    $this->dispatch('swal:success', message: 'Departamento registrado exitosamente.');
+                }),
         ];
     }
 }

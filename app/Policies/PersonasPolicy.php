@@ -47,7 +47,7 @@ class PersonasPolicy
      */
     public function delete(User $user, Personas $personas): bool
     {
-        return $user->can('delete_personas');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class PersonasPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_personas');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class PersonasPolicy
      */
     public function forceDelete(User $user, Personas $personas): bool
     {
-        return $user->can('force_delete_personas');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class PersonasPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_personas');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class PersonasPolicy
      */
     public function restore(User $user, Personas $personas): bool
     {
-        return $user->can('restore_personas');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class PersonasPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_personas');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class PersonasPolicy
      */
     public function replicate(User $user, Personas $personas): bool
     {
-        return $user->can('replicate_personas');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class PersonasPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_personas');
+        return $user->can('{{ Reorder }}');
     }
 }

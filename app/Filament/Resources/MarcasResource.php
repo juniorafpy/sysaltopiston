@@ -44,6 +44,7 @@ class MarcasResource extends Resource
                     ->default(now()->toDateTimeString()), // Fecha actual,
             ]);
     }
+    
 
     public static function table(Table $table): Table
     {
@@ -76,7 +77,20 @@ class MarcasResource extends Resource
                 Tables\Actions\EditAction::make()
                     ->modal()
                     ->modalHeading('Editar Marca')
-                    ->modalSubmitActionLabel('Guardar'),
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle(null)
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = \App\Models\Marcas::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_marca', '!=', $record->cod_marca)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'La marca ya está registrada.');
+                            $action->halt();
+                        }
+                    })
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Marca actualizada exitosamente.');
+                    }),
             ]);
 
     }

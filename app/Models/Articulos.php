@@ -15,7 +15,7 @@ class Articulos extends Model
 
     protected $primaryKey = 'cod_articulo'; // Clave primaria
 
-    public $timestamps = false;
+  
 
     protected $fillable = [
         'descripcion',
@@ -50,7 +50,6 @@ class Articulos extends Model
         'stock_minimo' => 'integer',
         'stock_maximo' => 'integer',
         'es_importado' => 'boolean',
-        'activo' => 'boolean',
     ];
 
     /**

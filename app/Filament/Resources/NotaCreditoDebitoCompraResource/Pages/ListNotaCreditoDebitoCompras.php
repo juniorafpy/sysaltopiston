@@ -13,7 +13,8 @@ class ListNotaCreditoDebitoCompras extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->createAnother(false),
+            Actions\CreateAction::make()
+                ->label('Nueva Nota'),
         ];
     }
 }

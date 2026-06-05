@@ -67,4 +67,12 @@ class Cliente extends Model
     {
         return $this->estado === 'A';
     }
+
+    /**
+     * Scope para clientes activos
+     */
+    public function scopeActivos($query)
+    {
+        return $query->where('estado', 'A');
+    }
 }

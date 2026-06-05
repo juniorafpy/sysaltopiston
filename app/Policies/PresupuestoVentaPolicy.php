@@ -47,7 +47,7 @@ class PresupuestoVentaPolicy
      */
     public function delete(User $user, PresupuestoVenta $presupuestoVenta): bool
     {
-        return $user->can('delete_presupuesto::venta');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class PresupuestoVentaPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_presupuesto::venta');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class PresupuestoVentaPolicy
      */
     public function forceDelete(User $user, PresupuestoVenta $presupuestoVenta): bool
     {
-        return $user->can('force_delete_presupuesto::venta');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class PresupuestoVentaPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_presupuesto::venta');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class PresupuestoVentaPolicy
      */
     public function restore(User $user, PresupuestoVenta $presupuestoVenta): bool
     {
-        return $user->can('restore_presupuesto::venta');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class PresupuestoVentaPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_presupuesto::venta');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class PresupuestoVentaPolicy
      */
     public function replicate(User $user, PresupuestoVenta $presupuestoVenta): bool
     {
-        return $user->can('replicate_presupuesto::venta');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class PresupuestoVentaPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_presupuesto::venta');
+        return $user->can('{{ Reorder }}');
     }
 }

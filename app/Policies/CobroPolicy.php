@@ -47,7 +47,7 @@ class CobroPolicy
      */
     public function delete(User $user, Cobro $cobro): bool
     {
-        return $user->can('delete_cobro');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class CobroPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_cobro');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class CobroPolicy
      */
     public function forceDelete(User $user, Cobro $cobro): bool
     {
-        return $user->can('force_delete_cobro');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class CobroPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_cobro');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class CobroPolicy
      */
     public function restore(User $user, Cobro $cobro): bool
     {
-        return $user->can('restore_cobro');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class CobroPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_cobro');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class CobroPolicy
      */
     public function replicate(User $user, Cobro $cobro): bool
     {
-        return $user->can('replicate_cobro');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class CobroPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_cobro');
+        return $user->can('{{ Reorder }}');
     }
 }

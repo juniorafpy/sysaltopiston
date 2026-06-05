@@ -47,7 +47,7 @@ class AperturaCajaPolicy
      */
     public function delete(User $user, AperturaCaja $aperturaCaja): bool
     {
-        return $user->can('delete_apertura::caja');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class AperturaCajaPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_apertura::caja');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class AperturaCajaPolicy
      */
     public function forceDelete(User $user, AperturaCaja $aperturaCaja): bool
     {
-        return $user->can('force_delete_apertura::caja');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class AperturaCajaPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_apertura::caja');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class AperturaCajaPolicy
      */
     public function restore(User $user, AperturaCaja $aperturaCaja): bool
     {
-        return $user->can('restore_apertura::caja');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class AperturaCajaPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_apertura::caja');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class AperturaCajaPolicy
      */
     public function replicate(User $user, AperturaCaja $aperturaCaja): bool
     {
-        return $user->can('replicate_apertura::caja');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class AperturaCajaPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_apertura::caja');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -47,7 +47,7 @@ class DiagnosticoPolicy
      */
     public function delete(User $user, Diagnostico $diagnostico): bool
     {
-        return $user->can('delete_diagnostico');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class DiagnosticoPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_diagnostico');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class DiagnosticoPolicy
      */
     public function forceDelete(User $user, Diagnostico $diagnostico): bool
     {
-        return $user->can('force_delete_diagnostico');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class DiagnosticoPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_diagnostico');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class DiagnosticoPolicy
      */
     public function restore(User $user, Diagnostico $diagnostico): bool
     {
-        return $user->can('restore_diagnostico');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class DiagnosticoPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_diagnostico');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class DiagnosticoPolicy
      */
     public function replicate(User $user, Diagnostico $diagnostico): bool
     {
-        return $user->can('replicate_diagnostico');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class DiagnosticoPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_diagnostico');
+        return $user->can('{{ Reorder }}');
     }
 }

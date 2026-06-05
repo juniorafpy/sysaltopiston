@@ -79,7 +79,6 @@ class MecanicoResource extends Resource
                                 return $empleado->cod_empleado;
                             })
                             ->required()
-                            ->unique('mecanico', 'cod_empleado', ignoreRecord: true)
                             ->validationMessages([
                                 'unique' => 'Este empleado ya está registrado como mecánico.',
                             ])
@@ -179,13 +178,17 @@ class MecanicoResource extends Resource
                     ->modal()
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = \App\Models\Mecanico::where('cod_empleado', $data['cod_empleado'])
+                            ->where('cod_mecanico', '!=', $record->cod_mecanico)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'Este empleado ya está registrado como mecánico.');
+                            $action->halt();
+                        }
+                    })
                     ->after(function ($record, $livewire) {
                         $livewire->dispatch('swal:success', message: 'Mecánico actualizado exitosamente.');
-                    }),
-                Tables\Actions\DeleteAction::make()
-                    ->successNotificationTitle(null)
-                    ->after(function ($record, $livewire) {
-                        $livewire->dispatch('swal:success', message: 'Mecánico eliminado exitosamente.');
                     }),
             ])
             ->defaultSort('cod_mecanico', 'asc');

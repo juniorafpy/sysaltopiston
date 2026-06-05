@@ -47,7 +47,7 @@ class MarcasPolicy
      */
     public function delete(User $user, Marcas $marcas): bool
     {
-        return $user->can('delete_marcas');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class MarcasPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_marcas');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class MarcasPolicy
      */
     public function forceDelete(User $user, Marcas $marcas): bool
     {
-        return $user->can('force_delete_marcas');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class MarcasPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_marcas');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class MarcasPolicy
      */
     public function restore(User $user, Marcas $marcas): bool
     {
-        return $user->can('restore_marcas');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class MarcasPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_marcas');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class MarcasPolicy
      */
     public function replicate(User $user, Marcas $marcas): bool
     {
-        return $user->can('replicate_marcas');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class MarcasPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_marcas');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -47,7 +47,7 @@ class ArticulosPolicy
      */
     public function delete(User $user, Articulos $articulos): bool
     {
-        return $user->can('delete_articulo');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class ArticulosPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_articulo');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class ArticulosPolicy
      */
     public function forceDelete(User $user, Articulos $articulos): bool
     {
-        return $user->can('force_delete_articulo');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class ArticulosPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_articulo');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class ArticulosPolicy
      */
     public function restore(User $user, Articulos $articulos): bool
     {
-        return $user->can('restore_articulo');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class ArticulosPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_articulo');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class ArticulosPolicy
      */
     public function replicate(User $user, Articulos $articulos): bool
     {
-        return $user->can('replicate_articulo');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class ArticulosPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_articulo');
+        return $user->can('{{ Reorder }}');
     }
 }

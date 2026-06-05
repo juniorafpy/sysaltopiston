@@ -47,7 +47,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function delete(User $user, GuiaRemisionCabecera $guiaRemisionCabecera): bool
     {
-        return $user->can('delete_guia::remision');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_guia::remision');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function forceDelete(User $user, GuiaRemisionCabecera $guiaRemisionCabecera): bool
     {
-        return $user->can('force_delete_guia::remision');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_guia::remision');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function restore(User $user, GuiaRemisionCabecera $guiaRemisionCabecera): bool
     {
-        return $user->can('restore_guia::remision');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_guia::remision');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class GuiaRemisionCabeceraPolicy
      */
     public function replicate(User $user, GuiaRemisionCabecera $guiaRemisionCabecera): bool
     {
-        return $user->can('replicate_guia::remision');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class GuiaRemisionCabeceraPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_guia::remision');
+        return $user->can('{{ Reorder }}');
     }
 }

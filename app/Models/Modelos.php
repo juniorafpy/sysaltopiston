@@ -18,13 +18,17 @@ class Modelos extends Model
     public $timestamps = false;
 
     protected $fillable =[
-        //'cod_pais',
         'descripcion',
         'cod_marca',
         'usuario_alta',
-        'fec_alta'
-
+        'fec_alta',
+        'estado'
     ]; //campos para visualizar
+
+    public function setDescripcionAttribute($value)
+    {
+        $this->attributes['descripcion'] = strtoupper(trim($value));
+    }
 
     // En el modelo Pais.php
 public function marca(): BelongsTo

@@ -47,7 +47,7 @@ class EmpleadosPolicy
      */
     public function delete(User $user, Empleados $empleados): bool
     {
-        return $user->can('delete_empleados');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class EmpleadosPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_empleados');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class EmpleadosPolicy
      */
     public function forceDelete(User $user, Empleados $empleados): bool
     {
-        return $user->can('force_delete_empleados');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class EmpleadosPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_empleados');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class EmpleadosPolicy
      */
     public function restore(User $user, Empleados $empleados): bool
     {
-        return $user->can('restore_empleados');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class EmpleadosPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_empleados');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class EmpleadosPolicy
      */
     public function replicate(User $user, Empleados $empleados): bool
     {
-        return $user->can('replicate_empleados');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class EmpleadosPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_empleados');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -47,7 +47,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function delete(User $user, NotaCreditoDebitoCompra $notaCreditoDebitoCompra): bool
     {
-        return $user->can('delete_nota::credito::debito::compra');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_nota::credito::debito::compra');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function forceDelete(User $user, NotaCreditoDebitoCompra $notaCreditoDebitoCompra): bool
     {
-        return $user->can('force_delete_nota::credito::debito::compra');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_nota::credito::debito::compra');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function restore(User $user, NotaCreditoDebitoCompra $notaCreditoDebitoCompra): bool
     {
-        return $user->can('restore_nota::credito::debito::compra');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_nota::credito::debito::compra');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function replicate(User $user, NotaCreditoDebitoCompra $notaCreditoDebitoCompra): bool
     {
-        return $user->can('replicate_nota::credito::debito::compra');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class NotaCreditoDebitoCompraPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_nota::credito::debito::compra');
+        return $user->can('{{ Reorder }}');
     }
 }

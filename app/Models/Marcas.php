@@ -22,4 +22,9 @@ class Marcas extends Model
         'fec_alta',
         'estado',
     ]; //campos para visualizar
+
+    public function setDescripcionAttribute($value)
+    {
+        $this->attributes['descripcion'] = strtoupper(trim($value));
+    }
 }

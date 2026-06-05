@@ -47,7 +47,7 @@ class PedidoCabecerasPolicy
      */
     public function delete(User $user, PedidoCabeceras $pedidoCabeceras): bool
     {
-        return $user->can('delete_pedido::cabecera');
+        return $user->can('{{ Delete }}');
     }
 
     /**
@@ -55,7 +55,7 @@ class PedidoCabecerasPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_pedido::cabecera');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class PedidoCabecerasPolicy
      */
     public function forceDelete(User $user, PedidoCabeceras $pedidoCabeceras): bool
     {
-        return $user->can('force_delete_pedido::cabecera');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class PedidoCabecerasPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_pedido::cabecera');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class PedidoCabecerasPolicy
      */
     public function restore(User $user, PedidoCabeceras $pedidoCabeceras): bool
     {
-        return $user->can('restore_pedido::cabecera');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class PedidoCabecerasPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_pedido::cabecera');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class PedidoCabecerasPolicy
      */
     public function replicate(User $user, PedidoCabeceras $pedidoCabeceras): bool
     {
-        return $user->can('replicate_pedido::cabecera');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class PedidoCabecerasPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_pedido::cabecera');
+        return $user->can('{{ Reorder }}');
     }
 }

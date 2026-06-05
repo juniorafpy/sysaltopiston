@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 
 
+use Illuminate\Validation\ValidationException;
+
 class Pais extends Model
 {
     use HasFactory;

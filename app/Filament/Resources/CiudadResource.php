@@ -32,7 +32,6 @@ class CiudadResource extends Resource
                             ->label('Descripción')
                             ->required()
                             ->maxLength(100)
-                            ->unique(ignoreRecord: true)
                             ->dehydrateStateUsing(fn ($state) => strtoupper($state))
                             ->afterStateUpdated(fn ($state, callable $set) => $set('descripcion', strtoupper($state))),
                         Forms\Components\Select::make('cod_departamento')
@@ -102,8 +101,18 @@ class CiudadResource extends Resource
                     ->modal()
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
-                    ->after(function ($record, $action) {
-                        $action->getLivewire()->dispatch('swal:success', message: 'Ciudad actualizada exitosamente.');
+                    ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
+                        $existe = Ciudad::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_departamento', $data['cod_departamento'])
+                            ->where('cod_ciudad', '!=', $record->cod_ciudad)
+                            ->exists();
+                        if ($existe) {
+                            $action->getLivewire()->dispatch('swal:error', message: 'La ciudad ya está registrada en ese departamento.');
+                            $action->halt();
+                        }
+                    })
+                    ->after(function ($record, $livewire) {
+                        $livewire->dispatch('swal:success', message: 'Ciudad actualizada exitosamente.');
                     }),
             ])
             

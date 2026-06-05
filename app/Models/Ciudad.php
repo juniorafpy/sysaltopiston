@@ -23,6 +23,11 @@ class Ciudad extends Model
         'estado',
     ];
 
+    public function setDescripcionAttribute($value)
+    {
+        $this->attributes['descripcion'] = strtoupper(trim($value));
+    }
+
     public function departamento()
     {
         return $this->belongsTo(Departamentos::class, 'cod_departamento', 'cod_departamento');

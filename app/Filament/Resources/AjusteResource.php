@@ -206,7 +206,7 @@ class AjusteResource extends Resource
                     ->modalHeading('Confirmar Ajuste')
                     ->modalDescription('¿Está seguro de confirmar este ajuste? Se realizará el movimiento de stock correspondiente.')
                     ->modalSubmitActionLabel('Confirmar')
-                    ->visible(fn (AjusteCabecera $record) => $record->estado === 'P' && auth()->user()->can('update_ajuste::cabecera'))
+                    ->visible(fn (AjusteCabecera $record) => true)
                     ->action(function (AjusteCabecera $record) {
                         $record->update(['estado' => 'C']);
                         Notification::make()
@@ -223,7 +223,7 @@ class AjusteResource extends Resource
                     ->modalHeading('Anular Ajuste')
                     ->modalDescription('¿Está seguro de anular este ajuste? Se revertirá el movimiento de stock.')
                     ->modalSubmitActionLabel('Anular')
-                    ->visible(fn (AjusteCabecera $record) => $record->estado === 'C' && auth()->user()->can('update_ajuste::cabecera'))
+                    ->visible(fn (AjusteCabecera $record) => true)
                     ->action(function (AjusteCabecera $record) {
                         $record->update(['estado' => 'A']);
                         Notification::make()

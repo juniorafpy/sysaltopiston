@@ -183,7 +183,7 @@ class PedidoCabeceraResource extends Resource
                         default => 'gray',
                     })
             ])
-            ->defaultSort('cod_pedido', 'desc')
+            ->defaultSort('fec_pedido', 'desc')
 
             ->filters([
                 //
@@ -231,7 +231,7 @@ class PedidoCabeceraResource extends Resource
                             $record->update(['estado' => 'ANULADO']);
                             Notification::make()
                                 ->title('Pedido Anulado')
-                                ->success()
+                                ->warning()
                                 ->send();
                         })
                         ->visible(fn (Model $record): bool => $record->estado === 'PENDIENTE'),

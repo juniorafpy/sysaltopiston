@@ -1149,7 +1149,7 @@ class CompraCabeceraResource extends Resource
                             $record->update(['estado' => 'Anulado']);
                             Notification::make()
                                 ->title('✅ Factura anulada')
-                                ->success()
+                                ->warning()
                                 ->send();
                         })
                         ->visible(fn (CompraCabecera $record) => $record->estado !== 'Anulado'),

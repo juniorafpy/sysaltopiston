@@ -6,7 +6,6 @@ use App\Filament\Resources\RecepcionVehiculoResource;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use App\Models\Mecanico;
-use App\Models\RecepcionInventario;
 
 class CreateRecepcionVehiculo extends CreateRecord
 {
@@ -14,7 +13,8 @@ class CreateRecepcionVehiculo extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
-    protected ?array $inventarioData = null;
+    protected ?int $codCombustibleItem = null;
+    protected ?string $observacionesInventario = null;
 
     public function mount(): void
     {
@@ -59,9 +59,14 @@ class CreateRecepcionVehiculo extends CreateRecord
         }
 
         // Extraer los datos del inventario antes de guardar
-        if (isset($data['inventario'])) {
-            $this->inventarioData = $data['inventario'];
-            unset($data['inventario']);
+        if (isset($data['cod_combustible_item'])) {
+            $this->codCombustibleItem = $data['cod_combustible_item'];
+            unset($data['cod_combustible_item']);
+        }
+
+        if (isset($data['observaciones_inventario_text'])) {
+            $this->observacionesInventario = $data['observaciones_inventario_text'];
+            unset($data['observaciones_inventario_text']);
         }
 
         return $data;
@@ -69,12 +74,11 @@ class CreateRecepcionVehiculo extends CreateRecord
 
     protected function afterCreate(): void
     {
-        // Guardar el inventario después de crear la recepción
-        if (isset($this->inventarioData) && !empty($this->inventarioData)) {
-            $inventarioData = $this->inventarioData;
-            $inventarioData['recepcion_vehiculo_id'] = $this->record->id;
-
-            RecepcionInventario::create($inventarioData);
+        // Guardar el item de combustible en la tabla pivote
+        if ($this->codCombustibleItem) {
+            $this->record->itemsInventario()->attach($this->codCombustibleItem, [
+                'observaciones_inventario' => $this->observacionesInventario,
+            ]);
         }
     }
 

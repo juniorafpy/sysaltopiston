@@ -463,8 +463,8 @@ class OrdenCompraCabeceraResource extends Resource
                 \Filament\Notifications\Notification::make()
                     ->title('Orden de compra anulada')
                     ->body("La orden de compra Nro. {$record->nro_orden_compra} ha sido anulada exitosamente.")
-                    ->success()
-                    ->icon('heroicon-o-check-circle')
+                    ->warning()
+                    ->icon('heroicon-o-no-symbol')
                     ->duration(5000)
                     ->send();
             }),
@@ -484,25 +484,27 @@ class OrdenCompraCabeceraResource extends Resource
                 \Filament\Notifications\Notification::make()
                     ->title('Orden de compra aprobada')
                     ->body("La orden de compra Nro. {$record->nro_orden_compra} ha sido aprobada exitosamente.")
-                    ->success()
-                    ->icon('heroicon-o-check-badge')
-                    ->duration(5000)
-                    ->send();
+                ->success()
+                ->icon('heroicon-o-check-badge')
+                ->duration(5000)
+                ->send();
             }),
 
         Tables\Actions\Action::make('crear_factura')
             ->label('Crear Factura')
             ->icon('heroicon-m-document-plus')
             ->color('info')
-            ->visible(fn (OrdenCompraCabecera $record) => $record->estado === 'APROBADO')
+            ->visible(fn (OrdenCompraCabecera $record) => strtoupper($record->estado) === 'APROBADO')
             ->url(fn (OrdenCompraCabecera $record) => 
                 \App\Filament\Resources\CompraCabeceraResource::getUrl('create', ['orden_compra' => $record->nro_orden_compra])
             )
-            ->tooltip('Crear una factura de compra basada en esta orden'),
+            ->tooltip('Crear una factura de compra basada en esta orden')
+            ->openUrlInNewTab(),
     ])
-        ->label('Opciones')                      // texto del botón (opcional)
-        ->icon('heroicon-m-ellipsis-vertical'),  // ícono de “tres puntitos”
-    ]);
+        ->label('Opciones')
+        ->icon('heroicon-m-ellipsis-vertical'),
+    ])
+    ->defaultSort('fec_orden', 'desc');
 
     }
 

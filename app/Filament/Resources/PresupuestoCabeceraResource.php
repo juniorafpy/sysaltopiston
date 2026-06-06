@@ -498,6 +498,9 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
         // 👇 Título de la columna de acciones
         ->actionsColumnLabel('Acciones')
 
+        // Ordenar por fecha más reciente por defecto
+        ->defaultSort('fec_presupuesto', 'desc')
+
             ->filters([
                 //
             ])
@@ -552,6 +555,12 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
                     'estado'         => 'ANULADO',
                     'nro_pedido_ref' => null,
                 ]);
+                
+                \Filament\Notifications\Notification::make()
+                    ->warning()
+                    ->title('Presupuesto Anulado')
+                    ->body('El presupuesto ha sido anulado correctamente.')
+                    ->send();
             }),
 
         Tables\Actions\Action::make('aprobar')
@@ -560,7 +569,15 @@ protected static function recalcularTotalesCabecera(Get $get, Set $set): void
             ->color('success')
             ->requiresConfirmation()
             ->visible(fn (PresupuestoCabecera $record) => $record->estado === 'PENDIENTE')
-            ->action(fn (PresupuestoCabecera $record) => $record->update(['estado' => 'APROBADO'])),
+            ->action(function (PresupuestoCabecera $record) {
+                $record->update(['estado' => 'APROBADO']);
+                
+                \Filament\Notifications\Notification::make()
+                    ->success()
+                    ->title('Presupuesto Aprobado')
+                    ->body('El presupuesto ha sido aprobado exitosamente.')
+                    ->send();
+            }),
     ])
         ->label('Opciones')                      // texto del botón (opcional)
         ->icon('heroicon-m-ellipsis-vertical'),  // ícono de “tres puntitos”

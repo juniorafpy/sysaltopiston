@@ -159,7 +159,7 @@ class RecepcionVehiculoResource extends Resource
                         ]),
 
                         Section::make('Inventario del Vehículo')
-                            ->description('Marque los artículos que posee el vehículo al momento de la recepción')
+                            ->description('Marque los artículos y seleccione el nivel de combustible')
                             ->icon('heroicon-o-clipboard-document-check')
                             ->schema([
                                 Forms\Components\CheckboxList::make('items_inventario')
@@ -173,19 +173,14 @@ class RecepcionVehiculoResource extends Resource
                                     ->gridDirection('row')
                                     ->columnSpanFull(),
                                 
-                                Forms\Components\Select::make('inventario.nivel_combustible')
-                                    ->label('Nivel de combustible')
-                                    ->options([
-                                        'vacio' => 'Vacío (E)',
-                                        '1/4' => '1/4',
-                                        '2/4' => '1/2',
-                                        '3/4' => '3/4',
-                                        'lleno' => 'Lleno (F)',
-                                    ])
-                                    ->placeholder('Nivel combustible')
+                                Forms\Components\Select::make('cod_combustible_item')
+                                    ->label('Nivel de Combustible')
+                                    ->options(InventarioServicio::where('estado', 'A')->where('tipo', 'C')->pluck('descripcion', 'cod_inventario'))
+                                    ->searchable()
+                                    ->placeholder('Seleccione nivel de combustible')
                                     ->columnSpan(2),
                                 
-                                Forms\Components\Textarea::make('inventario.observaciones_inventario')
+                                Forms\Components\Textarea::make('observaciones_inventario_text')
                                     ->label('Observaciones del inventario')
                                     ->placeholder('Detalles adicionales...')
                                     ->rows(2)
@@ -210,7 +205,9 @@ class RecepcionVehiculoResource extends Resource
 
                             Forms\Components\Placeholder::make('fec_alta')
                                 ->label('Fecha Alta')
-                                ->content(fn () => now()->format('d/m/Y H:i')),
+                                ->content(fn (?RecepcionVehiculo $record) => $record && $record->fec_alta 
+                                    ? \Carbon\Carbon::parse($record->fec_alta)->format('d/m/Y H:i') 
+                                    : now()->format('d/m/Y H:i')),
                         ]),
 
                         Section::make('Daños Externos')
@@ -315,6 +312,7 @@ class RecepcionVehiculoResource extends Resource
         return [
             'index'       => Pages\ListRecepcionVehiculos::route('/'),
             'create'      => Pages\CreateRecepcionVehiculo::route('/create'),
+            'view'        => Pages\ViewRecepcionVehiculo::route('/{record}'),
             'edit'        => Pages\EditRecepcionVehiculo::route('/{record}/edit'),
         ];
     }

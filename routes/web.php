@@ -117,7 +117,7 @@ Route::get('/factura/{factura}/pdf', function (\App\Models\Factura $factura) {
 Route::get('/api/facturas-pendientes/{codCliente}', [FacturasPendientesController::class, 'index'])
     ->middleware(['auth']);
 
-// PDF Manual de uso
-Route::get('/pdf/manual-pedido-compra', [App\Http\Controllers\PdfManualController::class, 'pedidoCompra'])
-    ->name('pdf.manual.pedido-compra')
+// PDF Manual de usuario
+Route::get('/pdf/manual-usuario/pedido-compra', [App\Http\Controllers\PdfManualController::class, 'pedidoCompra'])
+    ->name('pdf.manual-usuario.pedido-compra')
     ->middleware(['auth']);

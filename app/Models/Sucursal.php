@@ -19,6 +19,7 @@ class Sucursal extends Model
 
     protected $fillable =[
         'descripcion',
+        'establecimiento',
         'estado',
         'usuario_alta',
         'fec_alta',

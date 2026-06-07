@@ -418,6 +418,14 @@ class OrdenServicioResource extends Resource
                     ])
                     ->sortable(),
 
+                Tables\Columns\IconColumn::make('facturado')
+                    ->label('Facturado')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-badge')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
+
                /* Tables\Columns\TextColumn::make('total')
                     ->label('Total')
                     ->money('PYG')
@@ -458,6 +466,17 @@ class OrdenServicioResource extends Resource
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
+
+                    Tables\Actions\Action::make('facturar')
+                        ->label('Facturar')
+                        ->icon('heroicon-o-document-text')
+                        ->color('info')
+                        ->visible(fn (OrdenServicio $record): bool =>
+                            $record->estado_trabajo === 'Finalizado' && !$record->facturado
+                        )
+                        ->url(fn (OrdenServicio $record): string =>
+                            \App\Filament\Resources\FacturaResource::getUrl('create', ['orden_servicio_id' => $record->id])
+                        ),
 
                     Tables\Actions\Action::make('imprimir_pdf')
                         ->label('Imprimir OS')

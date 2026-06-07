@@ -122,7 +122,8 @@ class FacturaResource extends Resource
                         Forms\Components\Select::make('orden_servicio_id')
                             ->label('Orden de Servicio')
                             ->options(function () {
-                                return OrdenServicio::where('estado', 'Finalizado')
+                                return OrdenServicio::where('estado_trabajo', 'Finalizado')
+                                    ->where('facturado', false)
                                     ->whereDoesntHave('facturas')
                                     ->with('cliente')
                                     ->get()
@@ -148,7 +149,7 @@ class FacturaResource extends Resource
                                             return [
                                                 'cod_articulo' => $detalle->articulo_id,
                                                 'descripcion' => $detalle->articulo->descripcion ?? $detalle->descripcion,
-                                                'cantidad' => $detalle->cantidad,
+                                                'cantidad' => $detalle->cantidad_real ?? $detalle->cantidad, // Usar cantidad real si existe
                                                 'precio_unitario' => $detalle->precio_unitario,
                                                 'porcentaje_descuento' => 0,
                                                 'tipo_iva' => '10',
@@ -163,67 +164,46 @@ class FacturaResource extends Resource
                             ->required(fn (Get $get) => $get('origen_factura') === 'orden_servicio')
                             ->disabled(fn (string $operation) => $operation === 'edit'),
 
-                        // Timbrado
-                        Forms\Components\Select::make('cod_timbrado')
+                        // Timbrado (Autocompletado automáticamente)
+                        Forms\Components\TextInput::make('timbrado_display')
                             ->label('Timbrado')
-                            ->options(function () {
-                                $user = auth()->user();
-                                if (!$user) {
-                                    return [];
-                                }
-
-                                $cajero = $user->empleado;
-                                if (!$cajero) {
-                                    return [];
-                                }
-
-                                $aperturaCaja = AperturaCaja::where('estado', 'Abierta')
-                                    ->where('cod_cajero', $cajero->cod_empleado)
-                                    ->first();
-
-                                if (!$aperturaCaja) {
-                                    return [];
-                                }
-
-                                $timbrado = $aperturaCaja->caja->timbradoActivo();
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->default(function () {
+                                $timbrado = \App\Models\Timbrado::obtenerTimbradoActivo('FAC');
                                 if (!$timbrado) {
-                                    return [];
+                                    return null;
                                 }
-
-                                return [
-                                    $timbrado->cod_timbrado => "{$timbrado->numero_timbrado} ({$timbrado->establecimiento}-{$timbrado->punto_expedicion}) - Disponibles: {$timbrado->numeros_disponibles}"
-                                ];
+                                return $timbrado->numero_timbrado;
                             })
-                            ->required()
-                            ->searchable()
-                            ->preload()
+                            ->placeholder('Sin timbrado')
                             ->helperText(function () {
-                                $user = auth()->user();
-                                if (!$user) {
-                                    return 'Error: Usuario no autenticado';
-                                }
-
-                                $cajero = $user->empleado;
-                                if (!$cajero) {
-                                    return 'Error: Tu usuario no está asociado a un empleado';
-                                }
-
-                                $aperturaCaja = AperturaCaja::where('estado', 'Abierta')
-                                    ->where('cod_cajero', $cajero->cod_empleado)
-                                    ->first();
-
-                                if (!$aperturaCaja) {
-                                    return 'No tienes una caja abierta. Por favor, realiza la apertura de caja primero.';
-                                }
-
-                                $timbrado = $aperturaCaja->caja->timbradoActivo();
+                                $timbrado = \App\Models\Timbrado::obtenerTimbradoActivo('FAC');
                                 if (!$timbrado) {
-                                    return 'Tu caja no tiene un timbrado asignado. Contacta al administrador.';
+                                    return '⚠️ No hay timbrado activo. Contacte al administrador.';
                                 }
+                                return "Vigente hasta: {$timbrado->fecha_fin_vigencia->format('d/m/Y')} — Disp: {$timbrado->numeros_disponibles}";
+                            }),
 
-                                return 'Timbrado de tu caja actual';
+                        // Serie y próximo número de factura
+                        Forms\Components\TextInput::make('serie_factura')
+                            ->label('Serie / Próximo Nro')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->default(function () {
+                                $timbrado = \App\Models\Timbrado::obtenerTimbradoActivo('FAC');
+                                if (!$timbrado) {
+                                    return null;
+                                }
+                                $numero = $timbrado->obtenerSiguienteNumero();
+                                return "{$timbrado->establecimiento}-{$timbrado->punto_expedicion}-{$numero}";
                             })
-                            ->disabled(fn (string $operation) => $operation === 'edit'),
+                            ->placeholder('Sin timbrado asignado'),
+
+                        // Campo oculto para almacenar el cod_timbrado real
+                        Forms\Components\Hidden::make('cod_timbrado')
+                            ->default(fn () => \App\Models\Timbrado::obtenerTimbradoActivo('FAC')?->cod_timbrado)
+                            ->dehydrated(),
 
                         // Número de Factura (automático)
                         Forms\Components\TextInput::make('numero_factura')
@@ -293,10 +273,17 @@ class FacturaResource extends Resource
                                     ->label('Artículo')
                                     ->options(function () {
                                         return Articulos::where('activo', true)
+                                            ->limit(500)
                                             ->get()
                                             ->mapWithKeys(function ($articulo) {
-                                                return [$articulo->cod_articulo => "{$articulo->descripcion} - Gs. " . number_format($articulo->precio_venta ?? 0, 0, ',', '.')];
+                                                return [$articulo->cod_articulo => "{$articulo->cod_articulo} - {$articulo->descripcion}"];
                                             });
+                                    })
+                                    ->getOptionLabelUsing(function ($value) {
+                                        $articulo = Articulos::find($value);
+                                        return $articulo
+                                            ? "{$articulo->cod_articulo} - {$articulo->descripcion}"
+                                            : "Código #{$value}";
                                     })
                                     ->searchable()
                                     ->preload()
@@ -312,46 +299,36 @@ class FacturaResource extends Resource
                                             }
                                         }
                                     })
-                                    ->disabled(fn (string $operation) => $operation === 'edit')
-                                    ->columnSpan(3),
+                                    ->disabled(fn (string $operation): bool =>
+                                        $operation === 'edit' || request()->has('orden_servicio_id'))
+                                    ->columnSpan(4),
 
-                                Forms\Components\TextInput::make('descripcion')
-                                    ->label('Descripción')
-                                    ->required()
-                                    ->disabled(fn (string $operation) => $operation === 'edit')
-                                    ->columnSpan(3),
+                                Forms\Components\Hidden::make('descripcion')
+                                    ->dehydrated(),
 
                                 Forms\Components\TextInput::make('cantidad')
-                                    ->label('Cantidad')
+                                    ->label('Cant.')
                                     ->numeric()
                                     ->required()
                                     ->default(1)
                                     ->minValue(0.01)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
-                                    ->disabled(fn (string $operation) => $operation === 'edit')
+                                    ->disabled(fn (string $operation): bool =>
+                                        $operation === 'edit' || request()->has('orden_servicio_id'))
                                     ->columnSpan(1),
 
                                 Forms\Components\TextInput::make('precio_unitario')
-                                    ->label('Precio Unitario')
+                                    ->label('P/U')
                                     ->numeric()
                                     ->required()
                                     ->minValue(0)
+                                    ->prefix('Gs.')
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
-                                    ->disabled(fn (string $operation) => $operation === 'edit')
+                                    ->disabled(fn (string $operation): bool =>
+                                        $operation === 'edit' || request()->has('orden_servicio_id'))
                                     ->columnSpan(2),
-
-                                Forms\Components\TextInput::make('porcentaje_descuento')
-                                    ->label('% Desc.')
-                                    ->numeric()
-                                    ->default(0)
-                                    ->minValue(0)
-                                    ->maxValue(100)
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
-                                    ->disabled(fn (string $operation) => $operation === 'edit')
-                                    ->columnSpan(1),
 
                                 Forms\Components\Select::make('tipo_iva')
                                     ->label('IVA')
@@ -364,49 +341,57 @@ class FacturaResource extends Resource
                                     ->default('10')
                                     ->live()
                                     ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
-                                    ->disabled(fn (string $operation) => $operation === 'edit')
+                                    ->disabled(fn (string $operation): bool =>
+                                        $operation === 'edit' || request()->has('orden_servicio_id'))
                                     ->columnSpan(1),
 
-                                Forms\Components\TextInput::make('monto_descuento')
-                                    ->label('Descuento')
-                                    ->numeric()
-                                    ->disabled()
-                                    ->dehydrated()
-                                    ->columnSpan(1),
+                                // Campos ocultos de descuento (se aplican automáticamente al calcular)
+                                Forms\Components\Hidden::make('porcentaje_descuento')
+                                    ->default(0)
+                                    ->dehydrated(),
 
-                                Forms\Components\TextInput::make('subtotal')
-                                    ->label('Subtotal')
-                                    ->numeric()
-                                    ->disabled()
-                                    ->dehydrated()
-                                    ->columnSpan(1),
+                                Forms\Components\Hidden::make('monto_descuento')
+                                    ->default(0)
+                                    ->dehydrated(),
 
-                                Forms\Components\TextInput::make('porcentaje_iva')
-                                    ->label('% IVA')
-                                    ->numeric()
-                                    ->disabled()
-                                    ->dehydrated()
-                                    ->columnSpan(1),
+                                // Fila de totales calculados (solo lectura)
+                                Forms\Components\Grid::make(12)
+                                    ->schema([
+                                        Forms\Components\TextInput::make('subtotal')
+                                            ->label('Base Imponible')
+                                            ->numeric()
+                                            ->disabled()
+                                            ->dehydrated()
+                                            ->columnSpan(4),
 
-                                Forms\Components\TextInput::make('monto_iva')
-                                    ->label('Monto IVA')
-                                    ->numeric()
-                                    ->disabled()
-                                    ->dehydrated()
-                                    ->columnSpan(1),
+                                        Forms\Components\TextInput::make('monto_iva')
+                                            ->label('Monto IVA')
+                                            ->numeric()
+                                            ->disabled()
+                                            ->dehydrated()
+                                            ->columnSpan(4),
 
-                                Forms\Components\TextInput::make('total')
-                                    ->label('Total')
-                                    ->numeric()
-                                    ->disabled()
-                                    ->dehydrated()
-                                    ->columnSpan(2),
+                                        Forms\Components\TextInput::make('total')
+                                            ->label('Total Linea')
+                                            ->numeric()
+                                            ->disabled()
+                                            ->dehydrated()
+                                            ->columnSpan(4),
+                                    ]),
+
+                                Forms\Components\Hidden::make('porcentaje_iva')
+                                    ->dehydrated(),
                             ])
                             ->columns(12)
                             ->defaultItems(1)
                             ->addActionLabel('Agregar Item')
                             ->collapsible()
-                            ->itemLabel(fn (array $state): ?string => $state['descripcion'] ?? 'Nuevo Item')
+                            ->collapsed(fn (string $operation): bool => $operation !== 'create')
+                            ->itemLabel(function (array $state): ?string {
+                                $desc = $state['descripcion'] ?? 'Nuevo Item';
+                                $total = $state['total'] ?? 0;
+                                return "{$desc} — Gs. " . number_format($total, 0, ',', '.');
+                            })
                             ->live()
                             ->afterStateUpdated(function (Set $set, Get $get) {
                                 self::calcularTotalesFactura($set, $get);
@@ -414,7 +399,9 @@ class FacturaResource extends Resource
                             ->deleteAction(
                                 fn (Forms\Components\Actions\Action $action) => $action->after(fn (Set $set, Get $get) => self::calcularTotalesFactura($set, $get)),
                             )
-                            ->reorderableWithButtons()
+                            ->addable(fn (): bool => !request()->has('orden_servicio_id'))
+                            ->deletable(fn (): bool => !request()->has('orden_servicio_id'))
+                            ->reorderable(fn (): bool => !request()->has('orden_servicio_id'))
                             ->columnSpanFull(),
                     ]),
 
@@ -541,14 +528,15 @@ class FacturaResource extends Resource
 
         foreach ($detalles as $detalle) {
             $tipoIva = $detalle['tipo_iva'] ?? '10';
-            $subtotal = floatval($detalle['subtotal'] ?? 0);
+            $subtotal = floatval($detalle['subtotal'] ?? 0); // Con IVA incluido
             $montoIva = floatval($detalle['monto_iva'] ?? 0);
+            $base = $subtotal - $montoIva; // Base imponible sin IVA
 
             if ($tipoIva === '10') {
-                $subtotalGravado10 += $subtotal;
+                $subtotalGravado10 += $base;
                 $totalIva10 += $montoIva;
             } elseif ($tipoIva === '5') {
-                $subtotalGravado5 += $subtotal;
+                $subtotalGravado5 += $base;
                 $totalIva5 += $montoIva;
             } elseif ($tipoIva === 'Exenta') {
                 $subtotalExenta += $subtotal;

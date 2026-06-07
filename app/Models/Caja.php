@@ -18,6 +18,7 @@ class Caja extends Model
         'descripcion',
         'cod_sucursal',
         'activo',
+        'punto_expedicion',
         'usuario_alta',
         'fecha_alta',
         'usuario_mod',

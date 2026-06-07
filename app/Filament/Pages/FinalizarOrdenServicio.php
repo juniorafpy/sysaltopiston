@@ -130,7 +130,7 @@ class FinalizarOrdenServicio extends Page implements HasForms
             return;
         }
 
-        // 1. VALIDACIÓN PREVIA DE STOCK
+      
         foreach ($data['detalles'] as $detalleData) {
             $detalle = OrdenServicioDetalle::find($detalleData['id_detalle']);
             if (!$detalle) continue;
@@ -138,7 +138,6 @@ class FinalizarOrdenServicio extends Page implements HasForms
             $cantidadReservada = (float) $detalle->cantidad;
             $cantidadReal = (float) ($detalleData['cantidad_real'] ?? 0);
 
-            // Si usó más de lo reservado, verificar si hay stock actual para cubrir la diferencia
             if ($cantidadReal > $cantidadReservada) {
                 $diferenciaExtra = $cantidadReal - $cantidadReservada;
                 

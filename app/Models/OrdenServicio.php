@@ -25,6 +25,7 @@ class OrdenServicio extends Model
         'fecha_estimada_finalizacion',
         //'fecha_finalizacion_real',
         'estado_trabajo',
+        'facturado',
         'cod_mecanico',
         'observaciones_tecnicas',
         'observaciones_internas',
@@ -40,6 +41,7 @@ class OrdenServicio extends Model
         'total' => 'float',
         'fec_alta' => 'datetime',
         'fec_mod' => 'datetime',
+        'facturado' => 'boolean',
     ];
 
     // Relaciones

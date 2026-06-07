@@ -6,12 +6,14 @@ use App\Filament\Resources\OrdenServicioResource\Pages;
 use App\Models\OrdenServicio;
 use App\Models\PresupuestoVenta;
 use App\Models\Articulos;
+use App\Models\ExistenciaArticulo;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\DB;
 
 class OrdenServicioResource extends Resource
 {
@@ -19,7 +21,7 @@ class OrdenServicioResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
 
-    protected static ?string $navigationLabel = 'Lista de Orden de Servicios';
+    protected static ?string $navigationLabel = 'Orden de Servicio';
 
     protected static ?string $modelLabel = 'Orden de Servicio';
 

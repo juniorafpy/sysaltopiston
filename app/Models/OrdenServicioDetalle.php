@@ -20,6 +20,7 @@ class OrdenServicioDetalle extends Model
         'cod_articulo',
         'descripcion',
         'cantidad',
+        'cantidad_real',
         'cantidad_utilizada',
         'precio_unitario',
         'porcentaje_descuento',
@@ -36,6 +37,7 @@ class OrdenServicioDetalle extends Model
 
     protected $casts = [
         'cantidad' => 'float',
+        'cantidad_real' => 'float',
         'cantidad_utilizada' => 'float',
         'precio_unitario' => 'float',
         'porcentaje_descuento' => 'float',

@@ -10,6 +10,8 @@ class CobroDetalle extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'cobros_detalle';
     protected $primaryKey = 'cod_cobro_detalle';
 

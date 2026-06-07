@@ -118,7 +118,7 @@ class RegistrarCobro extends Page implements HasForms
 
                                 Select::make('banco_id')
                                     ->label('Entidad')
-                                    ->options(fn () => EntidadBancaria::activas()->pluck('nombre', 'cod_entidad_bancaria')->toArray())
+                                    ->options(fn () => EntidadBancaria::activas()->orderBy('nombre')->pluck('nombre', 'cod_entidad_bancaria')->toArray())
                                     ->visible(fn (Get $get) => $get('tipo_transaccion') !== 'Efectivo')
                                     ->columnSpan(1),
 

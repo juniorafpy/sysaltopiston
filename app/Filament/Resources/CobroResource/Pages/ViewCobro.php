@@ -60,23 +60,15 @@ class ViewCobro extends ViewRecord
                         Infolists\Components\RepeatableEntry::make('formasPago')
                             ->label('')
                             ->schema([
-                                Infolists\Components\TextEntry::make('tipo_transaccion')
+                                Infolists\Components\TextEntry::make('formaCobro.descripcion')
                                     ->label('Tipo')
-                                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                                        'efectivo' => 'Efectivo',
-                                        'tarjeta_credito' => 'Tarjeta de Crédito',
-                                        'tarjeta_debito' => 'Tarjeta de Débito',
-                                        'cheque' => 'Cheque',
-                                        'transferencia' => 'Transferencia',
-                                        default => $state
-                                    })
                                     ->badge()
-                                    ->color(fn (string $state): string => match ($state) {
-                                        'efectivo' => 'success',
-                                        'tarjeta_credito' => 'warning',
-                                        'tarjeta_debito' => 'info',
-                                        'cheque' => 'danger',
-                                        'transferencia' => 'primary',
+                                    ->color(fn (?string $state): string => match ($state) {
+                                        'Efectivo' => 'success',
+                                        'Tarjeta de Crédito' => 'warning',
+                                        'Tarjeta de Débito' => 'info',
+                                        'Cheque' => 'danger',
+                                        'Transferencia' => 'primary',
                                         default => 'gray',
                                     }),
                                 Infolists\Components\TextEntry::make('monto')
@@ -85,6 +77,12 @@ class ViewCobro extends ViewRecord
                                 Infolists\Components\TextEntry::make('entidadBancaria.nombre')
                                     ->label('Banco')
                                     ->visible(fn ($record) => $record->cod_entidad_bancaria !== null),
+                                Infolists\Components\TextEntry::make('tipoTarjeta.descripcion')
+                                    ->label('Tipo Tarjeta')
+                                    ->visible(fn ($record) => $record->cod_tipo_tarjeta !== null),
+                                Infolists\Components\TextEntry::make('procesadora.descripcion')
+                                    ->label('Procesadora')
+                                    ->visible(fn ($record) => $record->cod_procesadora !== null),
                                 Infolists\Components\TextEntry::make('numero_voucher')
                                     ->label('N° Voucher')
                                     ->visible(fn ($record) => $record->numero_voucher !== null),
@@ -95,17 +93,6 @@ class ViewCobro extends ViewRecord
                             ->columns(5),
                     ])
                     ->collapsible(),
-
-                Infolists\Components\Section::make('Observaciones')
-                    ->schema([
-                        Infolists\Components\TextEntry::make('observaciones')
-                            ->label('')
-                            ->placeholder('Sin observaciones')
-                            ->columnSpanFull(),
-                    ])
-                    ->visible(fn ($record) => $record->observaciones !== null)
-                    ->collapsible()
-                    ->collapsed(),
 
                 Infolists\Components\Section::make('Información de Registro')
                     ->schema([

@@ -84,11 +84,6 @@ class Factura extends Model
         return $this->hasOne(LibroIva::class, 'cod_factura', 'cod_factura');
     }
 
-    public function saldosCuentaCorriente()
-    {
-        return $this->hasMany(CCSaldo::class, 'cod_factura', 'cod_factura');
-    }
-
     public function vencimientos()
     {
         return $this->hasMany(FacturaVencimiento::class, 'cod_factura', 'cod_factura');
@@ -187,47 +182,11 @@ class Factura extends Model
     }
 
     /**
-     * Inserta el saldo en cuenta corriente y genera vencimientos (solo para crédito)
-     */
-    public function insertarCCSaldo(): void
-    {
-        if ($this->condicion_venta !== 'Crédito') {
-            return;
-        }
-
-        // Obtener el saldo anterior del cliente
-        $saldoAnterior = CCSaldo::where('cod_cliente', $this->cod_cliente)
-            ->orderBy('fecha_comprobante', 'desc')
-            ->orderBy('cod_saldo', 'desc')
-            ->first()
-            ->saldo_actual ?? 0;
-
-        // El nuevo saldo es el anterior más el debe de esta factura
-        $nuevoSaldo = $saldoAnterior + $this->total_general;
-
-        CCSaldo::create([
-            'cod_cliente' => $this->cod_cliente,
-            'tipo_comprobante' => 'Factura',
-            'nro_comprobante' => $this->numero_factura,
-            'fecha_comprobante' => $this->fecha_factura,
-            'debe' => $this->total_general,
-            'haber' => 0,
-            'saldo_actual' => $nuevoSaldo,
-            'descripcion' => "Factura Nro: {$this->numero_factura} - Total: Gs. " . number_format($this->total_general, 0, ',', '.'),
-            'cod_factura' => $this->cod_factura,
-            'usuario_alta' => auth()->id()
-        ]);
-
-        // Generar vencimientos si tiene condición de compra
-        $this->generarVencimientos();
-    }
-
-    /**
      * Genera los vencimientos de la factura según la condición de compra
      */
     public function generarVencimientos(): void
     {
-        if (!$this->cod_condicion_compra || $this->condicion_venta !== 'Crédito') {
+        if (!$this->cod_condicion_compra) {
             return;
         }
 
@@ -238,20 +197,19 @@ class Factura extends Model
         }
 
         $condicionCompra = CondicionCompra::findOrFail($this->cod_condicion_compra);
-        $diasCuota = $condicionCompra->cant_cuota ?? 0;
+        $cantCuotas = intval($condicionCompra->cant_cuota ?? 0);
 
-        // Si cant_cuota es 0, es contado, no genera vencimientos
-        if ($diasCuota == 0) {
+        if ($cantCuotas <= 0) {
             return;
         }
 
-        // Calcular cantidad de cuotas
-        $cantidadCuotas = max(1, intval($diasCuota / 30));
-        $montoPorCuota = $this->total_general / $cantidadCuotas;
+        $montoPorCuota = $this->total_general / $cantCuotas;
+        $esContado = intval($condicionCompra->dias_cuotas ?? 0) === 0;
 
-        // Generar vencimientos
-        for ($i = 1; $i <= $cantidadCuotas; $i++) {
-            $fechaVencimiento = Carbon::parse($this->fecha_factura)->addDays($i * 30);
+        for ($i = 1; $i <= $cantCuotas; $i++) {
+            $fechaVencimiento = $esContado
+                ? Carbon::parse($this->fecha_factura)
+                : Carbon::parse($this->fecha_factura)->addDays($i * 30);
 
             FacturaVencimiento::create([
                 'cod_factura' => $this->cod_factura,
@@ -276,7 +234,7 @@ class Factura extends Model
 
         // Buscar una caja abierta del cajero
         $aperturaCaja = AperturaCaja::where('estado', 'Abierta')
-            ->where('cod_cajero', auth()->user()->empleado->cod_empleado ?? null)
+            ->where('usuario', auth()->user()->name)
             ->first();
 
         if (!$aperturaCaja) {
@@ -409,8 +367,8 @@ class Factura extends Model
             Log::info("Factura después de update - Total: " . $factura->fresh()->total_general);            // 6. Insertar en libro IVA
             $factura->insertarLibroIva();
 
-            // 7. Insertar en cuenta corriente (si es crédito)
-            $factura->insertarCCSaldo();
+            // 7. Generar vencimientos (si es crédito)
+            $factura->generarVencimientos();
 
             // 8. Insertar movimiento de caja (si es contado)
             $factura->insertarMovimientoCaja();
@@ -450,8 +408,8 @@ class Factura extends Model
     {
         return $query->where('condicion_venta', 'Crédito')
                      ->whereIn('estado', ['Emitida', 'Pagada'])
-                     ->whereHas('saldosCuentaCorriente', function($q) {
-                         $q->where('saldo_actual', '>', 0);
+                     ->whereHas('vencimientos', function($q) {
+                         $q->where('saldo_pendiente', '>', 0);
                      });
     }
 

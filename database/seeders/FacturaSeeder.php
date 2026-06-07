@@ -213,6 +213,5 @@ class FacturaSeeder extends Seeder
         $this->command->info('');
         $this->command->info("✅ {$facturasCreadas} facturas creadas exitosamente.");
         $this->command->info("📚 Libro IVA: " . \App\Models\LibroIva::count() . " registros");
-        $this->command->info("💰 CC Saldos: " . \App\Models\CCSaldo::count() . " registros");
     }
 }

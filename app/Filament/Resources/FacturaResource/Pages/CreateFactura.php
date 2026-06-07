@@ -102,7 +102,7 @@ class CreateFactura extends CreateRecord
                     $serieFactura = "{$timbrado->establecimiento}-{$timbrado->punto_expedicion}-{$numero}";
                 }
 
-                $this->form->fill([
+                $fillData = [
                     'origen_factura' => 'orden_servicio',
                     'orden_servicio_id' => $orden->id,
                     'cod_cliente' => $codCliente,
@@ -116,7 +116,14 @@ class CreateFactura extends CreateRecord
                     'total_iva_5' => 0,
                     'subtotal_exenta' => 0,
                     'total_general' => round($totalGeneral, 2),
-                ]);
+                ];
+
+                // Heredar condición de compra del presupuesto vinculado a la OS
+                if ($orden->relationLoaded('presupuestoVenta') || $orden->presupuestoVenta) {
+                    $fillData['cod_condicion_compra'] = $orden->presupuestoVenta->cod_condicion;
+                }
+
+                $this->form->fill($fillData);
 
                 // Los detalles se setean directamente en el estado del formulario
                 $this->data['detalles'] = $detalles;
@@ -156,7 +163,7 @@ class CreateFactura extends CreateRecord
         if (isset($data['cod_condicion_compra'])) {
             $condicionCompra = \App\Models\CondicionCompra::find($data['cod_condicion_compra']);
             if ($condicionCompra) {
-                $data['condicion_venta'] = ($condicionCompra->cant_cuota == 0) ? 'Contado' : 'Crédito';
+                $data['condicion_venta'] = ($condicionCompra->dias_cuotas == 0) ? 'Contado' : 'Crédito';
             }
         }
 
@@ -226,8 +233,8 @@ class CreateFactura extends CreateRecord
             // 2. Insertar en libro IVA
             $factura->insertarLibroIva();
 
-            // 3. Insertar en cuenta corriente (si es crédito)
-            $factura->insertarCCSaldo();
+            // 3. Generar vencimientos (si es crédito)
+            $factura->generarVencimientos();
 
             // 4. Insertar movimiento de caja (si es contado)
             $factura->insertarMovimientoCaja();

@@ -31,6 +31,6 @@ class EntidadBancaria extends Model
      */
     public function scopeActivas($query)
     {
-        return $query->where('ind_activo', 'S');
+        return $query->whereIn('ind_activo', ['S', 'A']);
     }
 }

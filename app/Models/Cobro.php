@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class Cobro extends Model
 {
     use HasFactory;
+
+    public $timestamps = false;
 
     protected $table = 'cobros';
     protected $primaryKey = 'cod_cobro';
@@ -19,6 +20,7 @@ class Cobro extends Model
         'cod_apertura',
         'fecha_cobro',
         'monto_total',
+        'estado',
         'observaciones',
         'usuario_alta',
         'fecha_alta'
@@ -59,52 +61,6 @@ class Cobro extends Model
     }
 
     /**
-     * Boot del modelo
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($cobro) {
-            if (!$cobro->usuario_alta) {
-                $cobro->usuario_alta = Auth::id();
-            }
-            if (!$cobro->fecha_alta) {
-                $cobro->fecha_alta = now();
-            }
-        });
-
-        static::created(function ($cobro) {
-            // Registrar el cobro en movimientos de caja
-            $cobro->registrarMovimientoCaja();
-        });
-    }
-
-    /**
-     * Registra el cobro como ingreso en caja
-     */
-    public function registrarMovimientoCaja(): void
-    {
-        $detalleFacturas = $this->detalles()
-            ->with('factura')
-            ->get()
-            ->map(function ($detalle) {
-                return "Factura {$detalle->factura->numero_factura} - Cuota {$detalle->numero_cuota}";
-            })
-            ->join(', ');
-
-        MovimientoCaja::create([
-            'cod_apertura' => $this->cod_apertura,
-            'tipo_movimiento' => 'Ingreso',
-            'concepto' => "Cobro N° {$this->cod_cobro} - {$detalleFacturas}",
-            'monto' => $this->monto_total,
-            'fecha_movimiento' => now(),
-            'usuario_alta' => $this->usuario_alta,
-            'fecha_alta' => now()
-        ]);
-    }
-
-    /**
      * Crea un cobro completo con sus detalles y formas de pago
      */
     public static function crearCobroCompleto(array $data): self
@@ -138,7 +94,10 @@ class Cobro extends Model
                         'cod_cobro' => $cobro->cod_cobro,
                         'tipo_transaccion' => $formaPago['tipo_transaccion'],
                         'monto' => $formaPago['monto'],
+                        'cod_forma_cobro' => $formaPago['cod_forma_cobro'] ?? null,
                         'cod_entidad_bancaria' => $formaPago['cod_entidad_bancaria'] ?? null,
+                        'cod_tipo_tarjeta' => $formaPago['cod_tipo_tarjeta'] ?? null,
+                        'cod_procesadora' => $formaPago['cod_procesadora'] ?? null,
                         'numero_voucher' => $formaPago['numero_voucher'] ?? null,
                         'numero_cheque' => $formaPago['numero_cheque'] ?? null,
                     ]);

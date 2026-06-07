@@ -76,10 +76,18 @@ class AdminPanelProvider extends PanelProvider
 
             ])
             ->renderHook('panels::head.start', fn() => '<link rel="stylesheet" href="'.asset('css/filament-admin.css').'">')
-            ->renderHook('panels::body.end', fn() => '
+            ->renderHook('panels::body.end', function () {
+                $swal = '';
+                if (session()->has('swal-caja-cerrada')) {
+                    $msg = addslashes(session()->pull('swal-caja-cerrada'));
+                    $swal = 'Swal.fire({icon:"error",title:"Caja Cerrada",text:"' . $msg . '",confirmButtonText:"Aceptar",confirmButtonColor:"#dc2626"});';
+                }
+
+                return '
                 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
                 <script>
                     document.addEventListener("livewire:initialized", () => {
+                        ' . $swal . '
                         const Toast = Swal.mixin({
                             toast: true,
                             position: "top-end",
@@ -161,7 +169,8 @@ class AdminPanelProvider extends PanelProvider
                         setInterval(applyRepeaterScroll, 500);
                     });
                 </script>
-            ')
+            ';
+            })
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

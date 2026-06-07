@@ -116,3 +116,8 @@ Route::get('/factura/{factura}/pdf', function (\App\Models\Factura $factura) {
 // API para obtener facturas pendientes de un cliente
 Route::get('/api/facturas-pendientes/{codCliente}', [FacturasPendientesController::class, 'index'])
     ->middleware(['auth']);
+
+// PDF Manual de uso
+Route::get('/pdf/manual-pedido-compra', [App\Http\Controllers\PdfManualController::class, 'pedidoCompra'])
+    ->name('pdf.manual.pedido-compra')
+    ->middleware(['auth']);

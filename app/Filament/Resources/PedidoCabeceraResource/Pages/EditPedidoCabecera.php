@@ -42,7 +42,13 @@ class EditPedidoCabecera extends EditRecord
         return $data;
     }    protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            \Filament\Actions\Action::make('manual')
+                ->label('Manual de Uso')
+                ->icon('heroicon-o-question-mark-circle')
+                ->color('gray')
+                ->url(route('pdf.manual.pedido-compra'), shouldOpenInNewTab: true),
+        ];
     }
 
     protected function getFormActions(): array

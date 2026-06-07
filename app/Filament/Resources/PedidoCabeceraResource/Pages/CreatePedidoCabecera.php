@@ -16,6 +16,17 @@ class CreatePedidoCabecera extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            \Filament\Actions\Action::make('manual')
+                ->label('Manual de Uso')
+                ->icon('heroicon-o-question-mark-circle')
+                ->color('gray')
+                ->url(route('pdf.manual.pedido-compra'), shouldOpenInNewTab: true),
+        ];
+    }
+
     public function mount(): void
     {
         parent::mount();

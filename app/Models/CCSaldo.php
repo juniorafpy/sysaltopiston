@@ -9,6 +9,8 @@ class CCSaldo extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'cc_saldos';
     protected $primaryKey = 'cod_saldo';
 

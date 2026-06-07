@@ -15,6 +15,12 @@ class ViewFactura extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('imprimir')
+                ->label('Imprimir')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->url(fn ($record) => route('facturas.pdf', $record))
+                ->openUrlInNewTab(),
             Actions\EditAction::make()
                 ->visible(fn ($record) => $record->estado === 'Emitida'),
         ];

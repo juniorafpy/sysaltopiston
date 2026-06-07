@@ -235,7 +235,8 @@ class FacturaResource extends Resource
                             ->preload()
                             ->disabled(fn (Get $get, string $operation): bool =>
                                 $operation === 'edit' || ($get('origen_factura') !== 'directa' && $get('origen_factura') !== null)
-                            ),
+                            )
+                            ->dehydrated(),
 
                         // Condición de Compra
                         Forms\Components\Select::make('cod_condicion_compra')
@@ -354,30 +355,23 @@ class FacturaResource extends Resource
                                     ->default(0)
                                     ->dehydrated(),
 
-                                // Fila de totales calculados (solo lectura)
-                                Forms\Components\Grid::make(12)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('subtotal')
-                                            ->label('Base Imponible')
-                                            ->numeric()
-                                            ->disabled()
-                                            ->dehydrated()
-                                            ->columnSpan(4),
+                                // Campos ocultos de totales calculados
+                                Forms\Components\Hidden::make('subtotal')
+                                    ->dehydrated(),
 
-                                        Forms\Components\TextInput::make('monto_iva')
-                                            ->label('Monto IVA')
-                                            ->numeric()
-                                            ->disabled()
-                                            ->dehydrated()
-                                            ->columnSpan(4),
+                                Forms\Components\TextInput::make('monto_iva')
+                                    ->label('IVA')
+                                    ->numeric()
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->columnSpan(2),
 
-                                        Forms\Components\TextInput::make('total')
-                                            ->label('Total Linea')
-                                            ->numeric()
-                                            ->disabled()
-                                            ->dehydrated()
-                                            ->columnSpan(4),
-                                    ]),
+                                Forms\Components\TextInput::make('total')
+                                    ->label('Total')
+                                    ->numeric()
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->columnSpan(2),
 
                                 Forms\Components\Hidden::make('porcentaje_iva')
                                     ->dehydrated(),
@@ -627,6 +621,12 @@ class FacturaResource extends Resource
                     ->url(fn (Factura $record): string =>
                         route('filament.admin.resources.cobros.create', ['cod_factura' => $record->cod_factura])
                     ),
+                Tables\Actions\Action::make('imprimir')
+                    ->label('Imprimir')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->url(fn (Factura $record): string => route('facturas.pdf', $record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])

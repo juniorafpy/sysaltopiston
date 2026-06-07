@@ -9,6 +9,8 @@ class FacturaDetalle extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'factura_detalles';
     protected $primaryKey = 'cod_detalle';
 

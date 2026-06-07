@@ -10,6 +10,8 @@ class FacturaVencimiento extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'factura_vencimientos';
     protected $primaryKey = 'cod_vencimiento';
 

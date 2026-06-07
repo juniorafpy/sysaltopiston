@@ -9,6 +9,8 @@ class LibroIva extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'libro_iva';
     protected $primaryKey = 'cod_libro_iva';
 

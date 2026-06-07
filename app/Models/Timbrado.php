@@ -10,6 +10,8 @@ class Timbrado extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'timbrados';
     protected $primaryKey = 'cod_timbrado';
 

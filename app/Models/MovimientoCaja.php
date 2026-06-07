@@ -10,6 +10,8 @@ class MovimientoCaja extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'movimientos_caja';
     protected $primaryKey = 'cod_movimiento';
 

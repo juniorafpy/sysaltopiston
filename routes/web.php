@@ -108,6 +108,11 @@ Route::get('/ayuda/compras/manual.pdf', function (Request $request) {
         ->header('Content-Disposition', $disposition . '; filename="' . $filename . '"');
 })->name('ayuda.compras.pdf')->middleware(['auth']);
 
+// PDF de factura
+Route::get('/factura/{factura}/pdf', function (\App\Models\Factura $factura) {
+    return $factura->generarPDF('stream');
+})->name('facturas.pdf')->middleware(['auth']);
+
 // API para obtener facturas pendientes de un cliente
 Route::get('/api/facturas-pendientes/{codCliente}', [FacturasPendientesController::class, 'index'])
     ->middleware(['auth']);

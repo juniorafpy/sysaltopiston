@@ -12,6 +12,8 @@ class Factura extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'facturas';
     protected $primaryKey = 'cod_factura';
 
@@ -534,10 +536,41 @@ class Factura extends Model
         return $this->hasManyThrough(
             Cobro::class,
             CobroDetalle::class,
-            'cod_factura', // FK en cobros_detalle
-            'cod_cobro', // FK en cobros
-            'cod_factura', // Local key en facturas
-            'cod_cobro' // Local key en cobros_detalle
+            'cod_factura',
+            'cod_cobro',
+            'cod_factura',
+            'cod_cobro'
         );
+    }
+
+    /**
+     * Genera el PDF de la factura
+     */
+    public function generarPDF(string $modo = 'stream')
+    {
+        $this->load(['timbrado', 'cliente', 'detalles']);
+
+        $options = new \Dompdf\Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $html = view('pdf.factura', ['factura' => $this])->render();
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->render();
+
+        $filename = sprintf('Factura_%s_%s.pdf', $this->numero_factura, now()->format('Ymd_His'));
+
+        if ($modo === 'stream') {
+            return response($dompdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'inline; filename="' . $filename . '"');
+        }
+
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 }

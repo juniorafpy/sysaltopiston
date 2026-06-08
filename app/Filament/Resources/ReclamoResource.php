@@ -36,7 +36,7 @@ class ReclamoResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Servicios';
     //protected static ?string $navigationGroup = 'Servicio Técnico';
 
-    protected static ?int $navigationSort = 22;
+    protected static ?int $navigationSort = 23;
 
 
 

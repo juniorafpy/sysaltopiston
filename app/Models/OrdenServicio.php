@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class OrdenServicio extends Model
 {
@@ -83,6 +84,11 @@ class OrdenServicio extends Model
     public function facturas(): HasMany
     {
         return $this->hasMany(Factura::class, 'orden_servicio_id', 'id');
+    }
+
+    public function entregaVehiculo(): HasOne
+    {
+        return $this->hasOne(EntregaVehiculo::class, 'orden_servicio_id', 'id');
     }
 
     /**

@@ -12,6 +12,8 @@ class EntregaVehiculo extends Model
 
     protected $table = 'entrega_vehiculos';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'orden_servicio_id',
         'fecha_entrega',

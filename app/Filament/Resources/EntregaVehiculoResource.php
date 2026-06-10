@@ -78,10 +78,18 @@ class EntregaVehiculoResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('ordenServicio.cliente.nombre_completo')
+                Tables\Columns\TextColumn::make('ordenServicio.cliente.persona.nombres')
                     ->label('Cliente')
-                    ->sortable()
-                    ->searchable(),
+                    ->getStateUsing(function ($record) {
+                        return $record->ordenServicio?->cliente?->nombre_completo ?? 'N/A';
+                    })
+                    ->searchable(query: function ($query, $search) {
+                        return $query->whereHas('ordenServicio.cliente.persona', function ($q) use ($search) {
+                            $q->where('nombres', 'ilike', "%{$search}%")
+                              ->orWhere('apellidos', 'ilike', "%{$search}%")
+                              ->orWhere('razon_social', 'ilike', "%{$search}%");
+                        });
+                    }),
 
                 Tables\Columns\TextColumn::make('fecha_entrega')
                     ->label('Fecha de Entrega')
@@ -93,8 +101,7 @@ class EntregaVehiculoResource extends Resource
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('documento_recibe')
-                    ->label('Documento')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Documento'),
 
                 Tables\Columns\TextColumn::make('kilometraje_salida')
                     ->label('Km Salida')
@@ -106,8 +113,7 @@ class EntregaVehiculoResource extends Resource
                     ->boolean(),
 
                 Tables\Columns\TextColumn::make('usuario_alta')
-                    ->label('Registró')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Registró'),
 
                 Tables\Columns\TextColumn::make('fec_alta')
                     ->label('Fec. Registro')
@@ -124,14 +130,14 @@ class EntregaVehiculoResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('imprimir')
+                    ->label('Imprimir')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->url(fn ($record) => route('entrega-vehiculo.pdf', $record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ])
             ->defaultSort('fecha_entrega', 'desc');
     }

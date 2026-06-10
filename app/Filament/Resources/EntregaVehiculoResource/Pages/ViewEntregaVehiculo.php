@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\EntregaVehiculoResource\Pages;
 
 use App\Filament\Resources\EntregaVehiculoResource;
+use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewEntregaVehiculo extends ViewRecord
@@ -12,8 +13,7 @@ class ViewEntregaVehiculo extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            \Filament\Actions\EditAction::make(),
-            \Filament\Actions\DeleteAction::make(),
+            //
         ];
     }
 }

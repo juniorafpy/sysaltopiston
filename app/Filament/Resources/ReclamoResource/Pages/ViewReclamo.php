@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ReclamoResource\Pages;
 
 use App\Filament\Resources\ReclamoResource;
+use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewReclamo extends ViewRecord
@@ -11,6 +12,9 @@ class ViewReclamo extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            Actions\EditAction::make(),
+            Actions\DeleteAction::make(),
+        ];
     }
 }

@@ -8,15 +8,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListReclamos extends ListRecords
 {
-    protected static ?string $title = 'Listado Reclamos';
     protected static string $resource = ReclamoResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
-                ->label('Crear Reclamo')
-                ->createAnother(false),
+            Actions\CreateAction::make(),
         ];
     }
 }

@@ -7,24 +7,26 @@ use Throwable;
 
 class Handler extends ExceptionHandler
 {
-    /**
-     * The list of the inputs that are never flashed to the session on validation exceptions.
-     *
-     * @var array<int, string>
-     */
     protected $dontFlash = [
         'current_password',
         'password',
         'password_confirmation',
     ];
 
-    /**
-     * Register the exception handling callbacks for the application.
-     */
     public function register(): void
     {
         $this->reportable(function (Throwable $e) {
             //
         });
+    }
+
+    protected function prepareJsonResponse($request, Throwable $e)
+    {
+        return new \Illuminate\Http\JsonResponse(
+            $this->convertExceptionToArray($e),
+            $this->isHttpException($e) ? $e->getStatusCode() : 500,
+            $this->isHttpException($e) ? $e->getHeaders() : [],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+        );
     }
 }

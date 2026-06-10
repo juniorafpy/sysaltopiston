@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DiagnosticoPdfController;
+use App\Http\Controllers\EntregaPdfController;
 use App\Http\Controllers\PedidoCompraReporteController;
 use App\Http\Controllers\ProveedorPdfController;
 use App\Http\Controllers\RecepcionPdfController;
@@ -120,4 +121,9 @@ Route::get('/api/facturas-pendientes/{codCliente}', [FacturasPendientesControlle
 // PDF Manual de usuario
 Route::get('/pdf/manual-usuario/pedido-compra', [App\Http\Controllers\PdfManualController::class, 'pedidoCompra'])
     ->name('pdf.manual-usuario.pedido-compra')
+    ->middleware(['auth']);
+
+// PDF de comprobante de entrega de vehiculo
+Route::get('/entrega-vehiculo/{entrega}/pdf', [EntregaPdfController::class, 'show'])
+    ->name('entrega-vehiculo.pdf')
     ->middleware(['auth']);

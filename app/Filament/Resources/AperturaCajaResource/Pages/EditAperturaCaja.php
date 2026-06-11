@@ -21,12 +21,19 @@ class EditAperturaCaja extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if ($this->record->estado === 'Abierta' && isset($data['fecha_cierre'])) {
+        if ($this->record->estado === 'Abierta' && isset($data['efectivo_real'])) {
+            $totalFisico = (float)($data['efectivo_real'] ?? 0) 
+                + (float)($data['tarjetas_real'] ?? 0) 
+                + (float)($data['transferencias_real'] ?? 0) 
+                + (float)($data['cheques_real'] ?? 0);
+            
+            $saldoEsperado = $this->record->saldo_esperado_calculado;
+            
             $data['estado'] = 'Cerrada';
             $data['fecha_cierre'] = now()->toDateString();
             $data['hora_cierre'] = now()->toTimeString();
-            $data['saldo_esperado'] = $this->record->saldo_esperado_calculado;
-            $data['diferencia'] = 0;
+            $data['saldo_esperado'] = $saldoEsperado;
+            $data['diferencia'] = $totalFisico - $saldoEsperado;
             $data['usuario_mod'] = Auth::id();
             $data['fecha_mod'] = now();
         }

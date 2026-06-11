@@ -86,40 +86,116 @@ class AperturaCajaResource extends Resource
                 ->collapsible()
                 ->collapsed(fn (?AperturaCaja $record) => $record !== null),
 
-            Forms\Components\Section::make('Cierre de Caja')
+            Forms\Components\Section::make('Resumen de Caja')
                 ->schema([
-                    Forms\Components\Actions::make([
-                        Forms\Components\Actions\Action::make('generar_cierre')
-                            ->label('Generar Cierre')
-                            ->icon('heroicon-o-calculator')
-                            ->color('primary')
-                            ->action(function (AperturaCaja $record, Forms\Set $set) {
-                                $set('fecha_cierre', now()->toDateString());
-                                $set('saldo_esperado', $record->saldo_esperado_calculado);
-                                $set('diferencia', 0);
-                            })
-                            ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
-                    ]),
-
-                    Forms\Components\Grid::make(3)->schema([
-                        Forms\Components\DatePicker::make('fecha_cierre')
-                            ->label('Fecha Cierre')
-                            ->disabled()
-                            ->dehydrated()
-                            ->displayFormat('d/m/Y'),
-
-                        Forms\Components\TextInput::make('saldo_esperado')
-                            ->label('Saldo Esperado')
+                    Forms\Components\Grid::make(4)->schema([
+                        Forms\Components\TextInput::make('monto_inicial')
+                            ->label('Monto Inicial')
                             ->disabled()
                             ->dehydrated()
                             ->suffix('Gs.'),
+
+                        Forms\Components\TextInput::make('total_ingresos')
+                            ->label('Total Ingresos')
+                            ->default(fn (AperturaCaja $record) => $record->total_ingresos)
+                            ->disabled()
+                            ->suffix('Gs.'),
+
+                        Forms\Components\TextInput::make('total_egresos')
+                            ->label('Total Egresos')
+                            ->default(fn (AperturaCaja $record) => $record->total_egresos)
+                            ->disabled()
+                            ->suffix('Gs.'),
+
+                        Forms\Components\TextInput::make('saldo_esperado')
+                            ->label('Saldo Esperado (Sistema)')
+                            ->default(fn (AperturaCaja $record) => $record->saldo_esperado_calculado)
+                            ->disabled()
+                            ->suffix('Gs.')
+                            ->extraAttributes(['style' => 'font-weight: bold; color: #2563eb;']),
+                    ]),
+                ])
+                ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
+
+            Forms\Components\Section::make('Arqueo de Caja - Conteo Físico')
+                ->description('Ingrese los montos contados físicamente')
+                ->schema([
+                    Forms\Components\Grid::make(3)->schema([
+                        Forms\Components\TextInput::make('efectivo_real')
+                            ->label('Efectivo')
+                            ->numeric()
+                            ->default(0)
+                            ->suffix('Gs.')
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
+                                $total = (float)$state + (float)($get('tarjetas_real') ?? 0) + (float)($get('transferencias_real') ?? 0) + (float)($get('cheques_real') ?? 0);
+                                $set('total_fisico', $total);
+                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
+                            }),
+
+                        Forms\Components\TextInput::make('tarjetas_real')
+                            ->label('Tarjetas')
+                            ->numeric()
+                            ->default(0)
+                            ->suffix('Gs.')
+                            ->live()
+                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
+                                $total = (float)($get('efectivo_real') ?? 0) + (float)$state + (float)($get('transferencias_real') ?? 0) + (float)($get('cheques_real') ?? 0);
+                                $set('total_fisico', $total);
+                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
+                            }),
+
+                        Forms\Components\TextInput::make('transferencias_real')
+                            ->label('Transferencias')
+                            ->numeric()
+                            ->default(0)
+                            ->suffix('Gs.')
+                            ->live()
+                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
+                                $total = (float)($get('efectivo_real') ?? 0) + (float)($get('tarjetas_real') ?? 0) + (float)$state + (float)($get('cheques_real') ?? 0);
+                                $set('total_fisico', $total);
+                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
+                            }),
+
+                        Forms\Components\TextInput::make('cheques_real')
+                            ->label('Cheques')
+                            ->numeric()
+                            ->default(0)
+                            ->suffix('Gs.')
+                            ->live()
+                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
+                                $total = (float)($get('efectivo_real') ?? 0) + (float)($get('tarjetas_real') ?? 0) + (float)($get('transferencias_real') ?? 0) + (float)$state;
+                                $set('total_fisico', $total);
+                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
+                            }),
+
+                        Forms\Components\TextInput::make('total_fisico')
+                            ->label('Total Físico')
+                            ->numeric()
+                            ->default(0)
+                            ->suffix('Gs.')
+                            ->disabled()
+                            ->dehydrated()
+                            ->extraAttributes(['style' => 'font-weight: bold; color: #059669;']),
 
                         Forms\Components\TextInput::make('diferencia')
                             ->label('Diferencia')
+                            ->numeric()
+                            ->default(0)
+                            ->suffix('Gs.')
                             ->disabled()
-                            ->dehydrated()
-                            ->suffix('Gs.'),
+                            ->extraInputAttributes(fn ($state) => [
+                                'style' => $state > 0 
+                                    ? 'color: #059669; font-weight: bold;' 
+                                    : ($state < 0 ? 'color: #dc2626; font-weight: bold;' : 'color: #6b7280;'),
+                            ]),
                     ]),
+
+                    Forms\Components\Textarea::make('observaciones_cierre')
+                        ->label('Observaciones del Cierre')
+                        ->rows(2)
+                        ->columnSpanFull(),
                 ])
                 ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
         ]);

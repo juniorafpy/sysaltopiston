@@ -127,3 +127,8 @@ Route::get('/pdf/manual-usuario/pedido-compra', [App\Http\Controllers\PdfManualC
 Route::get('/entrega-vehiculo/{entrega}/pdf', [EntregaPdfController::class, 'show'])
     ->name('entrega-vehiculo.pdf')
     ->middleware(['auth']);
+
+// PDF de arqueo de caja
+Route::get('/apertura-caja/{apertura}/pdf', [\App\Http\Controllers\ArqueoPdfController::class, 'show'])
+    ->name('apertura-caja.pdf')
+    ->middleware(['auth']);

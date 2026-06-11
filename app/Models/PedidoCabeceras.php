@@ -28,6 +28,11 @@ class PedidoCabeceras extends Model
         'estado'
     ];
 
+    protected $casts = [
+        'fec_pedido' => 'date',
+        'fec_alta' => 'datetime',
+    ];
+
     protected static function booted(): void
     {
         // Esto se ejecuta JUSTO ANTES de que se cree un nuevo registro

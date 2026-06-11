@@ -18,6 +18,13 @@ class ViewAperturaCaja extends ViewRecord
                 ->icon('heroicon-o-lock-closed')
                 ->color('danger')
                 ->visible(fn () => $this->record->estado === 'Abierta'),
+            Actions\Action::make('imprimir_arqueo')
+                ->label('Imprimir Arqueo')
+                ->icon('heroicon-o-printer')
+                ->color('primary')
+                ->url(fn () => route('apertura-caja.pdf', $this->record))
+                ->openUrlInNewTab()
+                ->visible(fn () => true),
         ];
     }
 }

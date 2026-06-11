@@ -33,6 +33,12 @@ class OrdenCompraCabecera extends Model
        'fec_alta'
     ]; //campos para visualizar
 
+    protected $casts = [
+        'fec_orden' => 'date',
+        'fec_entrega' => 'date',
+        'fec_alta' => 'datetime',
+    ];
+
      public function ordenCompraDetalles()
 {
     return $this->hasMany(OrdenCompraDetalle::class, 'nro_orden_compra', 'nro_orden_compra');

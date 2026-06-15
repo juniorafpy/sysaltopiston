@@ -26,14 +26,11 @@ class NotaCreditoDebitoCompra extends Model
         'observacion',
         'usuario_alta',
         'fecha_alta',
-        'usuario_mod',
-        'fecha_mod',
     ];
 
     protected $casts = [
         'fec_comprobante' => 'date',
         'fecha_alta' => 'datetime',
-        'fecha_mod' => 'datetime',
     ];
 
     /**

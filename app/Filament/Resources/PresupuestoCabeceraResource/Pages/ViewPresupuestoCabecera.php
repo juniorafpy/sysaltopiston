@@ -14,6 +14,12 @@ class ViewPresupuestoCabecera extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('manual')
+                ->label('Manual de Usuario')
+                ->icon('heroicon-o-book-open')
+                ->color('gray')
+                ->url(fn () => route('pdf.manual-usuario.presupuesto-compra'))
+                ->openUrlInNewTab(),
             Actions\EditAction::make()
                 ->label('Editar')
                 ->icon('heroicon-m-pencil-square'),

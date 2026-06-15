@@ -16,9 +16,16 @@ class EditPresupuestoCabecera extends EditRecord
         return $this->getResource()::getUrl('index');
     }
 
-     protected function getHeaderActions(): array
+    protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            \Filament\Actions\Action::make('manual')
+                ->label('Manual de Usuario')
+                ->icon('heroicon-o-book-open')
+                ->color('gray')
+                ->url(fn () => route('pdf.manual-usuario.presupuesto-compra'))
+                ->openUrlInNewTab(),
+        ];
     }
 
     protected function mutateFormDataBeforeFill(array $data): array

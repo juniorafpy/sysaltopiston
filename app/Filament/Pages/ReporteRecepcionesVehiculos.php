@@ -19,4 +19,6 @@ class ReporteRecepcionesVehiculos extends Page
     protected static ?string $slug = 'reporte-recepciones-vehiculos';
 
     protected static string $view = 'filament.pages.reporte-recepciones-vehiculos';
+
+    protected static bool $shouldRegisterNavigation = false;
 }

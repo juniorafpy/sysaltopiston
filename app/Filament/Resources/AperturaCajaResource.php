@@ -20,7 +20,7 @@ class AperturaCajaResource extends Resource
     protected static ?string $navigationLabel = 'Apertura de Caja';
     protected static ?string $modelLabel = 'Apertura de Caja';
     protected static ?string $pluralModelLabel = 'Aperturas de Caja';
-    protected static ?string $navigationGroup = 'Ventas';
+    protected static ?string $navigationGroup = 'Gestión Ventas';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
@@ -97,19 +97,19 @@ class AperturaCajaResource extends Resource
 
                         Forms\Components\TextInput::make('total_ingresos')
                             ->label('Total Ingresos')
-                            ->default(fn (AperturaCaja $record) => $record->total_ingresos)
+                            ->default(fn (?AperturaCaja $record) => $record?->total_ingresos ?? 0)
                             ->disabled()
                             ->suffix('Gs.'),
 
                         Forms\Components\TextInput::make('total_egresos')
                             ->label('Total Egresos')
-                            ->default(fn (AperturaCaja $record) => $record->total_egresos)
+                            ->default(fn (?AperturaCaja $record) => $record?->total_egresos ?? 0)
                             ->disabled()
                             ->suffix('Gs.'),
 
                         Forms\Components\TextInput::make('saldo_esperado')
                             ->label('Saldo Esperado (Sistema)')
-                            ->default(fn (AperturaCaja $record) => $record->saldo_esperado_calculado)
+                            ->default(fn (?AperturaCaja $record) => $record?->saldo_esperado_calculado ?? 0)
                             ->disabled()
                             ->suffix('Gs.')
                             ->extraAttributes(['style' => 'font-weight: bold; color: #2563eb;']),
@@ -254,7 +254,7 @@ class AperturaCajaResource extends Resource
                     ->label('Cerrar')
                     ->icon('heroicon-o-lock-closed')
                     ->color('danger')
-                    ->visible(fn (AperturaCaja $record) => $record->estado === 'Abierta'),
+                    ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
             ])
             ->defaultSort('fecha_apertura', 'desc');
     }

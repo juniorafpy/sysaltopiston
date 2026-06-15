@@ -20,7 +20,7 @@ class AjusteResource extends Resource
     protected static ?string $model = AjusteCabecera::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
-    protected static ?string $navigationGroup = 'Gestión Compras';
+     protected static ?string $navigationGroup = 'Gestión de Compra';
     protected static ?string $navigationLabel = 'Ajuste de Stock';
     protected static ?string $modelLabel = 'Ajuste';
     protected static ?string $pluralModelLabel = 'Ajustes de Stock';

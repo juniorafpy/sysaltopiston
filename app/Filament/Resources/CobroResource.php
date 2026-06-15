@@ -27,7 +27,7 @@ class CobroResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Cobros';
-    protected static ?string $navigationGroup = 'Ventas';
+    protected static ?string $navigationGroup = 'Gestión Ventas';
     protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form

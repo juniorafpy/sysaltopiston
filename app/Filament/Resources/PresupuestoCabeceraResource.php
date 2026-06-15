@@ -31,7 +31,7 @@ class PresupuestoCabeceraResource extends Resource
     protected static ?string $model = PresupuestoCabecera::class;
 
 
-    protected static ?string $navigationGroup = 'Gestión Compras';
+     protected static ?string $navigationGroup = 'Gestión de Compra';
     protected static ?string $navigationLabel = 'Presupuesto Compra';
 
     protected static ?string $title = 'Presupuesto Compra';

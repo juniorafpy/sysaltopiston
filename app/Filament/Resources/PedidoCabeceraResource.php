@@ -39,7 +39,7 @@ class PedidoCabeceraResource extends Resource
     protected static ?string $model = PedidoCabeceras::class;
   //  protected static ?string $model = PedidoCabecera::class;
 
-    protected static ?string $navigationGroup = 'Gestión Compras';
+     protected static ?string $navigationGroup = 'Gestión de Compra';
     protected static ?string $navigationLabel = 'Pedido de Compra';
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?int $navigationSort = 1;

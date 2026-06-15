@@ -1,0 +1,71 @@
+# Production Dockerfile for Laravel + Filament + Nginx
+# Optimizado para DigitalOcean App Platform
+
+FROM php:8.2-fpm-alpine
+
+# Instalar dependencias del sistema
+RUN apk add --no-cache \
+    git \
+    curl \
+    nginx \
+    supervisor \
+    libpng-dev \
+    oniguruma-dev \
+    libxml2-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    libpq-dev \
+    postgresql-client \
+    nodejs \
+    npm \
+    netcat-openbsd
+
+# Instalar extensiones de PHP
+RUN docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip
+
+# Instalar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Configurar PHP
+COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
+
+# Configurar Nginx
+COPY docker/nginx/prod.conf /etc/nginx/conf.d/default.conf
+RUN rm -f /etc/nginx/conf.d/default.conf.bak
+
+# Configurar Supervisor
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Entrypoint
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Directorio de trabajo
+WORKDIR /var/www
+
+# Copiar archivos del proyecto
+COPY --chown=www-data:www-data . /var/www
+
+# Instalar dependencias de PHP
+RUN cd /var/www && \
+    composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+# Instalar dependencias de Node y compilar assets
+RUN cd /var/www && \
+    npm install && \
+    npm run build && \
+    rm -rf node_modules
+
+# Permisos
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/public
+RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
+# Limpiar
+RUN rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
+
+# Exponer puerto
+EXPOSE 80
+
+# Entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

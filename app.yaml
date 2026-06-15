@@ -1,0 +1,139 @@
+# DigitalOcean App Platform Spec
+# Este archivo define la app para deployar en DigitalOcean App Platform
+# 
+# Uso:
+# 1. Crear una cuenta en DigitalOcean
+# 2. Ir a Apps -> Create App -> Docker Hub / Container Registry
+# 3. Subir este archivo como spec o usar doctl:
+#    doctl apps create --spec app.yaml
+#
+# O usar GitHub Actions para CI/CD automático
+
+name: altopiston-app
+region: nyc  # Podes cambiar a sfo, fra, sgp, blr, syd, etc.
+
+services:
+  - name: web
+    # Docker Hub - primero hace build local y push:
+    # docker build -f Dockerfile.prod -t tudockeruser/altopiston:latest .
+    # docker push tudockeruser/altopiston:latest
+    image:
+      registry_type: DOCR  # DigitalOcean Container Registry
+      repository: altopiston
+      tag: latest
+    
+    # O usar Docker Hub:
+    # image:
+    #   registry_type: DOCKER_HUB
+    #   registry: tudockeruser
+    #   repository: altopiston
+    #   tag: latest
+    
+    # O usar GitHub (build en DO):
+    # github:
+    #   repo: tuusuario/sysaltopiston
+    #   branch: main
+    #   deploy_on_push: true
+    
+    http_port: 80
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb  # 1 CPU, 1GB RAM ($5/mes)
+    # instance_size_slug: apps-s-1vcpu-2gb  # 1 CPU, 2GB RAM ($12/mes)
+    
+    health_check:
+      http_path: /health
+      port: 80
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    
+    envs:
+      - key: APP_NAME
+        value: AltoPiston
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        value: https://${APP_DOMAIN}  # Se reemplaza automaticamente
+      
+      # Base de datos - Managed PostgreSQL en DigitalOcean
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        value: ${db.HOSTNAME}  # Se reemplaza con la DB de DO
+      - key: DB_PORT
+        value: ${db.PORT}
+      - key: DB_DATABASE
+        value: ${db.DATABASE}
+      - key: DB_USERNAME
+        value: ${db.USERNAME}
+      - key: DB_PASSWORD
+        value: ${db.PASSWORD}
+      
+      # Redis - Managed Redis en DigitalOcean
+      - key: REDIS_HOST
+        value: ${redis.HOSTNAME}
+      - key: REDIS_PORT
+        value: ${redis.PORT}
+      - key: REDIS_PASSWORD
+        value: ${redis.PASSWORD}
+      
+      # Cache y Session
+      - key: CACHE_DRIVER
+        value: redis
+      - key: SESSION_DRIVER
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      
+      # Mail
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp.mailgun.org
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@altopiston.com
+      - key: MAIL_FROM_NAME
+        value: AltoPiston
+      
+      # Filament
+      - key: FILAMENT_PATH
+        value: admin
+    
+    # Rutas
+    routes:
+      - path: /
+    
+    # Volumen para storage persistente
+    # Nota: DigitalOcean App Platform no soporta volúmenes persistentes
+    # Para archivos subidos, usar Spaces (S3 compatible) o DB
+    
+# Managed Database PostgreSQL (se crea automaticamente)
+databases:
+  - name: db
+    engine: PG
+    version: "15"
+    size: db-s-dev-database  # $15/mes - plan dev
+    # size: db-s-1vcpu-1gb   # $15/mes - plan basic
+    num_nodes: 1
+    
+# Managed Redis
+  - name: redis
+    engine: REDIS
+    version: "7"
+    size: db-s-dev-database  # $15/mes
+    num_nodes: 1
+
+# Dominio
+# domains:
+#   - domain: altopiston.com
+#     type: PRIMARY
+#     zone: altopiston.com
+#     minimum_tls_version: "1.2"

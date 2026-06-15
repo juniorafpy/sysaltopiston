@@ -1,0 +1,57 @@
+# Laravel & Filament
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Docker
+.docker
+docker-compose.override.yml
+Dockerfile.prod
+app.yaml
+
+# IDE
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# Git
+.git
+.gitignore
+.gitattributes
+README.md
+CHANGELOG.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Laravel
+vendor
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+storage/logs/*
+storage/app/public/*
+bootstrap/cache/*
+
+# Testing
+phpunit.xml
+.phpunit.result.cache
+tests
+coverage
+
+# Environment (se inyecta en runtime)
+.env
+.env.backup
+.env.production
+
+# Build artifacts
+public/build/hot
+public/hot
+
+# Misc
+*.log
+*.sql
+*.sqlite

@@ -30,7 +30,7 @@ class NotaResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Notas de Crédito/Débito';
 
-    protected static ?string $navigationGroup = 'Ventas';
+    protected static ?string $navigationGroup = 'Gestión Ventas';
 
     protected static ?int $navigationSort = 4;
 
@@ -557,7 +557,7 @@ class NotaResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('fecha_alta', 'desc');
     }
 
     public static function getRelations(): array

@@ -25,6 +25,8 @@ class RegistrarCobro extends Page implements HasForms
     protected static ?string $navigationGroup = 'Ventas';
     protected static ?int $navigationSort = 5;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public array $data = [];
 
     public function mount(): void

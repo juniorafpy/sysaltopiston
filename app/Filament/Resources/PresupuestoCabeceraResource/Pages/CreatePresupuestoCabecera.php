@@ -165,9 +165,19 @@ class CreatePresupuestoCabecera extends CreateRecord
 protected function getFormActions(): array{
     return [
         $this->getCreateFormAction()->label('Guardar'),
-
-
         $this->getCancelFormAction()->color('danger'),
+    ];
+}
+
+protected function getHeaderActions(): array
+{
+    return [
+        \Filament\Actions\Action::make('manual')
+            ->label('Manual de Usuario')
+            ->icon('heroicon-o-book-open')
+            ->color('gray')
+            ->url(fn () => route('pdf.manual-usuario.presupuesto-compra'))
+            ->openUrlInNewTab(),
     ];
 }
 

@@ -28,6 +28,16 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Health check para Docker / DigitalOcean App Platform
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'app' => config('app.name'),
+        'env' => config('app.env'),
+        'time' => now()->toDateTimeString(),
+    ]);
+});
+
 // PDF de diagnóstico
 Route::get('/diagnosticos/{record}/pdf', [DiagnosticoPdfController::class, 'imprimir'])
     ->name('diagnosticos.pdf');
@@ -123,6 +133,10 @@ Route::get('/pdf/manual-usuario/pedido-compra', [App\Http\Controllers\PdfManualC
     ->name('pdf.manual-usuario.pedido-compra')
     ->middleware(['auth']);
 
+Route::get('/pdf/manual-usuario/presupuesto-compra', [App\Http\Controllers\PdfManualController::class, 'presupuestoCompra'])
+    ->name('pdf.manual-usuario.presupuesto-compra')
+    ->middleware(['auth']);
+
 // PDF de comprobante de entrega de vehiculo
 Route::get('/entrega-vehiculo/{entrega}/pdf', [EntregaPdfController::class, 'show'])
     ->name('entrega-vehiculo.pdf')
@@ -131,4 +145,31 @@ Route::get('/entrega-vehiculo/{entrega}/pdf', [EntregaPdfController::class, 'sho
 // PDF de arqueo de caja
 Route::get('/apertura-caja/{apertura}/pdf', [\App\Http\Controllers\ArqueoPdfController::class, 'show'])
     ->name('apertura-caja.pdf')
+    ->middleware(['auth']);
+
+// Reportes de Servicios - PDF y Excel
+Route::get('/reportes/servicios/pdf', [\App\Http\Controllers\ReporteServiciosController::class, 'pdf'])
+    ->name('reportes.servicios.pdf')
+    ->middleware(['auth']);
+
+Route::get('/reportes/servicios/excel', [\App\Http\Controllers\ReporteServiciosController::class, 'excel'])
+    ->name('reportes.servicios.excel')
+    ->middleware(['auth']);
+
+// Reportes de Ventas - PDF y Excel
+Route::get('/reportes/ventas/pdf', [\App\Http\Controllers\ReporteVentasController::class, 'pdf'])
+    ->name('reportes.ventas.pdf')
+    ->middleware(['auth']);
+
+Route::get('/reportes/ventas/excel', [\App\Http\Controllers\ReporteVentasController::class, 'excel'])
+    ->name('reportes.ventas.excel')
+    ->middleware(['auth']);
+
+// Reportes de Compras - PDF y Excel
+Route::get('/reportes/compras/pdf', [\App\Http\Controllers\ReporteComprasController::class, 'pdf'])
+    ->name('reportes.compras.pdf')
+    ->middleware(['auth']);
+
+Route::get('/reportes/compras/excel', [\App\Http\Controllers\ReporteComprasController::class, 'excel'])
+    ->name('reportes.compras.excel')
     ->middleware(['auth']);

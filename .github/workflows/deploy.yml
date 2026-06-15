@@ -1,0 +1,57 @@
+name: Build and Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ main, production ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+    
+    - name: Log in to DigitalOcean Container Registry
+      run: doctl registry login
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.prod
+        push: true
+        tags: |
+          registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/altopiston:latest
+          registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/altopiston:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    # Opcional: Deploy directo a App Platform
+    # - name: Deploy to App Platform
+    #   run: |
+    #     doctl apps update ${{ secrets.DO_APP_ID }} --spec app.yaml
+    
+    # Opcional: Deploy a Droplet via SSH
+    # - name: Deploy to Droplet
+    #   uses: appleboy/ssh-action@v1.0.0
+    #   with:
+    #     host: ${{ secrets.DROPLET_IP }}
+    #     username: root
+    #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+    #     script: |
+    #       cd /var/www/altopiston
+    #       docker-compose -f docker-compose.prod.yml pull
+    #       docker-compose -f docker-compose.prod.yml up -d
+    #       docker-compose -f docker-compose.prod.yml exec app php artisan migrate --force
+    #       docker-compose -f docker-compose.prod.yml exec app php artisan optimize
+    #       docker image prune -f

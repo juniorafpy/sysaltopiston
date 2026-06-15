@@ -19,4 +19,6 @@ class AyudaCompras extends Page
     protected static ?string $slug = 'ayuda-compras';
 
     protected static string $view = 'filament.pages.ayuda-compras';
+
+    protected static bool $shouldRegisterNavigation = false;
 }

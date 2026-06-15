@@ -1,0 +1,119 @@
+version: '3.8'
+
+# Docker Compose para producción en DigitalOcean Droplet
+# Uso: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: sysalto-piston:latest
+    container_name: sysalto_piston_app
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      APP_NAME: "AltoPiston"
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_URL: https://tudominio.com
+      
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: sysalto_db
+      DB_USERNAME: sysalto_user
+      DB_PASSWORD: ${DB_PASSWORD:-sysalto_password}
+      
+      BROADCAST_DRIVER: log
+      CACHE_DRIVER: redis
+      FILESYSTEM_DISK: local
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      SESSION_LIFETIME: 120
+      
+      REDIS_HOST: redis
+      REDIS_PASSWORD: null
+      REDIS_PORT: 6379
+      
+      MAIL_MAILER: smtp
+      MAIL_HOST: ${MAIL_HOST:-smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_ENCRYPTION: ${MAIL_ENCRYPTION:-tls}
+      MAIL_FROM_ADDRESS: "noreply@altopiston.com"
+      MAIL_FROM_NAME: "AltoPiston"
+      
+      # Filament
+      FILAMENT_PATH: admin
+    volumes:
+      - app_storage:/var/www/storage/app
+      - app_logs:/var/www/storage/logs
+    networks:
+      - sysalto_net
+    depends_on:
+      - db
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: postgres:15-alpine
+    container_name: sysalto_piston_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sysalto_db
+      POSTGRES_USER: sysalto_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sysalto_password}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - sysalto_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sysalto_user -d sysalto_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sysalto_piston_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - sysalto_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Opcional: phpMyAdmin-like para PostgreSQL (Adminer)
+  # adminer:
+  #   image: adminer:latest
+  #   container_name: sysalto_piston_adminer
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - sysalto_net
+  #   depends_on:
+  #     - db
+
+volumes:
+  db_data:
+  redis_data:
+  app_storage:
+  app_logs:
+
+networks:
+  sysalto_net:
+    driver: bridge

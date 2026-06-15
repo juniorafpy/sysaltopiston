@@ -40,7 +40,7 @@ class GuiaRemisionResource extends Resource
     protected static ?string $model = GuiaRemisionCabecera::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
-    protected static ?string $navigationGroup = 'Gestión Compras';
+     protected static ?string $navigationGroup = 'Gestión de Compra';
     protected static ?string $navigationLabel = 'Nota de Remisión';
 
     protected static ?int $navigationSort = 5;
@@ -480,6 +480,70 @@ class GuiaRemisionResource extends Resource
                 ])
                 ->columns(1),
 
+            Section::make('Datos del Transporte y Traslado')
+                ->description('Información del vehículo, chofer y puntos de traslado')
+                ->schema([
+                    Grid::make(3)->schema([
+                        TextInput::make('marca_vehiculo')
+                            ->label('Marca del Vehículo')
+                            ->placeholder('Ej: Toyota, Ford, Mercedes-Benz')
+                            ->maxLength(100),
+
+                        TextInput::make('matricula_vehiculo')
+                            ->label('Matrícula / Chapa')
+                            ->placeholder('Ej: ABC 1234')
+                            ->maxLength(20),
+
+                        TextInput::make('nombre_chofer')
+                            ->label('Nombre del Chofer')
+                            ->placeholder('Nombre completo del conductor')
+                            ->maxLength(150),
+                    ]),
+
+                    Grid::make(3)->schema([
+                        TextInput::make('documento_chofer')
+                            ->label('Documento del Chofer')
+                            ->placeholder('RUC o Cédula')
+                            ->maxLength(30),
+
+                        TextInput::make('telefono_chofer')
+                            ->label('Teléfono del Chofer')
+                            ->placeholder('Ej: 0981 123456')
+                            ->maxLength(30),
+
+                        Select::make('motivo_traslado')
+                            ->label('Motivo del Traslado')
+                            ->options([
+                                'Compra' => 'Compra',
+                                'Venta' => 'Venta',
+                                'Consignación' => 'Consignación',
+                                'Transferencia' => 'Transferencia',
+                                'Devolución' => 'Devolución',
+                                'Importación' => 'Importación',
+                                'Exportación' => 'Exportación',
+                                'Otros' => 'Otros',
+                            ])
+                            ->native(false)
+                            ->placeholder('Seleccione un motivo'),
+                    ]),
+
+                    Grid::make(2)->schema([
+                        TextInput::make('punto_partida')
+                            ->label('Punto de Partida / Origen')
+                            ->placeholder('Dirección de origen de la mercadería')
+                            ->maxLength(200)
+                            ->columnSpan(1),
+
+                        TextInput::make('punto_llegada')
+                            ->label('Punto de Llegada / Destino')
+                            ->placeholder('Dirección de destino de la mercadería')
+                            ->maxLength(200)
+                            ->columnSpan(1),
+                    ]),
+                ])
+                ->columns(1)
+                ->collapsible(),
+
             Section::make('Ítems a Recibir')->schema([
                 Repeater::make('detalles')
                     ->label('')
@@ -678,6 +742,36 @@ class GuiaRemisionResource extends Resource
                     ])
                     ->columns(3),
 
+                InfoSection::make('Datos del Transporte y Traslado')
+                    ->schema([
+                        TextEntry::make('marca_vehiculo')
+                            ->label('Marca del Vehículo')
+                            ->default('Sin especificar'),
+                        TextEntry::make('matricula_vehiculo')
+                            ->label('Matrícula / Chapa')
+                            ->default('Sin especificar'),
+                        TextEntry::make('nombre_chofer')
+                            ->label('Nombre del Chofer')
+                            ->default('Sin especificar'),
+                        TextEntry::make('documento_chofer')
+                            ->label('Documento del Chofer')
+                            ->default('Sin especificar'),
+                        TextEntry::make('telefono_chofer')
+                            ->label('Teléfono del Chofer')
+                            ->default('Sin especificar'),
+                        TextEntry::make('motivo_traslado')
+                            ->label('Motivo del Traslado')
+                            ->default('Sin especificar'),
+                        TextEntry::make('punto_partida')
+                            ->label('Punto de Partida')
+                            ->default('Sin especificar'),
+                        TextEntry::make('punto_llegada')
+                            ->label('Punto de Llegada')
+                            ->default('Sin especificar'),
+                    ])
+                    ->columns(4)
+                    ->visible(fn ($record) => $record->marca_vehiculo || $record->matricula_vehiculo || $record->nombre_chofer || $record->motivo_traslado),
+
                 InfoSection::make('Detalles de Artículos Recibidos')
                     ->schema([
                         RepeatableEntry::make('detalles')
@@ -748,6 +842,22 @@ class GuiaRemisionResource extends Resource
 
                 Tables\Columns\TextColumn::make('sucursal.descripcion')
                     ->label('Sucursal Destino'),
+
+                Tables\Columns\TextColumn::make('marca_vehiculo')
+                    ->label('Marca Vehículo')
+                    ->toggleable()
+                    ->placeholder('—'),
+
+                Tables\Columns\TextColumn::make('matricula_vehiculo')
+                    ->label('Matrícula')
+                    ->toggleable()
+                    ->placeholder('—'),
+
+                Tables\Columns\TextColumn::make('nombre_chofer')
+                    ->label('Chofer')
+                    ->toggleable()
+                    ->placeholder('—')
+                    ->limit(25),
 
                 Tables\Columns\TextColumn::make('fecha_remision')
                     ->label('Fecha')

@@ -25,7 +25,7 @@ class PromocionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Promociones';
 
-    protected static ?string $navigationGroup = 'Ventas';
+    protected static ?string $navigationGroup = 'Gestión Ventas';
 
     protected static ?int $navigationSort = 4;
 

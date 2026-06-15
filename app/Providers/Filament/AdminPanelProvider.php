@@ -53,27 +53,31 @@ class AdminPanelProvider extends PanelProvider
                 Widgets\AccountWidget::class,
              //   Widgets\FilamentInfoWidget::class,
             ])
+            ->sidebarCollapsibleOnDesktop()
+            ->collapsibleNavigationGroups()
             ->navigationGroups([
                 NavigationGroup::make()
                     ->label('Principal')
-                    ->icon('heroicon-o-home'),
+                    ->icon('heroicon-o-home')
+                    ->collapsed(true),
                 NavigationGroup::make()
-                    ->label('Referenciales'),
+                    ->label('Referenciales')
+                    ->collapsed(true),
                 NavigationGroup::make()
-                    ->label('Referenciales/Servicios'),
+                    ->label('Referenciales/Servicios')
+                    ->collapsed(true),
                 NavigationGroup::make()
-                    ->label('Referenciales/Ventas'),
+                    ->label('Referenciales/Ventas')
+                    ->collapsed(true),
                 NavigationGroup::make()
-                    ->label('Gestión Compras'),
+                    ->label('Gestión de Compra')
+                    ->collapsed(true),
                 NavigationGroup::make()
-                    ->label('Gestión Servicios'),
+                    ->label('Gestión Servicios')
+                    ->collapsed(true),
                 NavigationGroup::make()
-                    ->label('Ventas'),
-                NavigationGroup::make()
-                    ->label('Informes'),
-                NavigationGroup::make()
-                    ->label('Ayuda'),
-
+                    ->label('Gestión Ventas')
+                    ->collapsed(true),
             ])
             ->renderHook('panels::head.start', fn() => '<link rel="stylesheet" href="'.asset('css/filament-admin.css').'">')
             ->renderHook('panels::body.end', function () {

@@ -34,6 +34,14 @@ class GuiaRemisionCabecera extends Model
         //'fec_mod',
         'estado',
         'observacion',
+        'marca_vehiculo',
+        'matricula_vehiculo',
+        'nombre_chofer',
+        'documento_chofer',
+        'telefono_chofer',
+        'motivo_traslado',
+        'punto_partida',
+        'punto_llegada',
     ];
 
     public function compraCabecera(): BelongsTo

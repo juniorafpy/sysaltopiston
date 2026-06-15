@@ -28,7 +28,7 @@ class ReportesCompras extends Page implements HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
     protected static ?string $navigationLabel = 'Reportes';
-    protected static ?string $navigationGroup = 'Compras';
+     protected static ?string $navigationGroup = 'Gestión de Compra';
     protected static ?string $title = 'Reportes de Compras';
     protected static ?int $navigationSort = 99;
     protected static string $view = 'filament.pages.reportes-compras';

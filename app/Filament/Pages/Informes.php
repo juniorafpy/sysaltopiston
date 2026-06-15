@@ -27,6 +27,8 @@ class Informes extends Page implements HasForms
     protected static ?string $slug = 'informes';
     protected static string $view = 'filament.pages.informes';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public ?array $data = [];
 
     public function mount(): void

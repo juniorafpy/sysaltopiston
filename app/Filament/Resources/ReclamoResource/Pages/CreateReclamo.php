@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ReclamoResource\Pages;
 use App\Filament\Resources\ReclamoResource;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Notifications\Notification;
 
 class CreateReclamo extends CreateRecord
 {
@@ -28,14 +29,41 @@ class CreateReclamo extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['usuario_alta'] = auth()->user()?->id;
+        $user = auth()->user();
+        
+        // Guardar el nombre del usuario (consistente con otros módulos)
+        $data['usuario_alta'] = $user?->name ?? 'Sistema';
         $data['fecha_alta'] = now();
         
-        // Eliminar campos virtuales
+        // Sucursal: si viene del formulario (OS), ok; si no, usar la del usuario
+        if (empty($data['cod_sucursal']) && $user?->cod_sucursal) {
+            $data['cod_sucursal'] = $user->cod_sucursal;
+        }
+        
+        // Eliminar campos virtuales que no existen en la tabla
         unset($data['cliente_nombre']);
         unset($data['cliente_documento']);
         unset($data['vehiculo_info']);
         
         return $data;
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
+    protected function getCreatedNotification(): ?Notification
+    {
+        return null;
+    }
+
+    protected function afterCreate(): void
+    {
+        Notification::make()
+            ->title('Reclamo registrado exitosamente')
+            ->body('El reclamo ha sido guardado correctamente.')
+            ->success()
+            ->send();
     }
 }

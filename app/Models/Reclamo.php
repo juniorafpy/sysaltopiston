@@ -22,6 +22,11 @@ class Reclamo extends Model
         'fecha_reclamo',
         'prioridad',
         'descripcion',
+        'estado',
+        'responsable',
+        'fecha_resolucion',
+        'accion_tomada',
+        'resolucion',
         'cod_sucursal',
         'usuario_alta',
         'fecha_alta',
@@ -34,7 +39,7 @@ class Reclamo extends Model
 
     public function cliente(): BelongsTo
     {
-        return $this->belongsTo(Personas::class, 'cod_cliente', 'cod_persona');
+        return $this->belongsTo(Cliente::class, 'cod_cliente', 'cod_cliente');
     }
 
     public function ordenServicio(): BelongsTo
@@ -54,7 +59,7 @@ class Reclamo extends Model
 
     public function usuarioAlta(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'usuario_alta', 'id');
+        return $this->belongsTo(User::class, 'usuario_alta', 'name');
     }
 
     public function getVehiculoAttribute()

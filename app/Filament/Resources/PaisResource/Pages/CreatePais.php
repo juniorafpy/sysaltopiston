@@ -12,6 +12,18 @@ class CreatePais extends CreateRecord
 {
     protected static string $resource = PaisResource::class;
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('manual')
+                ->label('Manual de Usuario')
+                ->icon('heroicon-o-book-open')
+                ->color('info')
+                ->url(route('pdf.manual-usuario.pais'))
+                ->openUrlInNewTab(),
+        ];
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['usuario_alta'] = Auth::user()->name;

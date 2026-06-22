@@ -13,6 +13,7 @@ class Caja extends Model
 
     protected $table = 'cajas';
     protected $primaryKey = 'cod_caja';
+    public $timestamps = false;
 
     protected $fillable = [
         'descripcion',

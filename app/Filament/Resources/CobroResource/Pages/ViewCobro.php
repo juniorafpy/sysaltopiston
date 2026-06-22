@@ -96,7 +96,7 @@ class ViewCobro extends ViewRecord
 
                 Infolists\Components\Section::make('Información de Registro')
                     ->schema([
-                        Infolists\Components\TextEntry::make('usuario.name')
+                        Infolists\Components\TextEntry::make('usuario_alta')
                             ->label('Registrado por'),
                         Infolists\Components\TextEntry::make('created_at')
                             ->label('Fecha de Registro')

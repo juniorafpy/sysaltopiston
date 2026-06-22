@@ -75,6 +75,7 @@ class OrdenServicioResource extends Resource
 
                                 $presupuesto = PresupuestoVenta::with([
                                     'detalles.articulo',
+                                    'diagnostico.mecanico.empleado.persona',
                                     'diagnostico.recepcionVehiculo.mecanico.empleado.persona',
                                     'cliente.persona',
                                     'recepcionVehiculo.mecanico.empleado.persona'
@@ -96,21 +97,28 @@ class OrdenServicioResource extends Resource
                                         $set('cliente_nombre_valor', 'Sin cliente');
                                     }
 
-                                    // Obtener mecánico: primero intenta recepcionVehiculo directo, luego desde diagnostico
-                                    $recepcion = $presupuesto->recepcionVehiculo ?? $presupuesto->diagnostico?->recepcionVehiculo;
+                                    // Obtener mecánico: primero del diagnóstico (donde se asigna realmente), luego recepción
+                                    $mecanico = null;
+                                    if ($presupuesto->diagnostico?->cod_mecanico) {
+                                        $mecanico = $presupuesto->diagnostico->mecanico;
+                                    }
+                                    if (!$mecanico && $presupuesto->recepcionVehiculo?->cod_mecanico) {
+                                        $mecanico = $presupuesto->recepcionVehiculo->mecanico;
+                                    }
+                                    if (!$mecanico && $presupuesto->diagnostico?->recepcionVehiculo?->cod_mecanico) {
+                                        $mecanico = $presupuesto->diagnostico->recepcionVehiculo->mecanico;
+                                    }
 
-                                    if ($recepcion?->cod_mecanico) {
-                                        $set('cod_mecanico', $recepcion->cod_mecanico);
-
-                                        // Obtener nombre del mecánico: mecanico -> empleado -> persona
-                                        if ($recepcion->mecanico?->empleado?->persona) {
-                                            $mecanicoPersona = $recepcion->mecanico->empleado->persona;
-                                            $nombreMecanico = ($mecanicoPersona->nombres ?? '') . ' ' . ($mecanicoPersona->apellidos ?? '');
+                                    if ($mecanico) {
+                                        $set('cod_mecanico', $mecanico->cod_mecanico);
+                                        if ($mecanico->empleado?->persona) {
+                                            $nombreMecanico = ($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? '');
                                             $set('mecanico_nombre_valor', trim($nombreMecanico));
                                         } else {
-                                            $set('mecanico_nombre_valor', 'Sin nombre');
+                                            $set('mecanico_nombre_valor', 'Mecánico #' . $mecanico->cod_mecanico);
                                         }
                                     } else {
+                                        $set('cod_mecanico', null);
                                         $set('mecanico_nombre_valor', 'Sin asignar');
                                     }
 
@@ -163,23 +171,31 @@ class OrdenServicioResource extends Resource
                             ->content(fn (callable $get) => 'Diag. #' . ($get('diagnostico_id') ?? 'N/A'))
                             ->columnSpan(1),
 
-                        Forms\Components\Placeholder::make('mecanico_nombre')
+                        Forms\Components\Select::make('cod_mecanico')
                             ->label('Mecánico')
-                            ->content(function (callable $get, ?OrdenServicio $record) {
-                                $nombreDesdeEstado = trim((string) ($get('mecanico_nombre_valor') ?? ''));
-                                if ($nombreDesdeEstado !== '') {
-                                    return $nombreDesdeEstado;
+                            ->relationship('mecanicoAsignado', 'cod_empleado')
+                            ->options(function () {
+                                return \App\Models\Mecanico::with('empleado.persona')
+                                    ->where('estado', 'A')
+                                    ->get()
+                                    ->mapWithKeys(function ($mecanico) {
+                                        $nombre = $mecanico->empleado?->persona
+                                            ? trim(($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? ''))
+                                            : 'Mecánico #' . $mecanico->cod_mecanico;
+                                        return [$mecanico->cod_mecanico => $nombre];
+                                    });
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $mecanico = \App\Models\Mecanico::with('empleado.persona')->find($state);
+                                    if ($mecanico?->empleado?->persona) {
+                                        $nombre = trim(($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? ''));
+                                        $set('mecanico_nombre_valor', $nombre);
+                                    }
                                 }
-
-                                $mecanicoPersona = $record?->mecanicoAsignado?->persona
-                                    ?? $record?->presupuestoVenta?->recepcionVehiculo?->mecanico?->empleado?->persona
-                                    ?? $record?->presupuestoVenta?->diagnostico?->recepcionVehiculo?->mecanico?->empleado?->persona;
-
-                                if ($mecanicoPersona) {
-                                    return trim(($mecanicoPersona->nombres ?? '') . ' ' . ($mecanicoPersona->apellidos ?? ''));
-                                }
-
-                                return 'Sin asignar';
                             })
                             ->columnSpan(1),
 
@@ -194,9 +210,6 @@ class OrdenServicioResource extends Resource
                             ->columnSpan(1),
 
                         Forms\Components\Hidden::make('cod_cliente')
-                            ->dehydrated(),
-
-                        Forms\Components\Hidden::make('cod_mecanico')
                             ->dehydrated(),
 
                         Forms\Components\Hidden::make('cliente_nombre_valor'),
@@ -383,12 +396,22 @@ class OrdenServicioResource extends Resource
                 Tables\Columns\TextColumn::make('mecanico_completo')
                     ->label('Mecánico')
                     ->getStateUsing(function (OrdenServicio $record): string {
-                        $mecanicoPersona = $record->mecanicoAsignado?->persona
-                            ?? $record->presupuestoVenta?->recepcionVehiculo?->mecanico?->empleado?->persona
-                            ?? $record->presupuestoVenta?->diagnostico?->recepcionVehiculo?->mecanico?->empleado?->persona;
+                        $mecanico = null;
+                        if ($record->cod_mecanico) {
+                            $mecanico = $record->mecanicoAsignado;
+                        }
+                        if (!$mecanico && $record->presupuestoVenta?->diagnostico?->cod_mecanico) {
+                            $mecanico = $record->presupuestoVenta->diagnostico->mecanico;
+                        }
+                        if (!$mecanico && $record->presupuestoVenta?->recepcionVehiculo?->cod_mecanico) {
+                            $mecanico = $record->presupuestoVenta->recepcionVehiculo->mecanico;
+                        }
+                        if (!$mecanico && $record->presupuestoVenta?->diagnostico?->recepcionVehiculo?->cod_mecanico) {
+                            $mecanico = $record->presupuestoVenta->diagnostico->recepcionVehiculo->mecanico;
+                        }
 
-                        if ($mecanicoPersona) {
-                            $nombre = trim(($mecanicoPersona->nombres ?? '') . ' ' . ($mecanicoPersona->apellidos ?? ''));
+                        if ($mecanico?->empleado?->persona) {
+                            $nombre = trim(($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? ''));
                             if ($nombre !== '') {
                                 return $nombre;
                             }

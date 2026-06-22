@@ -439,6 +439,14 @@ class PresupuestoVentaResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('imprimir')
+                        ->label('Imprimir PDF')
+                        ->icon('heroicon-o-printer')
+                        ->color('info')
+                        ->visible(fn (PresupuestoVenta $record): bool => $record->estado !== 'Aprobado')
+                        ->url(fn (PresupuestoVenta $record) => route('presupuestos-venta.pdf', $record))
+                        ->openUrlInNewTab(),
+
                     Tables\Actions\Action::make('approve')
                         ->label('Aprobar')
                         ->icon('heroicon-o-check-circle')

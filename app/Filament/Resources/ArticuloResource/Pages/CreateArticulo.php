@@ -3,12 +3,25 @@
 namespace App\Filament\Resources\ArticuloResource\Pages;
 
 use App\Filament\Resources\ArticuloResource;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateArticulo extends CreateRecord
 {
     protected static string $resource = ArticuloResource::class;
     protected static bool $canCreateAnother = false;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('manual')
+                ->label('Manual de Usuario')
+                ->icon('heroicon-o-book-open')
+                ->color('info')
+                ->url(route('pdf.manual-usuario.articulo'))
+                ->openUrlInNewTab(),
+        ];
+    }
 
     protected function getFormActions(): array
     {

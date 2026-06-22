@@ -86,6 +86,11 @@ Route::get('/presupuestos/{presupuesto}/pdf', [PresupuestoPdfController::class, 
     ->name('presupuestos.pdf')
     ->middleware(['auth']);
 
+// PDF de presupuesto de venta
+Route::get('/presupuestos-venta/{presupuesto}/pdf', [PresupuestoPdfController::class, 'imprimirVenta'])
+    ->name('presupuestos-venta.pdf')
+    ->middleware(['auth']);
+
 // Manual de usuario del módulo Compras (PDF)
 Route::get('/ayuda/compras/manual.pdf', function (Request $request) {
     $rutaManual = base_path('MANUAL_USUARIO_MODULO_COMPRAS.md');
@@ -135,6 +140,27 @@ Route::get('/pdf/manual-usuario/pedido-compra', [App\Http\Controllers\PdfManualC
 
 Route::get('/pdf/manual-usuario/presupuesto-compra', [App\Http\Controllers\PdfManualController::class, 'presupuestoCompra'])
     ->name('pdf.manual-usuario.presupuesto-compra')
+    ->middleware(['auth']);
+
+// Manuales de usuario - Referenciales
+Route::get('/pdf/manual-usuario/pais', [App\Http\Controllers\PdfManualController::class, 'pais'])
+    ->name('pdf.manual-usuario.pais')
+    ->middleware(['auth']);
+
+Route::get('/pdf/manual-usuario/proveedor', [App\Http\Controllers\PdfManualController::class, 'proveedor'])
+    ->name('pdf.manual-usuario.proveedor')
+    ->middleware(['auth']);
+
+Route::get('/pdf/manual-usuario/marca', [App\Http\Controllers\PdfManualController::class, 'marca'])
+    ->name('pdf.manual-usuario.marca')
+    ->middleware(['auth']);
+
+Route::get('/pdf/manual-usuario/modelo', [App\Http\Controllers\PdfManualController::class, 'modelo'])
+    ->name('pdf.manual-usuario.modelo')
+    ->middleware(['auth']);
+
+Route::get('/pdf/manual-usuario/articulo', [App\Http\Controllers\PdfManualController::class, 'articulo'])
+    ->name('pdf.manual-usuario.articulo')
     ->middleware(['auth']);
 
 // PDF de comprobante de entrega de vehiculo

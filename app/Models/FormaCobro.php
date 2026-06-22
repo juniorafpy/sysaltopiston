@@ -14,5 +14,8 @@ class FormaCobro extends Model
     protected $fillable = [
         'cod_forma_cobro',
         'descripcion',
+        'estado',
+        'usuario_alta',
+        'fec_alta',
     ];
 }

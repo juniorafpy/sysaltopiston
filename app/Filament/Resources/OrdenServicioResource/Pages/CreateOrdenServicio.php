@@ -109,10 +109,15 @@ class CreateOrdenServicio extends CreateRecord
                 $data['recepcion_vehiculo_id'] = $presupuesto->recepcion_vehiculo_id;
                 $data['cod_cliente'] = $presupuesto->cod_cliente;
 
-                // Obtener mecánico desde recepción
-                $recepcion = $presupuesto->recepcionVehiculo ?? $presupuesto->diagnostico?->recepcionVehiculo;
-                if ($recepcion?->cod_mecanico) {
-                    $data['cod_mecanico'] = $recepcion->cod_mecanico;
+                // Obtener mecánico: primero del diagnóstico, luego de recepción
+                if (!empty($data['cod_mecanico'])) {
+                    // El usuario ya seleccionó un mecánico en el formulario, respetarlo
+                } elseif ($presupuesto->diagnostico?->cod_mecanico) {
+                    $data['cod_mecanico'] = $presupuesto->diagnostico->cod_mecanico;
+                } elseif ($presupuesto->recepcionVehiculo?->cod_mecanico) {
+                    $data['cod_mecanico'] = $presupuesto->recepcionVehiculo->cod_mecanico;
+                } elseif ($presupuesto->diagnostico?->recepcionVehiculo?->cod_mecanico) {
+                    $data['cod_mecanico'] = $presupuesto->diagnostico->recepcionVehiculo->cod_mecanico;
                 }
 
                 // Total del presupuesto

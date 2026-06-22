@@ -2,30 +2,30 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\TipoServicioResource\Pages;
-use App\Models\TipoServicio;
+use App\Filament\Resources\CajaResource\Pages;
+use App\Models\Caja;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class TipoServicioResource extends Resource
+class CajaResource extends Resource
 {
-    protected static ?string $model = TipoServicio::class;
+    protected static ?string $model = Caja::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
-    protected static ?string $navigationGroup = 'Referenciales/Servicios';
-    protected static ?string $navigationLabel = 'Tipo Servicio';
-    protected static ?string $modelLabel = 'Tipo Servicio';
-    protected static ?string $pluralModelLabel = 'Tipos de Servicio';
-    protected static ?int $navigationSort = 11;
+    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
+    protected static ?string $navigationGroup = 'Referenciales/Ventas';
+    protected static ?string $navigationLabel = 'Cajas';
+    protected static ?string $modelLabel = 'Caja';
+    protected static ?string $pluralModelLabel = 'Cajas';
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Datos del Tipo de Servicio')
+                Forms\Components\Section::make('Datos de la Caja')
                     ->schema([
                         Forms\Components\TextInput::make('descripcion')
                             ->label('Descripción')
@@ -34,25 +34,37 @@ class TipoServicioResource extends Resource
                             ->dehydrateStateUsing(fn ($state) => strtoupper($state))
                             ->afterStateUpdated(fn ($state, callable $set) => $set('descripcion', strtoupper($state))),
 
-                        Forms\Components\Toggle::make('estado')
-                            ->label('Estado')
+                        Forms\Components\Select::make('cod_sucursal')
+                            ->label('Sucursal')
+                            ->relationship('sucursal', 'descripcion')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+
+                        Forms\Components\TextInput::make('punto_expedicion')
+                            ->label('Punto de Expedición')
+                            ->required()
+                            ->maxLength(10),
+
+                        Forms\Components\Toggle::make('activo')
+                            ->label('Activo')
                             ->default(true)
-                            ->formatStateUsing(fn ($state) => $state === 'A')
-                            ->dehydrateStateUsing(fn ($state) => $state ? 'A' : 'I'),
+                            ->formatStateUsing(fn ($state) => $state === true || $state === 1 || $state === '1')
+                            ->dehydrateStateUsing(fn ($state) => $state ? 1 : 0),
 
                         Forms\Components\Grid::make(2)->schema([
                             Forms\Components\TextInput::make('usuario_alta')
                                 ->label('Usuario de Registro')
                                 ->default(fn () => auth()->user()->name)
                                 ->disabled()
-                                ->dehydrated()
+                                ->dehydrated(false)
                                 ->columnSpan(1),
 
-                            Forms\Components\DatePicker::make('fec_alta')
+                            Forms\Components\DatePicker::make('fecha_alta')
                                 ->label('Fecha de Registro')
                                 ->default(now())
                                 ->disabled()
-                                ->dehydrated()
+                                ->dehydrated(false)
                                 ->displayFormat('d/m/Y')
                                 ->columnSpan(1),
                         ]),
@@ -64,7 +76,7 @@ class TipoServicioResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('cod_tipo_servicio')
+                Tables\Columns\TextColumn::make('cod_caja')
                     ->label('Código')
                     ->sortable()
                     ->searchable(),
@@ -72,20 +84,22 @@ class TipoServicioResource extends Resource
                     ->label('Descripción')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('estado')
-                    ->label('Estado')
-                    ->badge()
-                    ->formatStateUsing(fn ($state) => $state === 'A' ? 'Activo' : 'Inactivo')
-                    ->colors([
-                        'success' => 'A',
-                        'danger' => 'I',
-                    ]),
+                Tables\Columns\TextColumn::make('sucursal.descripcion')
+                    ->label('Sucursal')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('punto_expedicion')
+                    ->label('Punto Expedición')
+                    ->searchable(),
+                Tables\Columns\IconColumn::make('activo')
+                    ->label('Activo')
+                    ->boolean(),
                 Tables\Columns\TextColumn::make('usuario_alta')
                     ->label('Usuario Alta'),
-                Tables\Columns\TextColumn::make('fec_alta')
+                Tables\Columns\TextColumn::make('fecha_alta')
                     ->label('Fecha Alta')
                     ->dateTime()
-                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d/m/Y')),
+                    ->formatStateUsing(fn($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : '—'),
             ])
             ->filters([
                 //
@@ -96,19 +110,19 @@ class TipoServicioResource extends Resource
                     ->modalSubmitActionLabel('Guardar')
                     ->successNotificationTitle(null)
                     ->before(function (array $data, \Filament\Actions\StaticAction $action, $record) {
-                        $existe = TipoServicio::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
-                            ->where('cod_tipo_servicio', '!=', $record->cod_tipo_servicio)
+                        $existe = Caja::whereRaw('UPPER(TRIM(descripcion)) = ?', [strtoupper(trim($data['descripcion']))])
+                            ->where('cod_caja', '!=', $record->cod_caja)
                             ->exists();
                         if ($existe) {
-                            $action->getLivewire()->dispatch('swal:error', message: 'El tipo de servicio ya está registrado.');
+                            $action->getLivewire()->dispatch('swal:error', message: 'La caja ya está registrada.');
                             $action->halt();
                         }
                     })
                     ->after(function ($record, $livewire) {
-                        $livewire->dispatch('swal:success', message: 'Tipo de servicio actualizado exitosamente.');
+                        $livewire->dispatch('swal:success', message: 'Caja actualizada exitosamente.');
                     }),
             ])
-            ->defaultSort('descripcion', 'asc');
+            ->defaultSort('cod_caja', 'desc');
     }
 
     public static function getRelations(): array
@@ -121,7 +135,7 @@ class TipoServicioResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListTipoServicios::route('/'),
+            'index' => Pages\ManageCajas::route('/'),
         ];
     }
 }

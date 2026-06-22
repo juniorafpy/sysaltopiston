@@ -18,6 +18,7 @@ class Timbrado extends Model
     protected $fillable = [
         'numero_timbrado',
         'tipo_comprobante',
+        'cod_sucursal',
         'fecha_inicio_vigencia',
         'fecha_fin_vigencia',
         'numero_inicial',
@@ -25,7 +26,12 @@ class Timbrado extends Model
         'numero_actual',
         'establecimiento',
         'punto_expedicion',
-        'activo'
+        'activo',
+        'usuario_alta',
+        'fecha_alta',
+        'usuario_mod',
+        'fecha_mod',
+        'fec_alta',
     ];
 
     protected $casts = [
@@ -33,6 +39,22 @@ class Timbrado extends Model
         'fecha_fin_vigencia' => 'date',
         'activo' => 'boolean'
     ];
+
+    /**
+     * Relación con sucursal
+     */
+    public function sucursal()
+    {
+        return $this->belongsTo(Sucursal::class, 'cod_sucursal', 'cod_sucursal');
+    }
+
+    /**
+     * Relación con tipo comprobante
+     */
+    public function tipoComprobante()
+    {
+        return $this->belongsTo(TipoComprobante::class, 'tipo_comprobante', 'tipo_comprobante');
+    }
 
     /**
      * Relación con facturas

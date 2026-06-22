@@ -3,18 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\AperturaCaja;
+use App\Models\ArqueoCaja;
 use Illuminate\Http\Request;
 
 class ArqueoPdfController extends Controller
 {
     public function show(AperturaCaja $apertura)
     {
-        $apertura->load([
-            'caja',
-            'sucursal',
-            'movimientos.usuarioAlta',
-            'cobros.cliente',
-        ]);
+        $apertura->load(['caja', 'sucursal', 'movimientos', 'cobros.cliente']);
+        $arqueo = ArqueoCaja::where('cod_apertura', $apertura->cod_apertura)->first();
 
         $usuario = auth()->user()?->name ?? 'Sistema';
         $gs = fn($val) => number_format((float)$val, 0, ',', '.') . ' Gs.';
@@ -27,9 +24,7 @@ class ArqueoPdfController extends Controller
         $totalIngresos = $ingresos->sum('monto');
         $totalEgresos = $egresos->sum('monto');
         $saldoEsperado = $apertura->monto_inicial + $totalIngresos - $totalEgresos;
-        $diferencia = $apertura->diferencia ?? 0;
 
-        // Movimientos table
         $movimientosHtml = '';
         foreach ($apertura->movimientos as $mov) {
             $movimientosHtml .= '<tr>
@@ -37,30 +32,80 @@ class ArqueoPdfController extends Controller
                 <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $safe($mov->tipo_movimiento) . '</td>
                 <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $safe($mov->concepto) . '</td>
                 <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($mov->monto) . '</td>
-                <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $safe($mov->descripcion) . '</td>
             </tr>';
         }
         if ($apertura->movimientos->isEmpty()) {
-            $movimientosHtml = '<tr><td colspan="5" style="padding:4px;font-size:7pt;text-align:center;color:#6b7280;">Sin movimientos</td></tr>';
+            $movimientosHtml = '<tr><td colspan="4" style="padding:4px;font-size:7pt;text-align:center;color:#6b7280;">Sin movimientos</td></tr>';
         }
 
-        // Cobros table
         $cobrosHtml = '';
         foreach ($apertura->cobros as $cobro) {
             $cobrosHtml .= '<tr>
                 <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $cobro->cod_cobro . '</td>
                 <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $fecha($cobro->fecha_cobro) . '</td>
-                <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $safe($cobro->cliente?->nombre_completo ?? $cobro->cliente?->persona?->nombre_completo) . '</td>
+                <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $safe($cobro->cliente?->nombre_completo) . '</td>
                 <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($cobro->monto_total) . '</td>
-                <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . $safe($cobro->estado) . '</td>
+                <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">' . ($cobro->estado === 'A' ? 'Anulado' : 'Confirmado') . '</td>
             </tr>';
         }
         if ($apertura->cobros->isEmpty()) {
             $cobrosHtml = '<tr><td colspan="5" style="padding:4px;font-size:7pt;text-align:center;color:#6b7280;">Sin cobros</td></tr>';
         }
 
-        $diferenciaColor = $diferencia > 0 ? '#059669' : ($diferencia < 0 ? '#dc2626' : '#6b7280');
-        $diferenciaTexto = $diferencia > 0 ? 'SOBRANTE' : ($diferencia < 0 ? 'FALTANTE' : 'CUADRE');
+        $arqueoHtml = '';
+        if ($arqueo) {
+            $diferenciaColor = (float)$arqueo->diferencia > 0 ? '#059669' : ((float)$arqueo->diferencia < 0 ? '#dc2626' : '#6b7280');
+            $diferenciaTexto = (float)$arqueo->diferencia > 0 ? 'SOBRANTE' : ((float)$arqueo->diferencia < 0 ? 'FALTANTE' : 'CUADRE');
+
+            $arqueoHtml = '
+<div class="titulo">Arqueo de Caja - Comparación Sistema vs Físico</div>
+<table class="tabla">
+    <thead>
+        <tr>
+            <th>Forma de Pago</th>
+            <th style="text-align:right">Sistema (Gs.)</th>
+            <th style="text-align:right">Físico (Gs.)</th>
+            <th style="text-align:right">Diferencia (Gs.)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Efectivo</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->efectivo_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->efectivo_fisico) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema) . '</td>
+        </tr>
+        <tr>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Tarjetas</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->tarjetas_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->tarjetas_fisico) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema) . '</td>
+        </tr>
+        <tr>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Transferencias</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->transferencias_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->transferencias_fisico) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema) . '</td>
+        </tr>
+        <tr>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Cheques</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->cheques_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->cheques_fisico) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema) . '</td>
+        </tr>
+        <tr class="total">
+            <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;font-weight:bold;background:#f3f4f6;">TOTAL</td>
+            <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#f3f4f6;">' . $gs($arqueo->total_sistema) . '</td>
+            <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#f3f4f6;">' . $gs($arqueo->total_fisico) . '</td>
+            <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#e5e7eb;color:' . $diferenciaColor . ';">' . $gs($arqueo->diferencia) . ' (' . $diferenciaTexto . ')</td>
+        </tr>
+    </tbody>
+</table>
+<p style="font-size:7pt;margin-top:4px;"><strong>Observaciones:</strong> ' . $safe($arqueo->observaciones) . '</p>
+<p style="font-size:7pt;"><strong>Arqueo realizado por:</strong> ' . $safe($arqueo->usuario_alta) . ' - ' . $fecha($arqueo->fecha_alta) . '</p>';
+        } else {
+            $arqueoHtml = '<div class="titulo">Arqueo de Caja</div><p style="font-size:7pt;color:#6b7280;">No se ha registrado un arqueo detallado para esta caja.</p>';
+        }
 
         $html = '<!DOCTYPE html>
 <html lang="es">
@@ -115,53 +160,23 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#000;line-heig
 
 <div class="titulo">Resumen de Caja</div>
 <table class="resumen">
-    <tr>
-        <td class="lbl">Monto Inicial</td>
-        <td class="val">' . $gs($apertura->monto_inicial) . '</td>
-    </tr>
-    <tr>
-        <td class="lbl">Total Ingresos</td>
-        <td class="val" style="color:#059669;">' . $gs($totalIngresos) . '</td>
-    </tr>
-    <tr>
-        <td class="lbl">Total Egresos</td>
-        <td class="val" style="color:#dc2626;">' . $gs($totalEgresos) . '</td>
-    </tr>
-    <tr>
-        <td class="lbl">Saldo Esperado</td>
-        <td class="val">' . $gs($saldoEsperado) . '</td>
-    </tr>
-    <tr>
-        <td class="lbl" style="background:#e5e7eb;">DIFERENCIA (' . $diferenciaTexto . ')</td>
-        <td class="val" style="background:#e5e7eb;color:' . $diferenciaColor . ';">' . $gs($diferencia) . '</td>
-    </tr>
+    <tr><td class="lbl">Monto Inicial</td><td class="val">' . $gs($apertura->monto_inicial) . '</td></tr>
+    <tr><td class="lbl">Total Ingresos</td><td class="val" style="color:#059669;">' . $gs($totalIngresos) . '</td></tr>
+    <tr><td class="lbl">Total Egresos</td><td class="val" style="color:#dc2626;">' . $gs($totalEgresos) . '</td></tr>
+    <tr><td class="lbl">Saldo Esperado</td><td class="val">' . $gs($saldoEsperado) . '</td></tr>
 </table>
+
+' . $arqueoHtml . '
 
 <div class="titulo">Movimientos de Caja</div>
 <table class="tabla">
-    <thead>
-        <tr>
-            <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Concepto</th>
-            <th style="text-align:right">Monto</th>
-            <th>Descripcion</th>
-        </tr>
-    </thead>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th style="text-align:right">Monto</th></tr></thead>
     <tbody>' . $movimientosHtml . '</tbody>
 </table>
 
 <div class="titulo">Cobros Registrados</div>
 <table class="tabla">
-    <thead>
-        <tr>
-            <th>Nro</th>
-            <th>Fecha</th>
-            <th>Cliente</th>
-            <th style="text-align:right">Monto</th>
-            <th>Estado</th>
-        </tr>
-    </thead>
+    <thead><tr><th>Nro</th><th>Fecha</th><th>Cliente</th><th style="text-align:right">Monto</th><th>Estado</th></tr></thead>
     <tbody>' . $cobrosHtml . '</tbody>
 </table>
 

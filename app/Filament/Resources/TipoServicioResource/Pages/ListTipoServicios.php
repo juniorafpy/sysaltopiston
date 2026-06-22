@@ -11,6 +11,11 @@ class ListTipoServicios extends ListRecords
 {
     protected static string $resource = TipoServicioResource::class;
 
+    public function getHeading(): string
+    {
+        return 'Lista Tipo de servicio';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -27,7 +32,7 @@ class ListTipoServicios extends ListRecords
                     }
                 })
                 ->after(function () {
-                    $this->dispatch('swal:success', message: 'Tipo de servicio registrado exitosamente.');
+                    $this->dispatch('swal:success', message: 'Registrado con exito');
                 }),
         ];
     }

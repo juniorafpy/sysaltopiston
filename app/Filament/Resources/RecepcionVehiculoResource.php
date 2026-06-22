@@ -257,8 +257,6 @@ class RecepcionVehiculoResource extends Resource
                     ->label('Fecha Recepción')
                     ->dateTime('d/m/Y H:i:s')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('estado')
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('tipoServicio.descripcion')
                     ->label('Tipo de Servicio')
                     ->searchable()
@@ -277,6 +275,7 @@ class RecepcionVehiculoResource extends Resource
                         return 'warning';
                     }),
             ])
+            ->defaultSort('id', 'desc')
             ->filters([
                 //
             ])

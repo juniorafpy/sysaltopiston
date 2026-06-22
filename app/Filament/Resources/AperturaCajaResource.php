@@ -4,9 +4,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AperturaCajaResource\Pages;
 use App\Models\AperturaCaja;
+use App\Models\ArqueoCaja;
 use App\Models\Caja;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -58,14 +60,16 @@ class AperturaCajaResource extends Resource
                             ->label('Fecha de Apertura')
                             ->default(now())
                             ->required()
-                            ->disabled(fn (?AperturaCaja $record) => $record !== null)
+                            ->disabled()
+                            ->dehydrated()
                             ->displayFormat('d/m/Y'),
 
                         Forms\Components\TimePicker::make('hora_apertura')
                             ->label('Hora de Apertura')
                             ->default(now())
                             ->required()
-                            ->disabled(fn (?AperturaCaja $record) => $record !== null)
+                            ->disabled()
+                            ->dehydrated()
                             ->seconds(false),
 
                         Forms\Components\TextInput::make('monto_inicial')
@@ -93,6 +97,11 @@ class AperturaCajaResource extends Resource
                             ->label('Monto Inicial')
                             ->disabled()
                             ->dehydrated()
+                            ->numeric(
+        decimalPlaces: 0,
+        decimalSeparator: ',',
+        thousandsSeparator: '.'
+    )
                             ->suffix('Gs.'),
 
                         Forms\Components\TextInput::make('total_ingresos')
@@ -117,85 +126,44 @@ class AperturaCajaResource extends Resource
                 ])
                 ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
 
-            Forms\Components\Section::make('Arqueo de Caja - Conteo Físico')
-                ->description('Ingrese los montos contados físicamente')
+            Forms\Components\Section::make('Totales del Sistema')
+                ->description('Montos calculados automáticamente desde los cobros registrados')
                 ->schema([
                     Forms\Components\Grid::make(3)->schema([
-                        Forms\Components\TextInput::make('efectivo_real')
+                        Forms\Components\Placeholder::make('efectivo_sistema')
                             ->label('Efectivo')
-                            ->numeric()
-                            ->default(0)
-                            ->suffix('Gs.')
-                            ->required()
-                            ->live()
-                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
-                                $total = (float)$state + (float)($get('tarjetas_real') ?? 0) + (float)($get('transferencias_real') ?? 0) + (float)($get('cheques_real') ?? 0);
-                                $set('total_fisico', $total);
-                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
-                            }),
+                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                                ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                                ->where('cobros_formas_pago.cod_forma_cobro', 1)
+                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
 
-                        Forms\Components\TextInput::make('tarjetas_real')
+                        Forms\Components\Placeholder::make('tarjetas_sistema')
                             ->label('Tarjetas')
-                            ->numeric()
-                            ->default(0)
-                            ->suffix('Gs.')
-                            ->live()
-                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
-                                $total = (float)($get('efectivo_real') ?? 0) + (float)$state + (float)($get('transferencias_real') ?? 0) + (float)($get('cheques_real') ?? 0);
-                                $set('total_fisico', $total);
-                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
-                            }),
+                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                                ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                                ->whereIn('cobros_formas_pago.cod_forma_cobro', [2, 3])
+                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
 
-                        Forms\Components\TextInput::make('transferencias_real')
+                        Forms\Components\Placeholder::make('transferencias_sistema')
                             ->label('Transferencias')
-                            ->numeric()
-                            ->default(0)
-                            ->suffix('Gs.')
-                            ->live()
-                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
-                                $total = (float)($get('efectivo_real') ?? 0) + (float)($get('tarjetas_real') ?? 0) + (float)$state + (float)($get('cheques_real') ?? 0);
-                                $set('total_fisico', $total);
-                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
-                            }),
+                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                                ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                                ->where('cobros_formas_pago.cod_forma_cobro', 4)
+                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
 
-                        Forms\Components\TextInput::make('cheques_real')
+                        Forms\Components\Placeholder::make('cheques_sistema')
                             ->label('Cheques')
-                            ->numeric()
-                            ->default(0)
-                            ->suffix('Gs.')
-                            ->live()
-                            ->afterStateUpdated(function (Forms\Set $set, $state, $get) {
-                                $total = (float)($get('efectivo_real') ?? 0) + (float)($get('tarjetas_real') ?? 0) + (float)($get('transferencias_real') ?? 0) + (float)$state;
-                                $set('total_fisico', $total);
-                                $set('diferencia', $total - (float)($get('saldo_esperado') ?? 0));
-                            }),
+                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                                ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                                ->where('cobros_formas_pago.cod_forma_cobro', 5)
+                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
 
-                        Forms\Components\TextInput::make('total_fisico')
-                            ->label('Total Físico')
-                            ->numeric()
-                            ->default(0)
-                            ->suffix('Gs.')
-                            ->disabled()
-                            ->dehydrated()
-                            ->extraAttributes(['style' => 'font-weight: bold; color: #059669;']),
-
-                        Forms\Components\TextInput::make('diferencia')
-                            ->label('Diferencia')
-                            ->numeric()
-                            ->default(0)
-                            ->suffix('Gs.')
-                            ->disabled()
-                            ->extraInputAttributes(fn ($state) => [
-                                'style' => $state > 0 
-                                    ? 'color: #059669; font-weight: bold;' 
-                                    : ($state < 0 ? 'color: #dc2626; font-weight: bold;' : 'color: #6b7280;'),
-                            ]),
+                        Forms\Components\Placeholder::make('total_sistema')
+                            ->label('Total Sistema')
+                            ->content(fn (?AperturaCaja $record) => new \Illuminate\Support\HtmlString(
+                                '<span style="font-weight: bold; color: #2563eb;">Gs. ' . number_format($record?->total_ingresos ?? 0, 0, ',', '.') . '</span>'
+                            )),
                     ]),
-
-                    Forms\Components\Textarea::make('observaciones_cierre')
-                        ->label('Observaciones del Cierre')
-                        ->rows(2)
-                        ->columnSpanFull(),
                 ])
                 ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
         ]);
@@ -236,10 +204,7 @@ class AperturaCajaResource extends Resource
                         'success' => 'Cerrada',
                         'warning' => 'Abierta',
                     ]),
-                Tables\Columns\TextColumn::make('saldo_esperado')
-                    ->label('Saldo Esperado')
-                    ->money('PYG', divideBy: 1)
-                    ->sortable(),
+            
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('estado')
@@ -249,12 +214,254 @@ class AperturaCajaResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make()
+                Tables\Actions\Action::make('cerrar')
                     ->label('Cerrar')
                     ->icon('heroicon-o-lock-closed')
                     ->color('danger')
-                    ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
+                    ->visible(fn (AperturaCaja $record): bool => $record->estado === 'Abierta')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cerrar Caja')
+                    ->modalDescription('Confirme el cierre de caja. Se registrará el arqueo con los datos actuales.')
+                    ->modalSubmitActionLabel('Cerrar Caja')
+                    ->action(function (AperturaCaja $record) {
+                        $efectivo = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->where('cobros_formas_pago.cod_forma_cobro', 1)
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $tarjetas = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->whereIn('cobros_formas_pago.cod_forma_cobro', [2, 3])
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $transferencias = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->where('cobros_formas_pago.cod_forma_cobro', 4)
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $cheques = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->where('cobros_formas_pago.cod_forma_cobro', 5)
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $totalSistema = $efectivo + $tarjetas + $transferencias + $cheques;
+
+                        $record->update([
+                            'estado' => 'Cerrada',
+                            'fecha_cierre' => now()->toDateString(),
+                            'hora_cierre' => now()->toTimeString(),
+                            'saldo_esperado' => $totalSistema,
+                            'diferencia' => 0,
+                        ]);
+
+                        ArqueoCaja::create([
+                            'cod_apertura' => $record->cod_apertura,
+                            'efectivo_sistema' => $efectivo,
+                            'tarjetas_sistema' => $tarjetas,
+                            'transferencias_sistema' => $transferencias,
+                            'cheques_sistema' => $cheques,
+                            'total_sistema' => $totalSistema,
+                            'efectivo_fisico' => 0,
+                            'tarjetas_fisico' => 0,
+                            'transferencias_fisico' => 0,
+                            'cheques_fisico' => 0,
+                            'total_fisico' => 0,
+                            'diferencia' => -$totalSistema,
+                            'observaciones' => 'Cierre sin arqueo previo',
+                            'usuario_alta' => Auth::user()->name,
+                            'fecha_alta' => now(),
+                        ]);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Caja cerrada')
+                            ->body('La caja ha sido cerrada exitosamente.')
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('arqueo')
+                    ->label('Arqueo')
+                    ->icon('heroicon-o-calculator')
+                    ->color('warning')
+                    ->visible(fn (AperturaCaja $record): bool => $record->estado === 'Abierta')
+                    ->modalHeading('Arqueo de Caja')
+                    ->modalDescription('Ingrese los montos contados físicamente antes de cerrar.')
+                    ->modalSubmitActionLabel('Guardar y Cerrar')
+                    ->form(function (AperturaCaja $record) {
+                        $efectivo = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->where('cobros_formas_pago.cod_forma_cobro', 1)
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $tarjetas = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->whereIn('cobros_formas_pago.cod_forma_cobro', [2, 3])
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $transferencias = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->where('cobros_formas_pago.cod_forma_cobro', 4)
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $cheques = $record->cobros()
+                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
+                            ->where('cobros_formas_pago.cod_forma_cobro', 5)
+                            ->sum('cobros_formas_pago.monto') ?? 0;
+                        $total = $efectivo + $tarjetas + $transferencias + $cheques;
+
+                        return [
+                            Forms\Components\Grid::make(2)->schema([
+                                Forms\Components\TextInput::make('efectivo_sistema')
+                                    ->label('Efectivo Sistema')
+                                    ->default($efectivo)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+
+                                Forms\Components\TextInput::make('efectivo_fisico')
+                                    ->label('Efectivo Físico')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->suffix('Gs.')
+                                    ->live()
+                                    ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                                        $total = (float)($get('efectivo_fisico') ?? 0) + (float)($get('tarjetas_fisico') ?? 0) + (float)($get('transferencias_fisico') ?? 0) + (float)($get('cheques_fisico') ?? 0);
+                                        $set('total_fisico', $total);
+                                        $set('diferencia', $total - (float)($get('total_sistema') ?? 0));
+                                    })
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('tarjetas_sistema')
+                                    ->label('Tarjetas Sistema')
+                                    ->default($tarjetas)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+
+                                Forms\Components\TextInput::make('tarjetas_fisico')
+                                    ->label('Tarjetas Físico')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->suffix('Gs.')
+                                    ->live()
+                                    ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                                        $total = (float)($get('efectivo_fisico') ?? 0) + (float)($get('tarjetas_fisico') ?? 0) + (float)($get('transferencias_fisico') ?? 0) + (float)($get('cheques_fisico') ?? 0);
+                                        $set('total_fisico', $total);
+                                        $set('diferencia', $total - (float)($get('total_sistema') ?? 0));
+                                    })
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('transferencias_sistema')
+                                    ->label('Transferencias Sistema')
+                                    ->default($transferencias)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+
+                                Forms\Components\TextInput::make('transferencias_fisico')
+                                    ->label('Transferencias Físico')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->suffix('Gs.')
+                                    ->live()
+                                    ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                                        $total = (float)($get('efectivo_fisico') ?? 0) + (float)($get('tarjetas_fisico') ?? 0) + (float)($get('transferencias_fisico') ?? 0) + (float)($get('cheques_fisico') ?? 0);
+                                        $set('total_fisico', $total);
+                                        $set('diferencia', $total - (float)($get('total_sistema') ?? 0));
+                                    })
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('cheques_sistema')
+                                    ->label('Cheques Sistema')
+                                    ->default($cheques)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+
+                                Forms\Components\TextInput::make('cheques_fisico')
+                                    ->label('Cheques Físico')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->suffix('Gs.')
+                                    ->live()
+                                    ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                                        $total = (float)($get('efectivo_fisico') ?? 0) + (float)($get('tarjetas_fisico') ?? 0) + (float)($get('transferencias_fisico') ?? 0) + (float)($get('cheques_fisico') ?? 0);
+                                        $set('total_fisico', $total);
+                                        $set('diferencia', $total - (float)($get('total_sistema') ?? 0));
+                                    })
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('total_sistema')
+                                    ->label('Total Sistema')
+                                    ->default($total)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+
+                                Forms\Components\TextInput::make('total_fisico')
+                                    ->label('Total Físico')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+
+                                Forms\Components\TextInput::make('diferencia')
+                                    ->label('Diferencia')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->suffix('Gs.'),
+                            ]),
+
+                            Forms\Components\Textarea::make('observaciones')
+                                ->label('Observaciones')
+                                ->rows(2)
+                                ->columnSpanFull(),
+                        ];
+                    })
+                    ->action(function (AperturaCaja $record, array $data) {
+                        $totalFisico = (float)($data['efectivo_fisico'] ?? 0)
+                            + (float)($data['tarjetas_fisico'] ?? 0)
+                            + (float)($data['transferencias_fisico'] ?? 0)
+                            + (float)($data['cheques_fisico'] ?? 0);
+
+                        $diferencia = $totalFisico - (float)($data['total_sistema'] ?? 0);
+
+                        $record->update([
+                            'estado' => 'Cerrada',
+                            'fecha_cierre' => now()->toDateString(),
+                            'hora_cierre' => now()->toTimeString(),
+                            'saldo_esperado' => $data['total_sistema'],
+                            'diferencia' => $diferencia,
+                        ]);
+
+                        ArqueoCaja::create([
+                            'cod_apertura' => $record->cod_apertura,
+                            'efectivo_sistema' => $data['efectivo_sistema'] ?? 0,
+                            'tarjetas_sistema' => $data['tarjetas_sistema'] ?? 0,
+                            'transferencias_sistema' => $data['transferencias_sistema'] ?? 0,
+                            'cheques_sistema' => $data['cheques_sistema'] ?? 0,
+                            'total_sistema' => $data['total_sistema'] ?? 0,
+                            'efectivo_fisico' => $data['efectivo_fisico'] ?? 0,
+                            'tarjetas_fisico' => $data['tarjetas_fisico'] ?? 0,
+                            'transferencias_fisico' => $data['transferencias_fisico'] ?? 0,
+                            'cheques_fisico' => $data['cheques_fisico'] ?? 0,
+                            'total_fisico' => $totalFisico,
+                            'diferencia' => $diferencia,
+                            'observaciones' => $data['observaciones'] ?? null,
+                            'usuario_alta' => Auth::user()->name,
+                            'fecha_alta' => now(),
+                        ]);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Caja cerrada')
+                            ->body('El arqueo se registró y la caja fue cerrada exitosamente.')
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('imprimir')
+                    ->label('Arqueo PDF')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->visible(fn (AperturaCaja $record): bool => $record->estado === 'Cerrada')
+                    ->url(fn (AperturaCaja $record) => route('apertura-caja.pdf', $record))
+                    ->openUrlInNewTab(),
             ])
             ->defaultSort('fecha_apertura', 'desc');
     }

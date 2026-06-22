@@ -155,7 +155,7 @@ class CreateCobro extends CreateRecord
             $cobro->cod_apertura = $data['cod_apertura'];
             $cobro->fecha_cobro = $data['fecha_cobro'];
             $cobro->monto_total = $data['monto_total'];
-            $cobro->usuario_alta = Auth::id();
+            $cobro->usuario_alta = Auth::user()->name;
             $cobro->fecha_alta = $data['fecha_alta'];
             $cobro->saveQuietly();
 

@@ -18,6 +18,17 @@ class ArqueoPdfController extends Controller
         $safe = fn($val, $default = '—') => is_null($val) || $val === '' ? $default : $val;
         $fecha = fn($val) => $val ? \Carbon\Carbon::parse($val)->format('d/m/Y') : '—';
         $hora = fn($val) => $val ? \Carbon\Carbon::parse($val)->format('H:i') : '—';
+        $diff = function($val) {
+            $v = (float)$val;
+            $abs = abs($v);
+            $texto = $v > 0 ? 'SOBRANTE' : ($v < 0 ? 'FALTANTE' : 'CUADRE');
+            $color = $v > 0 ? '#059669' : ($v < 0 ? '#dc2626' : '#6b7280');
+            return [
+                'valor' => number_format($abs, 0, ',', '.') . ' Gs.',
+                'texto' => $texto,
+                'color' => $color,
+            ];
+        };
 
         $ingresos = $apertura->movimientos->where('tipo_movimiento', 'Ingreso');
         $egresos = $apertura->movimientos->where('tipo_movimiento', 'Egreso');
@@ -54,8 +65,7 @@ class ArqueoPdfController extends Controller
 
         $arqueoHtml = '';
         if ($arqueo) {
-            $diferenciaColor = (float)$arqueo->diferencia > 0 ? '#059669' : ((float)$arqueo->diferencia < 0 ? '#dc2626' : '#6b7280');
-            $diferenciaTexto = (float)$arqueo->diferencia > 0 ? 'SOBRANTE' : ((float)$arqueo->diferencia < 0 ? 'FALTANTE' : 'CUADRE');
+            $diferenciaTotal = $diff($arqueo->diferencia);
 
             $arqueoHtml = '
 <div class="titulo">Arqueo de Caja - Comparación Sistema vs Físico</div>
@@ -73,31 +83,31 @@ class ArqueoPdfController extends Controller
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Efectivo</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->efectivo_sistema) . '</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->efectivo_fisico) . '</td>
-            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . $diff((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema)['color'] . ';">' . $diff((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema)['valor'] . ' (' . $diff((float)$arqueo->efectivo_fisico - (float)$arqueo->efectivo_sistema)['texto'] . ')</td>
         </tr>
         <tr>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Tarjetas</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->tarjetas_sistema) . '</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->tarjetas_fisico) . '</td>
-            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . $diff((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema)['color'] . ';">' . $diff((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema)['valor'] . ' (' . $diff((float)$arqueo->tarjetas_fisico - (float)$arqueo->tarjetas_sistema)['texto'] . ')</td>
         </tr>
         <tr>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Transferencias</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->transferencias_sistema) . '</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->transferencias_fisico) . '</td>
-            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . $diff((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema)['color'] . ';">' . $diff((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema)['valor'] . ' (' . $diff((float)$arqueo->transferencias_fisico - (float)$arqueo->transferencias_sistema)['texto'] . ')</td>
         </tr>
         <tr>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;">Cheques</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->cheques_sistema) . '</td>
             <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;">' . $gs($arqueo->cheques_fisico) . '</td>
-            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . ((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema >= 0 ? '#059669' : '#dc2626') . ';">' . $gs((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema) . '</td>
+            <td style="padding:2px 4px;font-size:7pt;border-bottom:1px solid #e5e7eb;text-align:right;color:' . $diff((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema)['color'] . ';">' . $diff((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema)['valor'] . ' (' . $diff((float)$arqueo->cheques_fisico - (float)$arqueo->cheques_sistema)['texto'] . ')</td>
         </tr>
         <tr class="total">
             <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;font-weight:bold;background:#f3f4f6;">TOTAL</td>
             <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#f3f4f6;">' . $gs($arqueo->total_sistema) . '</td>
             <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#f3f4f6;">' . $gs($arqueo->total_fisico) . '</td>
-            <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#e5e7eb;color:' . $diferenciaColor . ';">' . $gs($arqueo->diferencia) . ' (' . $diferenciaTexto . ')</td>
+            <td style="padding:3px 4px;font-size:7pt;border:1px solid #000;text-align:right;font-weight:bold;background:#e5e7eb;color:' . $diferenciaTotal['color'] . ';">' . $diferenciaTotal['valor'] . ' (' . $diferenciaTotal['texto'] . ')</td>
         </tr>
     </tbody>
 </table>

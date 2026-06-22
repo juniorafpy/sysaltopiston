@@ -33,9 +33,6 @@ class AperturaCaja extends Model
     protected $casts = [
         'fecha_apertura' => 'date',
         'fecha_cierre' => 'date',
-        'monto_inicial' => 'decimal:2',
-        'saldo_esperado' => 'decimal:2',
-        'diferencia' => 'decimal:2',
     ];
 
     public function caja()
@@ -56,6 +53,11 @@ class AperturaCaja extends Model
     public function cobros()
     {
         return $this->hasMany(Cobro::class, 'cod_apertura', 'cod_apertura');
+    }
+
+    public function arqueos()
+    {
+        return $this->hasMany(ArqueoCaja::class, 'cod_apertura', 'cod_apertura');
     }
 
     public function scopeAbiertas($query)

@@ -5,15 +5,23 @@ namespace App\Filament\Resources\FacturaResource\Pages;
 use App\Filament\Resources\FacturaResource;
 use App\Models\Factura;
 use App\Models\OrdenServicio;
+use App\Models\PresupuestoVenta;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
+use Filament\Actions\Action;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class CreateFactura extends CreateRecord
 {
     protected static string $resource = FacturaResource::class;
 
     protected static bool $canCreateAnother = false;
+
+    protected function getCreateFormAction(): Action
+    {
+        return parent::getCreateFormAction()->label('Guardar');
+    }
 
     public function mount(): void
     {
@@ -66,7 +74,7 @@ class CreateFactura extends CreateRecord
                 foreach ($orden->detalles as $detalle) {
                     $cantidad = $detalle->cantidad_real ?? $detalle->cantidad;
                     $precioUnitario = floatval($detalle->precio_unitario);
-                    $porcentajeDescuento = 0;
+                    $porcentajeDescuento = floatval($detalle->porcentaje_descuento ?? 0);
 
                     $importeBruto = $cantidad * $precioUnitario; // Con IVA incluido
                     $montoDescuento = ($importeBruto * $porcentajeDescuento) / 100;
@@ -102,8 +110,10 @@ class CreateFactura extends CreateRecord
                     $serieFactura = "{$timbrado->establecimiento}-{$timbrado->punto_expedicion}-{$numero}";
                 }
 
+                $user = Auth::user();
+                $sucursal = $user && $user->cod_sucursal ? \App\Models\Sucursal::find($user->cod_sucursal) : null;
+
                 $fillData = [
-                    'origen_factura' => 'orden_servicio',
                     'orden_servicio_id' => $orden->id,
                     'cod_cliente' => $codCliente,
                     'fecha_factura' => now()->toDateString(),
@@ -116,6 +126,9 @@ class CreateFactura extends CreateRecord
                     'total_iva_5' => 0,
                     'subtotal_exenta' => 0,
                     'total_general' => round($totalGeneral, 2),
+                    'sucursal_display' => $sucursal?->descripcion ?? 'Sin sucursal',
+                    'usuario_alta' => $user?->name ?? 'Sistema',
+                    'fecha_alta' => now()->format('d/m/Y H:i:s'),
                 ];
 
                 // Heredar condición de compra del presupuesto vinculado a la OS
@@ -137,6 +150,107 @@ class CreateFactura extends CreateRecord
                     ->send();
             }
         }
+
+        // Verificar si viene el parámetro 'presupuesto_venta_id' en la URL
+        $presupuestoVentaId = request()->query('presupuesto_venta_id');
+
+        if ($presupuestoVentaId) {
+            $presupuesto = PresupuestoVenta::with(['detalles.articulo', 'cliente'])->find($presupuestoVentaId);
+
+            if ($presupuesto) {
+                $timbrado = \App\Models\Timbrado::obtenerTimbradoActivo('FAC');
+                $codTimbrado = $timbrado?->cod_timbrado;
+
+                if (!$timbrado) {
+                    Notification::make()
+                        ->title('Sin timbrado activo')
+                        ->body('No se encontró un timbrado activo y vigente para tu sucursal. Verifica que tu usuario tenga una sucursal con establecimiento configurado y que exista un timbrado disponible.')
+                        ->warning()
+                        ->persistent()
+                        ->send();
+                }
+
+                $codCliente = $presupuesto->cliente_id;
+
+                $detalles = [];
+                $subtotalGravado10 = 0;
+                $totalIva10 = 0;
+                $totalGeneral = 0;
+
+                foreach ($presupuesto->detalles as $detalle) {
+                    $cantidad = $detalle->cantidad;
+                    $precioUnitario = floatval($detalle->precio_unitario);
+                    $porcentajeDescuento = floatval($detalle->porcentaje_descuento ?? 0);
+
+                    $importeBruto = $cantidad * $precioUnitario;
+                    $montoDescuento = ($importeBruto * $porcentajeDescuento) / 100;
+                    $subtotal = $importeBruto - $montoDescuento;
+                    $montoIva = ($subtotal * 10) / 110;
+                    $base = $subtotal - $montoIva;
+                    $porcentajeIva = 10;
+
+                    $detalles[] = [
+                        'cod_articulo' => $detalle->articulo_id,
+                        'descripcion' => $detalle->articulo->descripcion ?? $detalle->descripcion ?? 'N/A',
+                        'cantidad' => $cantidad,
+                        'precio_unitario' => $precioUnitario,
+                        'porcentaje_descuento' => $porcentajeDescuento,
+                        'tipo_iva' => '10',
+                        'monto_descuento' => round($montoDescuento, 2),
+                        'subtotal' => round($subtotal, 2),
+                        'porcentaje_iva' => $porcentajeIva,
+                        'monto_iva' => round($montoIva, 2),
+                        'total' => round($subtotal, 2),
+                    ];
+
+                    $subtotalGravado10 += $base;
+                    $totalIva10 += $montoIva;
+                }
+
+                $totalGeneral = $subtotalGravado10 + $totalIva10;
+
+                $serieFactura = null;
+                if ($timbrado) {
+                    $numero = $timbrado->obtenerSiguienteNumero();
+                    $serieFactura = "{$timbrado->establecimiento}-{$timbrado->punto_expedicion}-{$numero}";
+                }
+
+                $user = Auth::user();
+                $sucursal = $user && $user->cod_sucursal ? \App\Models\Sucursal::find($user->cod_sucursal) : null;
+
+                $fillData = [
+                    'presupuesto_venta_id' => $presupuesto->id,
+                    'cod_cliente' => $codCliente,
+                    'fecha_factura' => now()->toDateString(),
+                    'cod_timbrado' => $codTimbrado,
+                    'timbrado_display' => $timbrado?->numero_timbrado,
+                    'serie_factura' => $serieFactura,
+                    'subtotal_gravado_10' => round($subtotalGravado10, 2),
+                    'total_iva_10' => round($totalIva10, 2),
+                    'subtotal_gravado_5' => 0,
+                    'total_iva_5' => 0,
+                    'subtotal_exenta' => 0,
+                    'total_general' => round($totalGeneral, 2),
+                    'sucursal_display' => $sucursal?->descripcion ?? 'Sin sucursal',
+                    'usuario_alta' => $user?->name ?? 'Sistema',
+                    'fecha_alta' => now()->format('d/m/Y H:i:s'),
+                ];
+
+                if ($presupuesto->cod_condicion) {
+                    $fillData['cod_condicion_compra'] = $presupuesto->cod_condicion;
+                }
+
+                $this->form->fill($fillData);
+                $this->data['detalles'] = $detalles;
+
+                $msg = "Se cargaron " . count($detalles) . " artículo(s) del Presupuesto #{$presupuesto->id}";
+                Notification::make()
+                    ->title('Presupuesto de Venta cargado')
+                    ->body($msg)
+                    ->success()
+                    ->send();
+            }
+        }
     }
 
     /**
@@ -144,21 +258,6 @@ class CreateFactura extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Remover campo virtual 'origen_factura'
-        $origenFactura = $data['origen_factura'] ?? 'directa';
-        unset($data['origen_factura']);
-
-        // Asegurar que solo el campo correcto tenga valor según el origen
-        if ($origenFactura === 'presupuesto') {
-            $data['orden_servicio_id'] = null;
-        } elseif ($origenFactura === 'orden_servicio') {
-            $data['presupuesto_venta_id'] = null;
-        } else {
-            // Directa
-            $data['presupuesto_venta_id'] = null;
-            $data['orden_servicio_id'] = null;
-        }
-
         // Determinar condicion_venta desde cod_condicion_compra
         if (isset($data['cod_condicion_compra'])) {
             $condicionCompra = \App\Models\CondicionCompra::find($data['cod_condicion_compra']);
@@ -180,6 +279,12 @@ class CreateFactura extends CreateRecord
         // Obtener el siguiente número de factura
         $numeroFactura = $timbrado->obtenerSiguienteNumero();
         $data['numero_factura'] = $timbrado->formatearNumeroFactura($numeroFactura);
+
+        // Auditoría
+        $user = Auth::user();
+        $data['cod_sucursal'] = $user->cod_sucursal ?? null;
+        $data['usuario_alta'] = $user->name;
+        $data['fecha_alta'] = now();
 
         return $data;
     }
@@ -258,40 +363,16 @@ class CreateFactura extends CreateRecord
             // Recargar para tener datos actualizados
             $factura->refresh();
 
-            // Notificaciones de éxito
-            Notification::make()
-                ->title('Factura generada exitosamente')
-                ->success()
-                ->body("Factura Nro: {$factura->numero_factura} - Total: Gs. " . number_format($factura->total_general, 0, ',', '.'))
-                ->send();
-
-            if ($factura->condicion_venta === 'Crédito') {
-                Notification::make()
-                    ->title('Saldo registrado en Cuenta Corriente')
-                    ->info()
-                    ->body("Se registró el saldo de Gs. " . number_format($factura->total_general, 0, ',', '.') . " en la cuenta del cliente.")
-                    ->send();
-            } elseif ($factura->condicion_venta === 'Contado') {
-                Notification::make()
-                    ->title('Ingreso registrado en Caja')
-                    ->info()
-                    ->body("Se registró el ingreso de Gs. " . number_format($factura->total_general, 0, ',', '.') . " en la caja abierta.")
-                    ->send();
-            }
-
-            Notification::make()
-                ->title('Registro en Libro IVA')
-                ->info()
-                ->body("La factura se registró en el Libro IVA correctamente.")
-                ->send();
+            // Emitir SweetAlert de éxito (modal persistente)
+            $this->dispatch('swal:success-modal', [
+                'title' => 'Factura registrada',
+                'message' => "Factura Nro: {$factura->numero_factura} registrada correctamente"
+            ]);
 
         } catch (\Exception $e) {
-            Notification::make()
-                ->title('Error al procesar la factura')
-                ->danger()
-                ->body($e->getMessage())
-                ->persistent()
-                ->send();
+            $this->dispatch('swal:error', [
+                'message' => "Error al procesar la factura: " . $e->getMessage()
+            ]);
 
             Log::error("Error en afterCreate de Factura: " . $e->getMessage());
         }
@@ -302,6 +383,14 @@ class CreateFactura extends CreateRecord
      */
     protected function getRedirectUrl(): string
     {
-        return $this->getResource()::getUrl('view', ['record' => $this->record]);
+        return $this->getResource()::getUrl('index');
+    }
+
+    /**
+     * Suprimir notificación nativa de Filament
+     */
+    protected function getCreatedNotification(): ?Notification
+    {
+        return null;
     }
 }

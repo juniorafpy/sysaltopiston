@@ -42,127 +42,22 @@ class FacturaResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Tipo de Factura')
-                    ->schema([
-                        Forms\Components\Radio::make('origen_factura')
-                            ->label('Origen de la Factura')
-                            ->options([
-                                'presupuesto' => 'Desde Presupuesto de Venta',
-                                'orden_servicio' => 'Desde Orden de Servicio',
-                                'directa' => 'Factura Directa',
-                            ])
-                            ->default('directa')
-                            ->live()
-                            ->afterStateUpdated(function (Set $set, $state) {
-                                // Limpiar campos según el origen
-                                if ($state !== 'presupuesto') {
-                                    $set('presupuesto_venta_id', null);
-                                }
-                                if ($state !== 'orden_servicio') {
-                                    $set('orden_servicio_id', null);
-                                }
-                                if ($state !== 'directa') {
-                                    // Limpiar cliente si viene desde presupuesto u OS
-                                } else {
-                                    $set('cod_cliente', null);
-                                    $set('detalles', []);
-                                }
-                            })
-                            ->required(),
-                    ])
-                    ->columns(1)
-                    ->visible(fn (string $operation) => $operation === 'create'),
-
                 Forms\Components\Section::make('Información de la Factura')
                     ->schema([
-                        // Presupuesto Select (solo si desde_presupuesto = true)
-                        Forms\Components\Select::make('presupuesto_venta_id')
-                            ->label('Presupuesto')
-                            ->options(function () {
-                                return PresupuestoVenta::where('estado', 'Aprobado')
-                                    ->whereDoesntHave('facturas')
-                                    ->with('cliente')
-                                    ->get()
-                                    ->mapWithKeys(function ($presupuesto) {
-                                        $clienteNombre = $presupuesto->cliente->nombre_completo ?? 'Sin cliente';
-                                        return [$presupuesto->id => "#{$presupuesto->id} - {$clienteNombre} - Gs. " . number_format($presupuesto->total, 0, ',', '.')];
-                                    });
-                            })
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                if ($state) {
-                                    $presupuesto = PresupuestoVenta::with(['detalles.articulo', 'cliente'])->find($state);
-                                    if ($presupuesto) {
-                                        $set('cod_cliente', $presupuesto->cliente_id);
-                                        $set('fecha_factura', now()->toDateString());
-
-                                        // Cargar detalles del presupuesto
-                                        $detalles = $presupuesto->detalles->map(function ($detalle) {
-                                            return [
-                                                'cod_articulo' => $detalle->articulo_id,
-                                                'descripcion' => $detalle->articulo->descripcion ?? $detalle->descripcion,
-                                                'cantidad' => $detalle->cantidad,
-                                                'precio_unitario' => $detalle->precio_unitario,
-                                                'porcentaje_descuento' => 0,
-                                                'tipo_iva' => '10',
-                                            ];
-                                        })->toArray();
-
-                                        $set('detalles', $detalles);
-                                    }
+                        // Sucursal
+                        Forms\Components\TextInput::make('sucursal_display')
+                            ->label('Sucursal')
+                            ->default(function () {
+                                $user = \Illuminate\Support\Facades\Auth::user();
+                                if ($user && $user->cod_sucursal) {
+                                    $sucursal = \App\Models\Sucursal::find($user->cod_sucursal);
+                                    return $sucursal?->descripcion ?? 'Sin sucursal';
                                 }
+                                return 'Sin sucursal';
                             })
-                            ->visible(fn (Get $get) => $get('origen_factura') === 'presupuesto')
-                            ->required(fn (Get $get) => $get('origen_factura') === 'presupuesto')
-                            ->disabled(fn (string $operation) => $operation === 'edit'),
-
-                        // Orden de Servicio Select
-                        Forms\Components\Select::make('orden_servicio_id')
-                            ->label('Orden de Servicio')
-                            ->options(function () {
-                                return OrdenServicio::where('estado_trabajo', 'Finalizado')
-                                    ->where('facturado', false)
-                                    ->whereDoesntHave('facturas')
-                                    ->with('cliente')
-                                    ->get()
-                                    ->mapWithKeys(function ($orden) {
-                                        $clienteNombre = $orden->cliente->nombre_completo ?? 'Sin cliente';
-                                        $vehiculo = $orden->recepcion?->vehiculo;
-                                        $vehiculoInfo = $vehiculo ? " - {$vehiculo->matricula}" : '';
-                                        return [$orden->id => "OS #{$orden->id} - {$clienteNombre}{$vehiculoInfo}"];
-                                    });
-                            })
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                if ($state) {
-                                    $orden = OrdenServicio::with(['detalles.articulo', 'cliente'])->find($state);
-                                    if ($orden) {
-                                        $set('cod_cliente', $orden->cliente_id);
-                                        $set('fecha_factura', now()->toDateString());
-
-                                        // Cargar detalles de la orden de servicio
-                                        $detalles = $orden->detalles->map(function ($detalle) {
-                                            return [
-                                                'cod_articulo' => $detalle->articulo_id,
-                                                'descripcion' => $detalle->articulo->descripcion ?? $detalle->descripcion,
-                                                'cantidad' => $detalle->cantidad_real ?? $detalle->cantidad, // Usar cantidad real si existe
-                                                'precio_unitario' => $detalle->precio_unitario,
-                                                'porcentaje_descuento' => 0,
-                                                'tipo_iva' => '10',
-                                            ];
-                                        })->toArray();
-
-                                        $set('detalles', $detalles);
-                                    }
-                                }
-                            })
-                            ->visible(fn (Get $get) => $get('origen_factura') === 'orden_servicio')
-                            ->required(fn (Get $get) => $get('origen_factura') === 'orden_servicio')
-                            ->disabled(fn (string $operation) => $operation === 'edit'),
+                            ->formatStateUsing(fn ($state, $record) => $record?->sucursal?->descripcion ?? $state ?? 'Sin sucursal')
+                            ->disabled()
+                            ->dehydrated(false),
 
                         // Timbrado (Autocompletado automáticamente)
                         Forms\Components\TextInput::make('timbrado_display')
@@ -233,9 +128,7 @@ class FacturaResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload()
-                            ->disabled(fn (Get $get, string $operation): bool =>
-                                $operation === 'edit' || ($get('origen_factura') !== 'directa' && $get('origen_factura') !== null)
-                            )
+                            ->disabled(fn (string $operation): bool => $operation === 'edit')
                             ->dehydrated(),
 
                         // Condición de Compra
@@ -256,12 +149,6 @@ class FacturaResource extends Resource
                                 }
                             })
                             ->disabled(fn (string $operation) => $operation === 'edit'),
-
-                        // Observaciones
-                        Forms\Components\Textarea::make('observaciones')
-                            ->label('Observaciones')
-                            ->rows(3)
-                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
@@ -273,8 +160,20 @@ class FacturaResource extends Resource
                                 Forms\Components\Select::make('cod_articulo')
                                     ->label('Artículo')
                                     ->options(function () {
-                                        return Articulos::where('activo', true)
-                                            ->limit(500)
+                                        return Articulos::where('activo', 'A')
+                                            ->limit(20)
+                                            ->get()
+                                            ->mapWithKeys(function ($articulo) {
+                                                return [$articulo->cod_articulo => "{$articulo->cod_articulo} - {$articulo->descripcion}"];
+                                            });
+                                    })
+                                    ->getSearchResultsUsing(function (string $search) {
+                                        return Articulos::where('activo', 'A')
+                                            ->where(function ($query) use ($search) {
+                                                $query->where('descripcion', 'ilike', "%{$search}%")
+                                                    ->orWhere('cod_articulo', 'ilike', "%{$search}%");
+                                            })
+                                            ->limit(50)
                                             ->get()
                                             ->mapWithKeys(function ($articulo) {
                                                 return [$articulo->cod_articulo => "{$articulo->cod_articulo} - {$articulo->descripcion}"];
@@ -290,18 +189,38 @@ class FacturaResource extends Resource
                                     ->preload()
                                     ->required()
                                     ->live()
-                                    ->afterStateUpdated(function (Set $set, $state) {
+                                    ->afterStateUpdated(function (Set $set, Get $get, $state) {
                                         if ($state) {
                                             $articulo = Articulos::find($state);
                                             if ($articulo) {
                                                 $set('descripcion', $articulo->descripcion);
-                                                $set('precio_unitario', $articulo->precio_venta ?? 0);
                                                 $set('cantidad', 1);
+
+                                                $precioUnitario = floatval($articulo->precio ?? 0);
+                                                $set('precio_unitario', $precioUnitario);
+
+                                                // Calcular automáticamente el detalle
+                                                $cantidad = 1;
+                                                $porcentajeDescuento = floatval($get('porcentaje_descuento') ?? 0);
+
+                                                $importeBruto = $cantidad * $precioUnitario;
+                                                $montoDescuento = ($importeBruto * $porcentajeDescuento) / 100;
+                                                $subtotal = $importeBruto - $montoDescuento;
+                                                $montoIva = ($subtotal * 10) / 110;
+
+                                                $set('monto_descuento', round($montoDescuento, 2));
+                                                $set('subtotal', round($subtotal, 2));
+                                                $set('porcentaje_iva', 10);
+                                                $set('monto_iva', round($montoIva, 2));
+                                                $set('total', round($subtotal, 2));
+
+                                                // Recalcular totales de la factura
+                                                self::recalcularTotalesDesdeItem($set, $get);
                                             }
                                         }
                                     })
                                     ->disabled(fn (string $operation): bool =>
-                                        $operation === 'edit' || request()->has('orden_servicio_id'))
+                                        $operation === 'edit' || request()->has('orden_servicio_id') || request()->has('presupuesto_venta_id'))
                                     ->columnSpan(4),
 
                                 Forms\Components\Hidden::make('descripcion')
@@ -314,9 +233,12 @@ class FacturaResource extends Resource
                                     ->default(1)
                                     ->minValue(0.01)
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
+                                    ->afterStateUpdated(function (Set $set, Get $get) {
+                                        self::calcularDetalle($set, $get);
+                                        self::recalcularTotalesDesdeItem($set, $get);
+                                    })
                                     ->disabled(fn (string $operation): bool =>
-                                        $operation === 'edit' || request()->has('orden_servicio_id'))
+                                        $operation === 'edit' || request()->has('orden_servicio_id') || request()->has('presupuesto_venta_id'))
                                     ->columnSpan(1),
 
                                 Forms\Components\TextInput::make('precio_unitario')
@@ -326,9 +248,12 @@ class FacturaResource extends Resource
                                     ->minValue(0)
                                     ->prefix('Gs.')
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
+                                    ->afterStateUpdated(function (Set $set, Get $get) {
+                                        self::calcularDetalle($set, $get);
+                                        self::recalcularTotalesDesdeItem($set, $get);
+                                    })
                                     ->disabled(fn (string $operation): bool =>
-                                        $operation === 'edit' || request()->has('orden_servicio_id'))
+                                        $operation === 'edit' || request()->has('orden_servicio_id') || request()->has('presupuesto_venta_id'))
                                     ->columnSpan(2),
 
                                 Forms\Components\Select::make('tipo_iva')
@@ -341,9 +266,12 @@ class FacturaResource extends Resource
                                     ->required()
                                     ->default('10')
                                     ->live()
-                                    ->afterStateUpdated(fn (Set $set, Get $get) => self::calcularDetalle($set, $get))
+                                    ->afterStateUpdated(function (Set $set, Get $get) {
+                                        self::calcularDetalle($set, $get);
+                                        self::recalcularTotalesDesdeItem($set, $get);
+                                    })
                                     ->disabled(fn (string $operation): bool =>
-                                        $operation === 'edit' || request()->has('orden_servicio_id'))
+                                        $operation === 'edit' || request()->has('orden_servicio_id') || request()->has('presupuesto_venta_id'))
                                     ->columnSpan(1),
 
                                 // Campos ocultos de descuento (se aplican automáticamente al calcular)
@@ -393,9 +321,9 @@ class FacturaResource extends Resource
                             ->deleteAction(
                                 fn (Forms\Components\Actions\Action $action) => $action->after(fn (Set $set, Get $get) => self::calcularTotalesFactura($set, $get)),
                             )
-                            ->addable(fn (): bool => !request()->has('orden_servicio_id'))
-                            ->deletable(fn (): bool => !request()->has('orden_servicio_id'))
-                            ->reorderable(fn (): bool => !request()->has('orden_servicio_id'))
+                            ->addable(fn (): bool => !request()->has('orden_servicio_id') && !request()->has('presupuesto_venta_id'))
+                            ->deletable(fn (): bool => !request()->has('orden_servicio_id') && !request()->has('presupuesto_venta_id'))
+                            ->reorderable(fn (): bool => !request()->has('orden_servicio_id') && !request()->has('presupuesto_venta_id'))
                             ->columnSpanFull(),
                     ]),
 
@@ -464,6 +392,21 @@ class FacturaResource extends Resource
                                     ->hidden()
                                     ->dehydrated(),
                             ]),
+                    ]),
+
+                Forms\Components\Grid::make(3)
+                    ->schema([
+                        Forms\Components\TextInput::make('usuario_alta')
+                            ->label('Usuario Alta')
+                            ->default(fn () => \Illuminate\Support\Facades\Auth::user()?->name ?? 'Sistema')
+                            ->disabled()
+                            ->dehydrated(false),
+
+                        Forms\Components\TextInput::make('fecha_alta')
+                            ->label('Fecha Alta')
+                            ->default(fn () => now()->format('d/m/Y H:i:s'))
+                            ->disabled()
+                            ->dehydrated(false),
                     ]),
             ]);
     }
@@ -547,6 +490,47 @@ class FacturaResource extends Resource
         $set('total_general', round($totalGeneral, 2));
     }
 
+    /**
+     * Recalcula los totales de la factura desde dentro de un item del Repeater
+     * Usa paths relativos (../../) para acceder al estado del padre
+     */
+    protected static function recalcularTotalesDesdeItem(Set $set, Get $get): void
+    {
+        $detalles = collect($get('../../detalles') ?? []);
+
+        $subtotalGravado10 = 0;
+        $totalIva10 = 0;
+        $subtotalGravado5 = 0;
+        $totalIva5 = 0;
+        $subtotalExenta = 0;
+
+        foreach ($detalles as $detalle) {
+            $tipoIva = $detalle['tipo_iva'] ?? '10';
+            $subtotal = floatval($detalle['subtotal'] ?? 0);
+            $montoIva = floatval($detalle['monto_iva'] ?? 0);
+            $base = $subtotal - $montoIva;
+
+            if ($tipoIva === '10') {
+                $subtotalGravado10 += $base;
+                $totalIva10 += $montoIva;
+            } elseif ($tipoIva === '5') {
+                $subtotalGravado5 += $base;
+                $totalIva5 += $montoIva;
+            } elseif ($tipoIva === 'Exenta') {
+                $subtotalExenta += $subtotal;
+            }
+        }
+
+        $totalGeneral = $subtotalGravado10 + $totalIva10 + $subtotalGravado5 + $totalIva5 + $subtotalExenta;
+
+        $set('../../subtotal_gravado_10', round($subtotalGravado10, 2));
+        $set('../../total_iva_10', round($totalIva10, 2));
+        $set('../../subtotal_gravado_5', round($subtotalGravado5, 2));
+        $set('../../total_iva_5', round($totalIva5, 2));
+        $set('../../subtotal_exenta', round($subtotalExenta, 2));
+        $set('../../total_general', round($totalGeneral, 2));
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -589,8 +573,13 @@ class FacturaResource extends Resource
                         default => 'gray',
                     }),
 
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Creada')
+                Tables\Columns\TextColumn::make('usuario_alta')
+                    ->label('Usuario')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('fecha_alta')
+                    ->label('Fecha Alta')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -635,7 +624,7 @@ class FacturaResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('fecha_factura', 'desc');
+            ->defaultSort(fn (Builder $query) => $query->orderBy('fecha_factura', 'desc')->orderBy('numero_factura', 'desc'));
     }
 
     public static function getRelations(): array

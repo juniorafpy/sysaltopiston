@@ -118,6 +118,17 @@ class AdminPanelProvider extends PanelProvider
                             });
                         });
 
+                        Livewire.on("swal:success-modal", (data) => {
+                            Swal.fire({
+                                icon: "success",
+                                title: data.title || "Éxito",
+                                text: data.message,
+                                confirmButtonText: "Aceptar",
+                                confirmButtonColor: "#16a34a",
+                                allowOutsideClick: false
+                            });
+                        });
+
                         Livewire.on("documento-duplicado", (data) => {
                             Swal.fire({
                                 icon: "warning",

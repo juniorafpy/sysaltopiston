@@ -78,7 +78,7 @@ class AperturaCajaResource extends Resource
                             ->label('Monto Inicial')
                             ->required()
                             ->numeric()
-                            ->default(0)
+                            ->default(0)    
                             ->suffix('Gs.')
                             ->disabled(fn (?AperturaCaja $record) => $record !== null)
                         ->mask(RawJs::make('$money($input, \',\', \'.\', 0)'))

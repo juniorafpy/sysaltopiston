@@ -19,18 +19,7 @@ class EditFactura extends EditRecord
         ];
     }
 
-    /**
-     * Mutate form data before filling the form
-     */
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        // Si tiene presupuesto, activar el toggle
-        if (!empty($data['presupuesto_venta_id'])) {
-            $data['desde_presupuesto'] = true;
-        }
 
-        return $data;
-    }
 
     /**
      * Get the redirect URL after editing the record

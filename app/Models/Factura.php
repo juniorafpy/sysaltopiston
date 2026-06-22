@@ -33,7 +33,10 @@ class Factura extends Model
         'total_iva_5',
         'total_general',
         'estado',
-        'observaciones'
+        'observaciones',
+        'cod_sucursal',
+        'usuario_alta',
+        'fecha_alta',
     ];
 
     protected $casts = [
@@ -57,6 +60,11 @@ class Factura extends Model
     public function cliente()
     {
         return $this->belongsTo(Personas::class, 'cod_cliente', 'cod_persona');
+    }
+
+    public function sucursal()
+    {
+        return $this->belongsTo(Sucursal::class, 'cod_sucursal', 'cod_sucursal');
     }
 
     public function condicionCompra()

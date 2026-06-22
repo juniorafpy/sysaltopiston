@@ -458,6 +458,17 @@ class PresupuestoVentaResource extends Resource
                         })
                         ->successNotificationTitle('Presupuesto aprobado correctamente'),
 
+                    Tables\Actions\Action::make('facturar')
+                        ->label('Facturar')
+                        ->icon('heroicon-o-document-text')
+                        ->color('success')
+                        ->visible(fn (PresupuestoVenta $record): bool =>
+                            $record->estado === 'Aprobado' && $record->facturas()->count() === 0
+                        )
+                        ->url(fn (PresupuestoVenta $record): string =>
+                            \App\Filament\Resources\FacturaResource::getUrl('create', ['presupuesto_venta_id' => $record->id])
+                        ),
+
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                 ]),

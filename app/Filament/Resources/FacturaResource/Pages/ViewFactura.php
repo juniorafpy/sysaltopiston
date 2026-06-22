@@ -66,10 +66,6 @@ class ViewFactura extends ViewRecord
                                 default => 'gray',
                             }),
 
-                        Infolists\Components\TextEntry::make('observaciones')
-                            ->label('Observaciones')
-                            ->columnSpanFull()
-                            ->placeholder('Sin observaciones'),
                     ])
                     ->columns(2),
 
@@ -167,15 +163,18 @@ class ViewFactura extends ViewRecord
 
                 Infolists\Components\Section::make('Auditoría')
                     ->schema([
-                        Infolists\Components\TextEntry::make('created_at')
-                            ->label('Fecha de Creación')
+                        Infolists\Components\TextEntry::make('usuario_alta')
+                            ->label('Usuario Alta'),
+
+                        Infolists\Components\TextEntry::make('fecha_alta')
+                            ->label('Fecha Alta')
                             ->dateTime('d/m/Y H:i:s'),
 
-                        Infolists\Components\TextEntry::make('updated_at')
-                            ->label('Última Modificación')
-                            ->dateTime('d/m/Y H:i:s'),
+                        Infolists\Components\TextEntry::make('sucursal.descripcion')
+                            ->label('Sucursal')
+                            ->placeholder('Sin sucursal'),
                     ])
-                    ->columns(2)
+                    ->columns(3)
                     ->collapsible()
                     ->collapsed(),
             ]);

@@ -20,7 +20,7 @@ class EditAperturaCaja extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\ViewAction::make(),
+            //
         ];
     }
 

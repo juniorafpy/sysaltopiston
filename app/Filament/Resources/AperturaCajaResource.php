@@ -124,39 +124,53 @@ class AperturaCajaResource extends Resource
                 ->description('Montos calculados automáticamente desde los cobros registrados')
                 ->schema([
                     Forms\Components\Grid::make(3)->schema([
-                        Forms\Components\Placeholder::make('efectivo_sistema')
+                        Forms\Components\TextInput::make('efectivo_sistema')
                             ->label('Efectivo')
-                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                            ->default(fn (?AperturaCaja $record) => $record?->cobros()
                                 ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
                                 ->where('cobros_formas_pago.cod_forma_cobro', 1)
-                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
+                                ->sum('cobros_formas_pago.monto') ?? 0)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->suffix('Gs.'),
 
-                        Forms\Components\Placeholder::make('tarjetas_sistema')
+                        Forms\Components\TextInput::make('tarjetas_sistema')
                             ->label('Tarjetas')
-                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                            ->default(fn (?AperturaCaja $record) => $record?->cobros()
                                 ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
                                 ->whereIn('cobros_formas_pago.cod_forma_cobro', [2, 3])
-                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
+                                ->sum('cobros_formas_pago.monto') ?? 0)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->suffix('Gs.'),
 
-                        Forms\Components\Placeholder::make('transferencias_sistema')
+                        Forms\Components\TextInput::make('transferencias_sistema')
                             ->label('Transferencias')
-                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                            ->default(fn (?AperturaCaja $record) => $record?->cobros()
                                 ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
                                 ->where('cobros_formas_pago.cod_forma_cobro', 4)
-                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
+                                ->sum('cobros_formas_pago.monto') ?? 0)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->suffix('Gs.'),
 
-                        Forms\Components\Placeholder::make('cheques_sistema')
+                        Forms\Components\TextInput::make('cheques_sistema')
                             ->label('Cheques')
-                            ->content(fn (?AperturaCaja $record) => 'Gs. ' . number_format($record?->cobros()
+                            ->default(fn (?AperturaCaja $record) => $record?->cobros()
                                 ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
                                 ->where('cobros_formas_pago.cod_forma_cobro', 5)
-                                ->sum('cobros_formas_pago.monto') ?? 0, 0, ',', '.')),
+                                ->sum('cobros_formas_pago.monto') ?? 0)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->suffix('Gs.'),
 
-                        Forms\Components\Placeholder::make('total_sistema')
+                        Forms\Components\TextInput::make('total_sistema')
                             ->label('Total Sistema')
-                            ->content(fn (?AperturaCaja $record) => new \Illuminate\Support\HtmlString(
-                                '<span style="font-weight: bold; color: #2563eb;">Gs. ' . number_format($record?->total_ingresos ?? 0, 0, ',', '.') . '</span>'
-                            )),
+                            ->default(fn (?AperturaCaja $record) => $record?->total_ingresos ?? 0)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->suffix('Gs.')
+                            ->extraAttributes(['style' => 'font-weight: bold; color: #2563eb;']),
                     ]),
                 ])
                 ->visible(fn (?AperturaCaja $record) => $record?->estado === 'Abierta'),
@@ -208,66 +222,11 @@ class AperturaCajaResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\Action::make('cerrar')
+                Tables\Actions\EditAction::make()
                     ->label('Cerrar')
                     ->icon('heroicon-o-lock-closed')
                     ->color('danger')
-                    ->visible(fn (AperturaCaja $record): bool => $record->estado === 'Abierta')
-                    ->requiresConfirmation()
-                    ->modalHeading('Cerrar Caja')
-                    ->modalDescription('Confirme el cierre de caja. Se registrará el arqueo con los datos actuales.')
-                    ->modalSubmitActionLabel('Cerrar Caja')
-                    ->action(function (AperturaCaja $record) {
-                        $efectivo = $record->cobros()
-                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
-                            ->where('cobros_formas_pago.cod_forma_cobro', 1)
-                            ->sum('cobros_formas_pago.monto') ?? 0;
-                        $tarjetas = $record->cobros()
-                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
-                            ->whereIn('cobros_formas_pago.cod_forma_cobro', [2, 3])
-                            ->sum('cobros_formas_pago.monto') ?? 0;
-                        $transferencias = $record->cobros()
-                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
-                            ->where('cobros_formas_pago.cod_forma_cobro', 4)
-                            ->sum('cobros_formas_pago.monto') ?? 0;
-                        $cheques = $record->cobros()
-                            ->join('cobros_formas_pago', 'cobros.cod_cobro', '=', 'cobros_formas_pago.cod_cobro')
-                            ->where('cobros_formas_pago.cod_forma_cobro', 5)
-                            ->sum('cobros_formas_pago.monto') ?? 0;
-                        $totalSistema = $efectivo + $tarjetas + $transferencias + $cheques;
-
-                        $record->update([
-                            'estado' => 'Cerrada',
-                            'fecha_cierre' => now()->toDateString(),
-                            'hora_cierre' => now()->toTimeString(),
-                            'saldo_esperado' => $totalSistema,
-                            'diferencia' => 0,
-                        ]);
-
-                        ArqueoCaja::create([
-                            'cod_apertura' => $record->cod_apertura,
-                            'efectivo_sistema' => $efectivo,
-                            'tarjetas_sistema' => $tarjetas,
-                            'transferencias_sistema' => $transferencias,
-                            'cheques_sistema' => $cheques,
-                            'total_sistema' => $totalSistema,
-                            'efectivo_fisico' => 0,
-                            'tarjetas_fisico' => 0,
-                            'transferencias_fisico' => 0,
-                            'cheques_fisico' => 0,
-                            'total_fisico' => 0,
-                            'diferencia' => -$totalSistema,
-                            'observaciones' => 'Cierre sin arqueo previo',
-                            'usuario_alta' => Auth::user()->name,
-                            'fecha_alta' => now(),
-                        ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('Caja cerrada')
-                            ->body('La caja ha sido cerrada exitosamente.')
-                            ->send();
-                    }),
+                    ->visible(fn (AperturaCaja $record): bool => $record->estado === 'Abierta'),
 
                 Tables\Actions\Action::make('arqueo')
                     ->label('Arqueo')

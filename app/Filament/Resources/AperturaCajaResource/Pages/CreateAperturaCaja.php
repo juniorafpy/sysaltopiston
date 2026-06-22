@@ -14,6 +14,11 @@ class CreateAperturaCaja extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
+    protected function getCreateFormAction(): \Filament\Actions\Action
+    {
+        return parent::getCreateFormAction()->label('Aperturar caja');
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $user = Auth::user();

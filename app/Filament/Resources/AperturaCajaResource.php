@@ -12,6 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Support\RawJs;
 use Illuminate\Support\Facades\Auth;
 
 class AperturaCajaResource extends Resource
@@ -78,13 +79,11 @@ class AperturaCajaResource extends Resource
                             ->numeric()
                             ->default(0)
                             ->suffix('Gs.')
-                            ->disabled(fn (?AperturaCaja $record) => $record !== null),
+                            ->disabled(fn (?AperturaCaja $record) => $record !== null)
+                        ->mask(RawJs::make('$money($input, \',\', \'.\', 0)'))
+    // Limpiamos los puntos antes de validar y guardar en la base de datos
+                        ->stripCharacters('.'),
 
-                        Forms\Components\Textarea::make('observaciones_apertura')
-                            ->label('Observaciones')
-                            ->rows(3)
-                            ->columnSpanFull()
-                            ->disabled(fn (?AperturaCaja $record) => $record !== null),
                     ]),
                 ])
                 ->collapsible()
@@ -97,9 +96,7 @@ class AperturaCajaResource extends Resource
                             ->label('Monto Inicial')
                             ->disabled()
                             ->dehydrated()
-                            ->suffix('Gs.')
-                            ->mask(RawJs::make('$money($input, \'.\', \',\', 0)'))
-                            ->stripCharacters('.'),
+                            ->suffix('Gs.'),
 
                         Forms\Components\TextInput::make('total_ingresos')
                             ->label('Total Ingresos')

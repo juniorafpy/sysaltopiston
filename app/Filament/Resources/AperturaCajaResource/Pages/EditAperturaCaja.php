@@ -12,6 +12,11 @@ class EditAperturaCaja extends EditRecord
 {
     protected static string $resource = AperturaCajaResource::class;
 
+    protected function getSaveFormAction(): \Filament\Actions\Action
+    {
+        return parent::getSaveFormAction()->label('Cerrar apertura');
+    }
+
     protected function getHeaderActions(): array
     {
         return [

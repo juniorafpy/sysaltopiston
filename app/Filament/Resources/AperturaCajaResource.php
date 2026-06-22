@@ -97,12 +97,9 @@ class AperturaCajaResource extends Resource
                             ->label('Monto Inicial')
                             ->disabled()
                             ->dehydrated()
-                            ->numeric(
-        decimalPlaces: 0,
-        decimalSeparator: ',',
-        thousandsSeparator: '.'
-    )
-                            ->suffix('Gs.'),
+                            ->suffix('Gs.')
+                            ->mask(RawJs::make('$money($input, \'.\', \',\', 0)'))
+                            ->stripCharacters('.'),
 
                         Forms\Components\TextInput::make('total_ingresos')
                             ->label('Total Ingresos')

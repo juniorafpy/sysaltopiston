@@ -48,6 +48,7 @@ class PresupuestoPdfController extends Controller
             'diagnostico.recepcionVehiculo.vehiculo.modelo',
             'condicion',
             'sucursal',
+            'tipoVenta',
         ]);
 
         $subtotal = $presupuesto->detalles->sum(fn($d) => (float)$d->subtotal);

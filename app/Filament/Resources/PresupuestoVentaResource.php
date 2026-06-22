@@ -36,13 +36,32 @@ class PresupuestoVentaResource extends Resource
                     ->icon('heroicon-o-clipboard-document-list')
                     ->columns(3)
                     ->schema([
-                        Forms\Components\Select::make('cod_sucursal')
+                        Forms\Components\TextInput::make('sucursal_display')
                             ->label('Sucursal')
-                            ->relationship('sucursal', 'descripcion')
-                            ->searchable()
-                            ->preload()
-                            ->dehydrated(true)
-                            ->required(),
+                            ->default(function () {
+                                $user = auth()->user();
+                                if ($user && $user->cod_sucursal) {
+                                    $sucursal = \App\Models\Sucursal::find($user->cod_sucursal);
+                                    return $sucursal?->descripcion ?? 'Sin sucursal';
+                                }
+                                return 'Sin sucursal';
+                            })
+                            ->formatStateUsing(fn ($state, $record) => $record?->sucursal?->descripcion ?? $state ?? 'Sin sucursal')
+                            ->disabled()
+                            ->dehydrated(),
+
+                        Forms\Components\Hidden::make('cod_sucursal')
+                            ->default(fn () => auth()->user()?->cod_sucursal)
+                            ->dehydrated(),
+
+                        Forms\Components\Hidden::make('recepcion_vehiculo_id')
+                            ->default(function () {
+                                $diagnosticoId = request()->integer('diagnostico_id');
+                                if (!$diagnosticoId) return null;
+                                $diagnostico = \App\Models\Diagnostico::find($diagnosticoId);
+                                return $diagnostico?->recepcion_vehiculo_id;
+                            })
+                            ->dehydrated(),
 
                         Forms\Components\Placeholder::make('usuario_alta')
                             ->label('Usuario Alta')
@@ -65,67 +84,73 @@ class PresupuestoVentaResource extends Resource
                                 'class' => 'text-sm text-gray-600',
                             ]),
 
-                        Forms\Components\Select::make('diagnostico_id')
-                            ->label('Diagnóstico relacionado')
-                            ->relationship('diagnostico', 'id')
-                            ->searchable(['id', 'recepcionVehiculo.vehiculo.matricula', 'recepcionVehiculo.cliente.persona.nombres'])
-                            ->getOptionLabelFromRecordUsing(function (?Diagnostico $record): ?string {
-                                if (! $record) {
-                                    return null;
-                                }
-                                $chapa = $record->recepcionVehiculo?->vehiculo?->matricula ?? 'Sin chapa';
-                                $cliente = $record->recepcionVehiculo?->cliente?->persona?->nombres ?? 'Sin cliente';
-                                return sprintf('#%s · %s · %s', $record->id, $chapa, Str::limit($cliente, 30));
-                            })
-                            ->default(fn () => request()->integer('diagnostico_id'))
-                            ->disabled(fn () => request()->has('diagnostico_id'))
-                            ->placeholder('Selecciona el diagnóstico')
-                            ->live()
-                            ->afterStateUpdated(function ($state, callable $set, Forms\Get $get): void {
-                                if (! $state) {
-                                    $set('cod_cliente', null);
-                                    return;
-                                }
-                                $diagnostico = \App\Models\Diagnostico::with('recepcionVehiculo.cliente.persona')->find($state);
-                                if (! $diagnostico || !$diagnostico->recepcionVehiculo) {
-                                    $set('cod_cliente', null);
-                                    return;
-                                }
-                                $set('recepcion_vehiculo_id', $diagnostico->recepcion_vehiculo_id);
-                                $set('cod_cliente', $diagnostico->recepcionVehiculo->cod_cliente ?? $diagnostico->recepcionVehiculo->cliente_id);
-                                $set('observaciones_diagnostico', $diagnostico->diagnostico_mecanico ?? '');
-                            })
-                            ->required()
-                            ->columnSpan(3),
+                        Forms\Components\TextInput::make('diagnostico_display')
+                            ->label('Diagnóstico N.º')
+                            ->visible(fn (callable $get) => !empty($get('diagnostico_id')))
+                            ->disabled()
+                            ->dehydrated(),
 
-                        Forms\Components\Hidden::make('cod_cliente')
-                            ->dehydrated(true),
+                        Forms\Components\Hidden::make('diagnostico_id')
+                            ->default(fn () => request()->integer('diagnostico_id'))
+                            ->dehydrated(),
+
+                        Forms\Components\Hidden::make('cod_cliente_val')
+                            ->default(function () {
+                                $diagnosticoId = request()->integer('diagnostico_id');
+                                if (!$diagnosticoId) return null;
+                                $diagnostico = \App\Models\Diagnostico::with('recepcionVehiculo')->find($diagnosticoId);
+                                return $diagnostico?->recepcionVehiculo?->cliente_id;
+                            })
+                            ->dehydrated(),
 
                         Forms\Components\TextInput::make('cliente_nombre')
-                            ->label('Cliente (Nombre)')
+                            ->label('Cliente')
                             ->disabled()
-                            ->dehydrated(false)
-                            ->formatStateUsing(function ($state, $record, $get) {
-                                // Primero intentar traer desde el diagnóstico (recepcion -> cliente)
-                                $diagnosticoId = $get('diagnostico_id');
-                                if ($diagnosticoId) {
-                                    $diagnostico = \App\Models\Diagnostico::with('recepcionVehiculo.cliente.persona')->find($diagnosticoId);
-                                    if ($diagnostico?->recepcionVehiculo?->cliente?->persona) {
-                                        $persona = $diagnostico->recepcionVehiculo->cliente->persona;
-                                        return $persona->razon_social ?: trim($persona->nombres . ' ' . ($persona->apellidos ?? ''));
-                                    }
-                                }
-
-                                // Si no hay diagnóstico, traer desde cod_cliente
-                                $codigoCliente = $get('cod_cliente');
-                                if ($codigoCliente) {
-                                    $cliente = \App\Models\Cliente::with('persona')->find($codigoCliente);
-                                    if ($cliente && $cliente->persona) {
-                                        return $cliente->persona->razon_social ?: trim($cliente->persona->nombres . ' ' . ($cliente->persona->apellidos ?? ''));
-                                    }
+                            ->dehydrated()
+                            ->visible(fn (callable $get) => !empty($get('diagnostico_id')))
+                            ->default(function () {
+                                $diagnosticoId = request()->integer('diagnostico_id');
+                                if (!$diagnosticoId) return '';
+                                $diagnostico = \App\Models\Diagnostico::with('recepcionVehiculo.cliente.persona')->find($diagnosticoId);
+                                if ($diagnostico?->recepcionVehiculo?->cliente?->persona) {
+                                    $persona = $diagnostico->recepcionVehiculo->cliente->persona;
+                                    return $persona->razon_social ?: trim($persona->nombres . ' ' . ($persona->apellidos ?? ''));
                                 }
                                 return '';
                             }),
+
+                        Forms\Components\Select::make('cod_cliente')
+                            ->label('Cliente')
+                            ->options(function () {
+                                return \App\Models\Cliente::with('persona')->get()
+                                    ->mapWithKeys(function ($cliente) {
+                                        return [$cliente->cod_cliente => $cliente->nombre_completo];
+                                    });
+                            })
+                            ->getSearchResultsUsing(function (string $search) {
+                                return \App\Models\Cliente::with('persona')
+                                    ->whereHas('persona', function ($query) use ($search) {
+                                        $query->where('nombres', 'ilike', "%{$search}%")
+                                            ->orWhere('apellidos', 'ilike', "%{$search}%")
+                                            ->orWhere('razon_social', 'ilike', "%{$search}%")
+                                            ->orWhere('nro_documento', 'ilike', "%{$search}%");
+                                    })
+                                    ->get()
+                                    ->mapWithKeys(function ($cliente) {
+                                        return [$cliente->cod_cliente => $cliente->nombre_completo];
+                                    });
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->visible(fn (callable $get) => empty($get('diagnostico_id'))),
+
+                        Forms\Components\Select::make('cod_tipo_venta')
+                            ->label('Tipo de Venta')
+                            ->relationship('tipoVenta', 'descripcion', fn ($query) => $query->where('estado', 'S'))
+                            ->searchable()
+                            ->preload()
+                            ->required(),
 
                         Forms\Components\DatePicker::make('fecha_presupuesto')
                             ->label('Fecha')
@@ -159,8 +184,14 @@ class PresupuestoVentaResource extends Resource
                             ->label('Observaciones del mecánico')
                             ->rows(3)
                             ->disabled()
-                            ->dehydrated(false)
-                            ->visible(fn (callable $get) => (bool) $get('diagnostico_id'))
+                            ->dehydrated()
+                            ->visible(fn (callable $get) => !empty($get('diagnostico_id')))
+                            ->default(function () {
+                                $diagnosticoId = request()->integer('diagnostico_id');
+                                if (!$diagnosticoId) return '';
+                                $diagnostico = \App\Models\Diagnostico::find($diagnosticoId);
+                                return $diagnostico?->diagnostico_mecanico ?? '';
+                            })
                             ->columnSpan(3),
 
                         Forms\Components\Textarea::make('observaciones')

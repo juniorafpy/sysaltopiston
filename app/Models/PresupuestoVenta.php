@@ -22,6 +22,7 @@ class PresupuestoVenta extends Model
         'observaciones',
         'cod_condicion',
         'cod_sucursal',
+        'cod_tipo_venta',
         'usuario_alta',
         'fec_alta',
     ];
@@ -60,6 +61,11 @@ class PresupuestoVenta extends Model
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class, 'cod_sucursal', 'cod_sucursal');
+    }
+
+    public function tipoVenta()
+    {
+        return $this->belongsTo(TipoVenta::class, 'cod_tipo_venta', 'cod_tipo_venta');
     }
 
     public function facturas()

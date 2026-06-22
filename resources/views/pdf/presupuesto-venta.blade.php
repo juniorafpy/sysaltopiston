@@ -34,7 +34,7 @@ body{font-family:DejaVu Sans,Arial,sans-serif;font-size:9pt;color:#000;line-heig
     <div class="nro">PRESUPUESTO DE VENTA N° {{ str_pad($presupuesto->id, 6, '0', STR_PAD_LEFT) }}</div>
 </div>
 
-<div class="titulo">Datos del Cliente y Vehículo</div>
+<div class="titulo">Datos del Cliente</div>
 <table class="datos">
     <tr>
         <td class="lbl">Cliente:</td>
@@ -42,17 +42,25 @@ body{font-family:DejaVu Sans,Arial,sans-serif;font-size:9pt;color:#000;line-heig
         <td class="lbl">Documento:</td>
         <td class="val">{{ $presupuesto->cliente?->persona?->nro_documento ?: '—' }}</td>
     </tr>
+    @if($presupuesto->tipoVenta?->descripcion === 'OS' || $presupuesto->tipoVenta?->descripcion === 'os')
     <tr>
         <td class="lbl">Chapa:</td>
         <td class="val">{{ $presupuesto->diagnostico?->recepcionVehiculo?->vehiculo?->matricula ?: '—' }}</td>
         <td class="lbl">Vehículo:</td>
         <td class="val">{{ $presupuesto->diagnostico?->recepcionVehiculo?->vehiculo?->modelo?->descripcion ?: '—' }}</td>
     </tr>
+    @endif
     <tr>
         <td class="lbl">Fecha:</td>
         <td class="val">{{ $presupuesto->fecha_presupuesto ? \Carbon\Carbon::parse($presupuesto->fecha_presupuesto)->format('d/m/Y') : '—' }}</td>
+        <td class="lbl">Vigencia:</td>
+        <td class="val">{{ $presupuesto->fecha_presupuesto ? \Carbon\Carbon::parse($presupuesto->fecha_presupuesto)->addDays(15)->format('d/m/Y') : '—' }} (15 días)</td>
+    </tr>
+    <tr>
         <td class="lbl">Condición:</td>
         <td class="val">{{ $presupuesto->condicion?->descripcion ?: '—' }}</td>
+        <td class="lbl"></td>
+        <td class="val"></td>
     </tr>
     <tr>
         <td class="lbl">Sucursal:</td>
@@ -119,8 +127,6 @@ body{font-family:DejaVu Sans,Arial,sans-serif;font-size:9pt;color:#000;line-heig
 @endif
 
 <div class="footer">
-    <div class="estado">ESTADO: {{ strtoupper($presupuesto->estado) }}</div>
-    <br><br>
     Documento generado el {{ now()->format('d/m/Y H:i') }} — AltoPiston Taller Mecánico
 </div>
 

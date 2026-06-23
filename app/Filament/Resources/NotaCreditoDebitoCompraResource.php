@@ -61,10 +61,19 @@ class NotaCreditoDebitoCompraResource extends Resource
                             ->prefixIcon('heroicon-o-document-text')
                             ->options(function (callable $get) {
                                 $codProveedor = $get('cod_proveedor');
+                                $tipoNota = $get('tip_comprobante');
                                 if (!$codProveedor) {
                                     return [];
                                 }
+
+                                // Excluir facturas que ya tengan una nota del mismo tipo
+                                $facturasConNota = \App\Models\NotaCreditoDebitoCompra::where('cod_proveedor', $codProveedor)
+                                    ->when($tipoNota, fn ($q) => $q->where('tip_comprobante', $tipoNota))
+                                    ->pluck('id_compra_cabecera')
+                                    ->toArray();
+
                                 return CompraCabecera::where('cod_proveedor', $codProveedor)
+                                    ->whereNotIn('id_compra_cabecera', $facturasConNota)
                                     ->with('proveedor')
                                     ->get()
                                     ->mapWithKeys(function ($compra) {
@@ -113,6 +122,7 @@ class NotaCreditoDebitoCompraResource extends Resource
                                 })->toArray();
                                 $set('detalles', $detalles);
                                 $set('total_general', collect($detalles)->sum('monto_total_linea'));
+                                $set('fec_comprobante', $compra->fec_comprobante?->format('Y-m-d') ?? now()->format('Y-m-d'));
                             }),
                     ]),
                 ]),
@@ -185,6 +195,7 @@ class NotaCreditoDebitoCompraResource extends Resource
                             ->default(now())
                             ->required()
                             ->native(true)
+                            ->live()
                             ->displayFormat('d/m/Y')
                             ->columnSpan(1),
                     ]),
@@ -465,13 +476,20 @@ class NotaCreditoDebitoCompraResource extends Resource
                                     ->default(1)
                                     ->required()
                                     ->live(onBlur: true)
+                                    ->disabled(function (callable $get) {
+                                        $codMotivo = $get('../../cod_motivo');
+                                        if (!$codMotivo) {
+                                            return false;
+                                        }
+                                        $motivo = \App\Models\MotivoNotaCreditoDebito::find($codMotivo);
+                                        // Bloquear cantidad para descuentos y errores de precio
+                                        return $motivo && !$motivo->afecta_stock && $motivo->afecta_saldo;
+                                    })
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $precio = (float) ($get('precio_unitario') ?? 0);
-                                        $iva = (float) ($get('porcentaje_iva') ?? 10);
-                                        $subtotal = $state * $precio;
-                                        $montoIva = $subtotal * ($iva / 100);
-                                        $set('monto_total_linea', round($subtotal + $montoIva, 0));
-                                        
+                                        // El precio de compra viene con IVA incluido
+                                        $set('monto_total_linea', round($state * $precio, 0));
+
                                         $detalles = $get('../../detalles') ?? [];
                                         $totalGeneral = collect($detalles)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
                                         $set('../../total_general', round($totalGeneral, 0));
@@ -484,13 +502,20 @@ class NotaCreditoDebitoCompraResource extends Resource
                                     ->numeric()
                                     ->required()
                                     ->live(onBlur: true)
+                                    ->disabled(function (callable $get) {
+                                        $codMotivo = $get('../../cod_motivo');
+                                        if (!$codMotivo) {
+                                            return false;
+                                        }
+                                        $motivo = \App\Models\MotivoNotaCreditoDebito::find($codMotivo);
+                                        // Bloquear precio para devolución de mercadería
+                                        return $motivo && $motivo->afecta_stock && stripos($motivo->descripcion, 'devoluci') !== false;
+                                    })
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $cantidad = (float) ($get('cantidad') ?? 0);
-                                        $iva = (float) ($get('porcentaje_iva') ?? 10);
-                                        $subtotal = $cantidad * $state;
-                                        $montoIva = $subtotal * ($iva / 100);
-                                        $set('monto_total_linea', round($subtotal + $montoIva, 0));
-                                        
+                                        // El precio de compra viene con IVA incluido
+                                        $set('monto_total_linea', round($cantidad * $state, 0));
+
                                         $detalles = $get('../../detalles') ?? [];
                                         $totalGeneral = collect($detalles)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
                                         $set('../../total_general', round($totalGeneral, 0));
@@ -505,12 +530,8 @@ class NotaCreditoDebitoCompraResource extends Resource
                                     ->required()
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                        $cantidad = (float) ($get('cantidad') ?? 0);
-                                        $precio = (float) ($get('precio_unitario') ?? 0);
-                                        $subtotal = $cantidad * $precio;
-                                        $montoIva = $subtotal * ($state / 100);
-                                        $set('monto_total_linea', round($subtotal + $montoIva, 0));
-                                        
+                                        // El total no cambia porque el precio ya incluye IVA;
+                                        // solo se actualiza el total general por si hubo cambios previos
                                         $detalles = $get('../../detalles') ?? [];
                                         $totalGeneral = collect($detalles)->sum(fn ($item) => (float) ($item['monto_total_linea'] ?? 0));
                                         $set('../../total_general', round($totalGeneral, 0));
@@ -536,7 +557,7 @@ class NotaCreditoDebitoCompraResource extends Resource
                         ->deletable()
                         ->reorderable()
                         ->collapsible()
-                        ->itemLabel(fn (array $state): ?string => $state['articulo_id'] ?? null),
+                        ->itemLabel(fn (array $state): ?string => $state['cod_articulo'] ?? null),
                 ]),
 
             // ─── SECCIÓN 4: TOTAL ───

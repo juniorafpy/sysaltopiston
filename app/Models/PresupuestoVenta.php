@@ -23,6 +23,7 @@ class PresupuestoVenta extends Model
         'cod_condicion',
         'cod_sucursal',
         'cod_tipo_venta',
+        'ind_facturada',
         'usuario_alta',
         'fec_alta',
     ];
@@ -71,6 +72,11 @@ class PresupuestoVenta extends Model
     public function facturas()
     {
         return $this->hasMany(Factura::class, 'presupuesto_venta_id', 'id');
+    }
+
+    public function ordenServicio()
+    {
+        return $this->hasOne(OrdenServicio::class, 'presupuesto_venta_id', 'id');
     }
 
     /**

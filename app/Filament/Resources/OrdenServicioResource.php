@@ -41,22 +41,51 @@ class OrdenServicioResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('presupuesto_venta_id')
                             ->label('Presupuesto')
-                            ->relationship('presupuestoVenta', 'id')
+                            ->options(function () {
+                                return PresupuestoVenta::with('cliente.persona')
+                                    ->where('estado', 'Aprobado')
+                                    ->where('cod_tipo_venta', 2)
+                                    ->whereDoesntHave('ordenServicio')
+                                    ->get()
+                                    ->mapWithKeys(function ($record) {
+                                        $cliente = $record->cliente?->persona
+                                            ? trim($record->cliente->persona->nombres . ' ' . ($record->cliente->persona->apellidos ?? ''))
+                                            : ($record->cliente?->nombres ?? 'Sin cliente');
+                                        return [$record->id => "#{$record->id} - {$cliente}"];
+                                    });
+                            })
+                            ->getSearchResultsUsing(function (string $search) {
+                                return PresupuestoVenta::with('cliente.persona')
+                                    ->where('estado', 'Aprobado')
+                                    ->where('cod_tipo_venta', 2)
+                                    ->whereDoesntHave('ordenServicio')
+                                    ->where(function ($query) use ($search) {
+                                        $query->where('id', 'ilike', "%{$search}%")
+                                            ->orWhereHas('cliente.persona', function ($q) use ($search) {
+                                                $q->where('nombres', 'ilike', "%{$search}%")
+                                                    ->orWhere('apellidos', 'ilike', "%{$search}%")
+                                                    ->orWhere('razon_social', 'ilike', "%{$search}%");
+                                            });
+                                    })
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($record) {
+                                        $cliente = $record->cliente?->persona
+                                            ? trim($record->cliente->persona->nombres . ' ' . ($record->cliente->persona->apellidos ?? ''))
+                                            : ($record->cliente?->nombres ?? 'Sin cliente');
+                                        return [$record->id => "#{$record->id} - {$cliente}"];
+                                    });
+                            })
+                            ->getOptionLabelUsing(function ($value) {
+                                $record = PresupuestoVenta::with('cliente.persona')->find($value);
+                                if (!$record) return "Presupuesto #{$value}";
+                                $cliente = $record->cliente?->persona
+                                    ? trim($record->cliente->persona->nombres . ' ' . ($record->cliente->persona->apellidos ?? ''))
+                                    : ($record->cliente?->nombres ?? 'Sin cliente');
+                                return "#{$record->id} - {$cliente}";
+                            })
                             ->searchable()
                             ->preload()
-                            ->getOptionLabelFromRecordUsing(function (?PresupuestoVenta $record): ?string {
-                                if (!$record) {
-                                    return null;
-                                }
-                                // Obtener nombre del cliente - intenta primero nombres directo, luego persona
-                                $cliente = $record->cliente?->nombres ??
-                                           $record->cliente?->persona?->nombres ??
-                                           'Sin cliente';
-                                return sprintf('#%s - %s',
-                                    $record->id,
-                                    $cliente
-                                );
-                            })
                             ->required()
                             ->disabled(fn ($record) => $record !== null)
                             ->live(debounce: 500)
@@ -173,7 +202,6 @@ class OrdenServicioResource extends Resource
 
                         Forms\Components\Select::make('cod_mecanico')
                             ->label('Mecánico')
-                            ->relationship('mecanicoAsignado', 'cod_empleado')
                             ->options(function () {
                                 return \App\Models\Mecanico::with('empleado.persona')
                                     ->where('estado', 'A')
@@ -184,6 +212,32 @@ class OrdenServicioResource extends Resource
                                             : 'Mecánico #' . $mecanico->cod_mecanico;
                                         return [$mecanico->cod_mecanico => $nombre];
                                     });
+                            })
+                            ->getSearchResultsUsing(function (string $search) {
+                                return \App\Models\Mecanico::with('empleado.persona')
+                                    ->where('estado', 'A')
+                                    ->where(function ($query) use ($search) {
+                                        $query->where('cod_mecanico', 'ilike', "%{$search}%")
+                                            ->orWhereHas('empleado.persona', function ($q) use ($search) {
+                                                $q->where('nombres', 'ilike', "%{$search}%")
+                                                    ->orWhere('apellidos', 'ilike', "%{$search}%");
+                                            });
+                                    })
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($mecanico) {
+                                        $nombre = $mecanico->empleado?->persona
+                                            ? trim(($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? ''))
+                                            : 'Mecánico #' . $mecanico->cod_mecanico;
+                                        return [$mecanico->cod_mecanico => $nombre];
+                                    });
+                            })
+                            ->getOptionLabelUsing(function ($value) {
+                                $mecanico = \App\Models\Mecanico::with('empleado.persona')->find($value);
+                                if (!$mecanico) return "Mecánico #{$value}";
+                                return $mecanico->empleado?->persona
+                                    ? trim(($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? ''))
+                                    : 'Mecánico #' . $mecanico->cod_mecanico;
                             })
                             ->searchable()
                             ->preload()
@@ -309,7 +363,7 @@ class OrdenServicioResource extends Resource
                                     ->disabled()
                                     ->columnSpan(2),
 
-                                Forms\Components\TextInput::make('cantidad')
+                                 Forms\Components\TextInput::make('cantidad')
                                     ->label('Cant. Presupuestada')
                                     ->numeric()
                                     ->disabled()
@@ -337,9 +391,9 @@ class OrdenServicioResource extends Resource
                                 Forms\Components\Hidden::make('stock_reservado')
                                     ->dehydrated(),
                             ])
-                            ->disabled(fn ($record) => $record && !$record->puedeEditarse())
+                            ->disabled(fn ($record) => true)
                             ->addable(fn ($record) => false)
-                            ->deletable(fn ($record) => !$record || $record->puedeEditarse())
+                            ->deletable(fn ($record) => false)
                             ->reorderable(false)
                             ->defaultItems(0)
                             ->collapsible()
@@ -396,20 +450,9 @@ class OrdenServicioResource extends Resource
                 Tables\Columns\TextColumn::make('mecanico_completo')
                     ->label('Mecánico')
                     ->getStateUsing(function (OrdenServicio $record): string {
-                        $mecanico = null;
-                        if ($record->cod_mecanico) {
-                            $mecanico = $record->mecanicoAsignado;
-                        }
-                        if (!$mecanico && $record->presupuestoVenta?->diagnostico?->cod_mecanico) {
-                            $mecanico = $record->presupuestoVenta->diagnostico->mecanico;
-                        }
-                        if (!$mecanico && $record->presupuestoVenta?->recepcionVehiculo?->cod_mecanico) {
-                            $mecanico = $record->presupuestoVenta->recepcionVehiculo->mecanico;
-                        }
-                        if (!$mecanico && $record->presupuestoVenta?->diagnostico?->recepcionVehiculo?->cod_mecanico) {
-                            $mecanico = $record->presupuestoVenta->diagnostico->recepcionVehiculo->mecanico;
-                        }
-
+                        // Usar directamente la relación mecanico() que apunta al modelo Mecanico
+                        $mecanico = $record->mecanico;
+                        
                         if ($mecanico?->empleado?->persona) {
                             $nombre = trim(($mecanico->empleado->persona->nombres ?? '') . ' ' . ($mecanico->empleado->persona->apellidos ?? ''));
                             if ($nombre !== '') {

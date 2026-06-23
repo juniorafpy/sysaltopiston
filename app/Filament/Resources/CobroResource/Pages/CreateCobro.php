@@ -5,6 +5,8 @@ namespace App\Filament\Resources\CobroResource\Pages;
 use App\Filament\Resources\CobroResource;
 use App\Models\AperturaCaja;
 use App\Models\Cobro;
+use App\Models\Timbrado;
+use Filament\Notifications\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
@@ -74,6 +76,31 @@ class CreateCobro extends CreateRecord
         $total = collect($data['detalles'] ?? [])->sum(fn ($i) => (float) ($i['monto_cuota'] ?? 0));
         $totalPagado = collect($data['formas_pago'] ?? [])->sum(fn ($i) => (float) ($i['monto'] ?? 0));
 
+        // Validar que no se repita la misma forma de pago con la misma tarjeta
+        $vistos = [];
+        foreach ($data['formas_pago'] ?? [] as $fp) {
+            $forma = $fp['cod_forma_cobro'] ?? null;
+            $tarjeta = $fp['cod_tipo_tarjeta'] ?? null;
+
+            if (blank($forma)) {
+                continue;
+            }
+
+            $clave = $forma . '-' . ($tarjeta ?: '0');
+
+            if (in_array($clave, $vistos)) {
+                Notification::make()
+                    ->danger()
+                    ->title('Forma de pago duplicada')
+                    ->body('No puede repetir la misma forma de pago con la misma tarjeta.')
+                    ->persistent()
+                    ->send();
+                $this->halt();
+            }
+
+            $vistos[] = $clave;
+        }
+
         // Validar que no se salteen cuotas
         $cuotasPorFactura = [];
         foreach ($data['detalles'] ?? [] as $d) {
@@ -128,11 +155,35 @@ class CreateCobro extends CreateRecord
 
     protected function getCreatedNotification(): ?Notification
     {
-        return Notification::make()
+        $notification = Notification::make()
             ->success()
             ->title('Cobro registrado')
             ->body('El cobro se ha realizado exitosamente.')
-            ->duration(5000);
+            ->duration(7000);
+
+        if ($this->record && $this->record->esPagoCredito()) {
+            $notification
+                ->persistent()
+                ->body('El cobro se ha realizado exitosamente. Imprima el recibo para el cliente.')
+                ->actions([
+                    Action::make('imprimir_recibo')
+                        ->label('Imprimir recibo')
+                        ->button()
+                        ->url(fn () => route('cobros.recibo.pdf', $this->record))
+                        ->openUrlInNewTab(),
+                ]);
+        }
+
+        return $notification;
+    }
+
+    protected function afterCreate(): void
+    {
+        if ($this->record && $this->record->esPagoCredito() && $this->record->numero_recibo) {
+            $this->dispatch('open-pdf', [
+                'url' => route('cobros.recibo.pdf', $this->record),
+            ]);
+        }
     }
 
     protected function getRedirectUrl(): string
@@ -149,12 +200,44 @@ class CreateCobro extends CreateRecord
             }
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+        // Determinar si es pago de factura de crédito y buscar timbrado REC
+        $esCredito = false;
+        foreach ($data['detalles'] ?? [] as $detalle) {
+            $factura = \App\Models\Factura::find($detalle['cod_factura'] ?? null);
+            if ($factura && $factura->condicion_venta === 'Crédito') {
+                $esCredito = true;
+                break;
+            }
+        }
+
+        $timbradoRecibo = null;
+        if ($esCredito) {
+            $timbradoRecibo = Timbrado::obtenerTimbradoActivo('3');
+            if (!$timbradoRecibo) {
+                Notification::make()
+                    ->warning()
+                    ->title('Sin timbrado de recibos')
+                    ->body('No se encontró un timbrado activo de tipo REC (3). El cobro se registrará sin número de recibo.')
+                    ->persistent()
+                    ->send();
+            }
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($data, $esCredito, $timbradoRecibo) {
+            // Asignar número de recibo si es pago de crédito
+            if ($esCredito && $timbradoRecibo) {
+                $data['cod_timbrado_recibo'] = $timbradoRecibo->cod_timbrado;
+                $data['numero_recibo'] = $timbradoRecibo->obtenerSiguienteNumeroRecibo();
+                $timbradoRecibo->incrementarNumeroActualRecibo();
+            }
+
             $cobro = new Cobro();
             $cobro->cod_cliente = $data['cod_cliente'];
             $cobro->cod_apertura = $data['cod_apertura'];
             $cobro->fecha_cobro = $data['fecha_cobro'];
             $cobro->monto_total = $data['monto_total'];
+            $cobro->cod_timbrado_recibo = $data['cod_timbrado_recibo'] ?? null;
+            $cobro->numero_recibo = $data['numero_recibo'] ?? null;
             $cobro->usuario_alta = Auth::user()->name;
             $cobro->fecha_alta = $data['fecha_alta'];
             $cobro->saveQuietly();

@@ -113,8 +113,11 @@ class CreateFactura extends CreateRecord
                 $user = Auth::user();
                 $sucursal = $user && $user->cod_sucursal ? \App\Models\Sucursal::find($user->cod_sucursal) : null;
 
+                $referencia = 'OS #' . $orden->id;
+
                 $fillData = [
                     'orden_servicio_id' => $orden->id,
+                    'referencia' => $referencia,
                     'cod_cliente' => $codCliente,
                     'fecha_factura' => now()->toDateString(),
                     'cod_timbrado' => $codTimbrado,
@@ -170,7 +173,11 @@ class CreateFactura extends CreateRecord
                         ->send();
                 }
 
-                $codCliente = $presupuesto->cliente_id;
+                // El cod_cliente del presupuesto es cod_cliente (tabla clientes), pero la factura usa cod_persona
+                $codCliente = $presupuesto->cod_cliente;
+                if ($presupuesto->cliente?->persona) {
+                    $codCliente = $presupuesto->cliente->persona->cod_persona;
+                }
 
                 $detalles = [];
                 $subtotalGravado10 = 0;
@@ -190,8 +197,8 @@ class CreateFactura extends CreateRecord
                     $porcentajeIva = 10;
 
                     $detalles[] = [
-                        'cod_articulo' => $detalle->articulo_id,
-                        'descripcion' => $detalle->articulo->descripcion ?? $detalle->descripcion ?? 'N/A',
+                        'cod_articulo' => $detalle->cod_articulo,
+                        'descripcion' => $detalle->descripcion ?? $detalle->articulo?->descripcion ?? 'N/A',
                         'cantidad' => $cantidad,
                         'precio_unitario' => $precioUnitario,
                         'porcentaje_descuento' => $porcentajeDescuento,
@@ -218,8 +225,11 @@ class CreateFactura extends CreateRecord
                 $user = Auth::user();
                 $sucursal = $user && $user->cod_sucursal ? \App\Models\Sucursal::find($user->cod_sucursal) : null;
 
+                $referencia = 'Presupuesto #' . $presupuesto->id;
+
                 $fillData = [
                     'presupuesto_venta_id' => $presupuesto->id,
+                    'referencia' => $referencia,
                     'cod_cliente' => $codCliente,
                     'fecha_factura' => now()->toDateString(),
                     'cod_timbrado' => $codTimbrado,
@@ -258,35 +268,95 @@ class CreateFactura extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Determinar condicion_venta desde cod_condicion_compra
-        if (isset($data['cod_condicion_compra'])) {
-            $condicionCompra = \App\Models\CondicionCompra::find($data['cod_condicion_compra']);
-            if ($condicionCompra) {
-                $data['condicion_venta'] = ($condicionCompra->dias_cuotas == 0) ? 'Contado' : 'Crédito';
+        try {
+            // Determinar condicion_venta desde cod_condicion_compra
+            if (isset($data['cod_condicion_compra'])) {
+                $condicionCompra = \App\Models\CondicionCompra::find($data['cod_condicion_compra']);
+                if ($condicionCompra) {
+                    $data['condicion_venta'] = ($condicionCompra->dias_cuotas == 0) ? 'Contado' : 'Crédito';
+                }
             }
+
+            // Asegurar que el estado sea 'Emitida'
+            $data['estado'] = 'Emitida';
+
+            // Obtener y validar el timbrado
+            $timbrado = \App\Models\Timbrado::findOrFail($data['cod_timbrado']);
+
+            if (!$timbrado->estaVigente()) {
+                throw new \Exception('El timbrado no está vigente.');
+            }
+
+            // Obtener el siguiente número de factura
+            $numeroFactura = $timbrado->obtenerSiguienteNumero();
+            $data['numero_factura'] = $timbrado->formatearNumeroFactura($numeroFactura);
+
+            // Auditoría
+            $user = Auth::user();
+            $data['cod_sucursal'] = $user->cod_sucursal ?? null;
+            $data['usuario_alta'] = $user->name;
+            $data['fecha_alta'] = now();
+
+            return $data;
+        } catch (\Exception $e) {
+            $this->dispatch('swal:error', [
+                'message' => $e->getMessage()
+            ]);
+            throw $e;
         }
+    }
 
-        // Asegurar que el estado sea 'Emitida'
-        $data['estado'] = 'Emitida';
+    /**
+     * Hook before creating - validate stock for Mostrador presupuestos
+     */
+    protected function beforeCreate(): void
+    {
+        try {
+            $data = $this->form->getState();
+            
+            // VALIDAR STOCK para presupuestos tipo Mostrador (cod_tipo_venta = 1)
+            if (!empty($data['presupuesto_venta_id'])) {
+                $presupuesto = \App\Models\PresupuestoVenta::with('detalles.articulo')->find($data['presupuesto_venta_id']);
+                if ($presupuesto && $presupuesto->cod_tipo_venta == 1) {
+                    $sucursal = $data['cod_sucursal'] ?? auth()->user()->cod_sucursal;
+                    $errores = [];
+                    
+                    foreach ($presupuesto->detalles as $detalle) {
+                        $codArticulo = $detalle->cod_articulo;
+                        $cantidad = $detalle->cantidad;
+                        $stock = \App\Models\ExisteStock::where('cod_articulo', $codArticulo)
+                            ->where('cod_sucursal', $sucursal)
+                            ->first();
+                        $stockDisponible = $stock?->stock_disponible ?? 0;
+                        
+                        if ($stockDisponible < $cantidad) {
+                            $descripcion = $detalle->descripcion ?? $detalle->articulo?->descripcion ?? "Artículo #{$codArticulo}";
+                            $errores[] = "{$descripcion}: Disponible {$stockDisponible}, Requerido {$cantidad}";
+                        }
+                    }
+                    
+                    if (!empty($errores)) {
+                        $mensaje = "No hay suficiente stock para facturar:<br>" . implode("<br>", $errores);
+                        Notification::make()
+                            ->title('Stock Insuficiente')
+                            ->body($mensaje)
+                            ->danger()
+                            ->persistent()
+                            ->send();
 
-        // Obtener y validar el timbrado
-        $timbrado = \App\Models\Timbrado::findOrFail($data['cod_timbrado']);
-
-        if (!$timbrado->estaVigente()) {
-            throw new \Exception('El timbrado no está vigente.');
+                        $this->halt();
+                    }
+                }
+            }
+        } catch (\Filament\Support\Exceptions\Halt $e) {
+            // Dejar que el Halt se propague para detener el formulario sin mostrar error genérico
+            throw $e;
+        } catch (\Exception $e) {
+            $this->dispatch('swal:error', [
+                'message' => 'Error: ' . $e->getMessage()
+            ]);
+            $this->halt();
         }
-
-        // Obtener el siguiente número de factura
-        $numeroFactura = $timbrado->obtenerSiguienteNumero();
-        $data['numero_factura'] = $timbrado->formatearNumeroFactura($numeroFactura);
-
-        // Auditoría
-        $user = Auth::user();
-        $data['cod_sucursal'] = $user->cod_sucursal ?? null;
-        $data['usuario_alta'] = $user->name;
-        $data['fecha_alta'] = now();
-
-        return $data;
     }
 
     /**
@@ -347,9 +417,9 @@ class CreateFactura extends CreateRecord
             // 5. Incrementar el número actual del timbrado
             $factura->timbrado->incrementarNumeroActual();
 
-            // 6. Si viene de presupuesto, actualizar su estado
+            // 6. Si viene de presupuesto, actualizar su estado y marcar como facturado
             if ($factura->presupuesto_venta_id) {
-                $factura->presupuestoVenta->update(['estado' => 'Facturado']);
+                $factura->presupuestoVenta->update(['estado' => 'Facturado', 'ind_facturada' => 'S']);
             }
 
             // 7. Si viene de Orden de Servicio, marcar como facturada
@@ -375,6 +445,7 @@ class CreateFactura extends CreateRecord
             ]);
 
             Log::error("Error en afterCreate de Factura: " . $e->getMessage());
+            throw $e;
         }
     }
 

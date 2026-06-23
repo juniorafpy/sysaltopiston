@@ -92,6 +92,27 @@ class Timbrado extends Model
             throw new \Exception('El timbrado ha alcanzado su número final.');
         }
 
+        // Buscar el siguiente número disponible que no exista en facturas
+        $numeroFactura = str_pad($numeroActual, 7, '0', STR_PAD_LEFT);
+        $numeroFacturaCompleto = $this->formatearNumeroFactura($numeroFactura);
+
+        // Verificar si ya existe
+        while ($numeroActual <= $numeroFinal) {
+            $numeroFactura = str_pad($numeroActual, 7, '0', STR_PAD_LEFT);
+            $numeroFacturaCompleto = $this->formatearNumeroFactura($numeroFactura);
+
+            $existe = \App\Models\Factura::where('numero_factura', $numeroFacturaCompleto)->exists();
+            if (!$existe) {
+                break;
+            }
+
+            $numeroActual++;
+        }
+
+        if ($numeroActual > $numeroFinal) {
+            throw new \Exception('El timbrado ha alcanzado su número final.');
+        }
+
         return str_pad($numeroActual, 7, '0', STR_PAD_LEFT);
     }
 
@@ -101,7 +122,81 @@ class Timbrado extends Model
     public function incrementarNumeroActual(): void
     {
         $numeroActual = intval($this->numero_actual);
-        $this->numero_actual = str_pad($numeroActual + 1, 7, '0', STR_PAD_LEFT);
+        $numeroFinal = intval($this->numero_final);
+
+        // Buscar el siguiente número disponible
+        $siguienteNumero = $numeroActual;
+        while ($siguienteNumero <= $numeroFinal) {
+            $numeroFactura = str_pad($siguienteNumero, 7, '0', STR_PAD_LEFT);
+            $numeroFacturaCompleto = $this->formatearNumeroFactura($numeroFactura);
+
+            if (!\App\Models\Factura::where('numero_factura', $numeroFacturaCompleto)->exists()) {
+                break;
+            }
+            $siguienteNumero++;
+        }
+
+        $this->numero_actual = str_pad($siguienteNumero, 7, '0', STR_PAD_LEFT);
+        $this->save();
+    }
+
+    /**
+     * Obtiene el siguiente número de recibo disponible (tipo REC)
+     */
+    public function obtenerSiguienteNumeroRecibo(): string
+    {
+        if (!$this->estaVigente()) {
+            throw new \Exception('El timbrado de recibos no está vigente o no tiene números disponibles.');
+        }
+
+        $numeroActual = intval($this->numero_actual);
+        $numeroFinal = intval($this->numero_final);
+
+        if ($numeroActual > $numeroFinal) {
+            throw new \Exception('El timbrado de recibos ha alcanzado su número final.');
+        }
+
+        $numeroReciboCompleto = null;
+
+        while ($numeroActual <= $numeroFinal) {
+            $numeroRecibo = str_pad($numeroActual, 7, '0', STR_PAD_LEFT);
+            $numeroReciboCompleto = $this->formatearNumeroFactura($numeroRecibo);
+
+            $existe = \App\Models\Cobro::where('numero_recibo', $numeroReciboCompleto)->exists();
+            if (!$existe) {
+                break;
+            }
+
+            $numeroActual++;
+        }
+
+        if ($numeroActual > $numeroFinal || !$numeroReciboCompleto) {
+            throw new \Exception('El timbrado de recibos ha alcanzado su número final.');
+        }
+
+        return $numeroReciboCompleto;
+    }
+
+    /**
+     * Incrementa el número actual después de generar un recibo
+     */
+    public function incrementarNumeroActualRecibo(): void
+    {
+        $numeroActual = intval($this->numero_actual);
+        $numeroFinal = intval($this->numero_final);
+
+        $siguienteNumero = $numeroActual;
+        while ($siguienteNumero <= $numeroFinal) {
+            $numeroRecibo = str_pad($siguienteNumero, 7, '0', STR_PAD_LEFT);
+            $numeroReciboCompleto = $this->formatearNumeroFactura($numeroRecibo);
+
+            if (!\App\Models\Cobro::where('numero_recibo', $numeroReciboCompleto)->exists()) {
+                break;
+            }
+            $siguienteNumero++;
+        }
+
+        $this->numero_actual = str_pad($siguienteNumero, 7, '0', STR_PAD_LEFT);
         $this->save();
     }
 

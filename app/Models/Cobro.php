@@ -20,6 +20,8 @@ class Cobro extends Model
         'cod_apertura',
         'fecha_cobro',
         'monto_total',
+        'cod_timbrado_recibo',
+        'numero_recibo',
         'estado',
         'observaciones',
         'usuario_alta',
@@ -45,6 +47,11 @@ class Cobro extends Model
         return $this->belongsTo(AperturaCaja::class, 'cod_apertura', 'cod_apertura');
     }
 
+    public function timbradoRecibo()
+    {
+        return $this->belongsTo(Timbrado::class, 'cod_timbrado_recibo', 'cod_timbrado');
+    }
+
     public function detalles()
     {
         return $this->hasMany(CobroDetalle::class, 'cod_cobro', 'cod_cobro');
@@ -58,6 +65,49 @@ class Cobro extends Model
     public function usuario()
     {
         return $this->belongsTo(User::class, 'usuario_alta', 'id');
+    }
+
+    /**
+     * Determina si el cobro corresponde al pago de al menos una factura de crédito
+     */
+    public function esPagoCredito(): bool
+    {
+        $this->loadMissing(['detalles.factura']);
+
+        foreach ($this->detalles as $detalle) {
+            if ($detalle->factura && $detalle->factura->condicion_venta === 'Crédito') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Genera el PDF del recibo de cobro
+     */
+    public function generarReciboPDF(string $modo = 'stream')
+    {
+        $this->load(['cliente', 'timbradoRecibo', 'detalles.factura', 'formasPago.entidadBancaria', 'formasPago.tipoTarjeta', 'formasPago.formaCobro']);
+
+        $options = new \Dompdf\Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $html = view('pdf.recibo-cobro', ['cobro' => $this])->render();
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->render();
+
+        $filename = sprintf('Recibo_Cobro_%s_%s.pdf', str_pad($this->cod_cobro, 6, '0', STR_PAD_LEFT), now()->format('Ymd_His'));
+
+        $disposition = $modo === 'stream' ? 'inline' : 'attachment';
+
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', $disposition . '; filename="' . $filename . '"');
     }
 
     /**

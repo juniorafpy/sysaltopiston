@@ -129,6 +129,11 @@ Route::get('/factura/{factura}/pdf', function (\App\Models\Factura $factura) {
     return $factura->generarPDF('stream');
 })->name('facturas.pdf')->middleware(['auth']);
 
+// PDF de recibo de cobro
+Route::get('/cobro/{cobro}/recibo/pdf', function (\App\Models\Cobro $cobro) {
+    return $cobro->generarReciboPDF('stream');
+})->name('cobros.recibo.pdf')->middleware(['auth']);
+
 // API para obtener facturas pendientes de un cliente
 Route::get('/api/facturas-pendientes/{codCliente}', [FacturasPendientesController::class, 'index'])
     ->middleware(['auth']);

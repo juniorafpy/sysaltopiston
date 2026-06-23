@@ -11,6 +11,10 @@ use App\Models\Promocion;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\BadgeColumn;
@@ -494,7 +498,9 @@ class PresupuestoVentaResource extends Resource
                         ->icon('heroicon-o-document-text')
                         ->color('success')
                         ->visible(fn (PresupuestoVenta $record): bool =>
-                            $record->estado === 'Aprobado' && $record->facturas()->count() === 0
+                            $record->estado === 'Aprobado' 
+                            && $record->facturas()->count() === 0
+                            && $record->cod_tipo_venta != 2
                         )
                         ->url(fn (PresupuestoVenta $record): string =>
                             \App\Filament\Resources\FacturaResource::getUrl('create', ['presupuesto_venta_id' => $record->id])
@@ -510,6 +516,155 @@ class PresupuestoVentaResource extends Resource
     public static function getRelations(): array
     {
         return [];
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Section::make('Cabecera del presupuesto')
+                    ->icon('heroicon-o-clipboard-document-list')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('sucursal.descripcion')
+                            ->label('Sucursal'),
+
+                        TextEntry::make('usuario_alta')
+                            ->label('Usuario Alta'),
+
+                        TextEntry::make('fec_alta')
+                            ->label('Fecha Alta')
+                            ->dateTime('d/m/Y H:i'),
+
+                        TextEntry::make('cliente.nombre_completo')
+                            ->label('Cliente'),
+
+                        TextEntry::make('tipoVenta.descripcion')
+                            ->label('Tipo de Venta'),
+
+                        TextEntry::make('fecha_presupuesto')
+                            ->label('Fecha')
+                            ->date('d/m/Y'),
+
+                        TextEntry::make('condicion.descripcion')
+                            ->label('Condición de pago'),
+
+                        TextEntry::make('estado')
+                            ->label('Estado')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'Pendiente' => 'warning',
+                                'Aprobado' => 'success',
+                                'Rechazado' => 'danger',
+                                default => 'gray',
+                            }),
+                    ])
+                    ->visible(fn ($record) => empty($record->diagnostico_id)),
+
+                Section::make('Cabecera del presupuesto (OS)')
+                    ->icon('heroicon-o-clipboard-document-list')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('sucursal.descripcion')
+                            ->label('Sucursal'),
+
+                        TextEntry::make('usuario_alta')
+                            ->label('Usuario Alta'),
+
+                        TextEntry::make('fec_alta')
+                            ->label('Fecha Alta')
+                            ->dateTime('d/m/Y H:i'),
+
+                        TextEntry::make('diagnostico.id')
+                            ->label('Diagnóstico N.º'),
+
+                        TextEntry::make('cliente.nombre_completo')
+                            ->label('Cliente'),
+
+                        TextEntry::make('tipoVenta.descripcion')
+                            ->label('Tipo de Venta'),
+
+                        TextEntry::make('fecha_presupuesto')
+                            ->label('Fecha')
+                            ->date('d/m/Y'),
+
+                        TextEntry::make('condicion.descripcion')
+                            ->label('Condición de pago'),
+
+                        TextEntry::make('estado')
+                            ->label('Estado')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'Pendiente' => 'warning',
+                                'Aprobado' => 'success',
+                                'Rechazado' => 'danger',
+                                default => 'gray',
+                            }),
+
+                        TextEntry::make('diagnostico.recepcionVehiculo.vehiculo.matricula')
+                            ->label('Chapa'),
+
+                        TextEntry::make('diagnostico.recepcionVehiculo.vehiculo.modelo.descripcion')
+                            ->label('Vehículo'),
+
+                        TextEntry::make('observaciones_diagnostico')
+                            ->label('Observaciones del mecánico')
+                            ->columnSpan(3),
+                    ])
+                    ->visible(fn ($record) => !empty($record->diagnostico_id)),
+
+                Section::make('Observaciones')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->schema([
+                        TextEntry::make('observaciones')
+                            ->label('')
+                            ->visible(fn ($record) => !empty($record->observaciones)),
+                    ])
+                    ->visible(fn ($record) => !empty($record->observaciones)),
+
+                Section::make('Detalle de artículos')
+                    ->icon('heroicon-o-squares-plus')
+                    ->schema([
+                        RepeatableEntry::make('detalles')
+                            ->schema([
+                                TextEntry::make('articulo.descripcion')
+                                    ->label('Artículo'),
+                                TextEntry::make('cantidad')
+                                    ->label('Cant.'),
+                                TextEntry::make('precio_unitario')
+                                    ->label('Precio')
+                                    ->formatStateUsing(fn ($state) => 'Gs. ' . number_format($state, 0, ',', '.')),
+                                TextEntry::make('porcentaje_impuesto')
+                                    ->label('IVA')
+                                    ->formatStateUsing(fn ($state) => $state . '%'),
+                                TextEntry::make('porcentaje_descuento')
+                                    ->label('Desc.')
+                                    ->formatStateUsing(fn ($state) => $state > 0 ? $state . '%' : '—'),
+                                TextEntry::make('total')
+                                    ->label('Total')
+                                    ->formatStateUsing(fn ($state) => 'Gs. ' . number_format($state, 0, ',', '.')),
+                            ])
+                            ->columns(6),
+                    ]),
+
+                Section::make('Resumen de importes')
+                    ->icon('heroicon-o-calculator')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('subtotal')
+                            ->label('Subtotal')
+                            ->state(fn ($record) => 'Gs. ' . number_format($record->detalles->sum(fn($d) => (float) $d->subtotal), 0, ',', '.')),
+
+                        TextEntry::make('impuestos')
+                            ->label('IVA total')
+                            ->state(fn ($record) => 'Gs. ' . number_format($record->detalles->sum(fn($d) => (float) $d->monto_impuesto), 0, ',', '.')),
+
+                        TextEntry::make('total')
+                            ->label('Total general')
+                            ->state(fn ($record) => 'Gs. ' . number_format($record->detalles->sum(fn($d) => (float) $d->total), 0, ',', '.'))
+                            ->extraAttributes(['class' => 'font-bold']),
+                    ]),
+            ]);
     }
 
     public static function getPages(): array

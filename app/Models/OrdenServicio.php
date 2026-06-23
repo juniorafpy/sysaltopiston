@@ -76,6 +76,11 @@ class OrdenServicio extends Model
         return $this->belongsTo(Empleados::class, 'cod_mecanico', 'cod_empleado');
     }
 
+    public function mecanico(): BelongsTo
+    {
+        return $this->belongsTo(Mecanico::class, 'cod_mecanico', 'cod_mecanico');
+    }
+
     public function detalles(): HasMany
     {
         return $this->hasMany(OrdenServicioDetalle::class);

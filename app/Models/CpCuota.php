@@ -29,8 +29,6 @@ class CpCuota extends Model
         'observacion',
         'usuario_alta',
         'fecha_alta',
-        'usuario_mod',
-        'fecha_mod',
     ];
 
     protected $casts = [
@@ -39,7 +37,6 @@ class CpCuota extends Model
         'monto_cuota' => 'decimal:2',
         'monto_pagado' => 'decimal:2',
         'fecha_alta' => 'datetime',
-        'fecha_mod' => 'datetime',
     ];
 
     /**
@@ -58,10 +55,6 @@ class CpCuota extends Model
             }
         });
 
-        static::updating(function ($cuota) {
-            $cuota->usuario_mod = auth()->user()->name ?? 'Sistema';
-            $cuota->fecha_mod = now();
-        });
     }
 
     /**

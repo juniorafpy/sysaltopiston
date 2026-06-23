@@ -101,11 +101,22 @@ class AdminPanelProvider extends PanelProvider
                         });
 
                         Livewire.on("swal:error", (data) => {
+                            let msg = "";
+                            if (data && typeof data.message === "string") {
+                                msg = data.message;
+                            } else if (Array.isArray(data) && data.length && typeof data[0].message === "string") {
+                                msg = data[0].message;
+                            } else if (typeof data === "string") {
+                                msg = data;
+                            } else {
+                                msg = "Ocurrió un error inesperado.";
+                            }
+                            const isStock = msg.toLowerCase().includes("stock");
                             Swal.fire({
                                 icon: "error",
-                                title: "Error",
-                                text: data.message,
-                                width: "350px",
+                                title: isStock ? "Stock Insuficiente" : "Error",
+                                html: msg.replace(/\n/g, "<br>"),
+                                width: "400px",
                                 confirmButtonText: "Aceptar",
                                 confirmButtonColor: "#dc2626"
                             });
@@ -137,6 +148,12 @@ class AdminPanelProvider extends PanelProvider
                                 confirmButtonText: "Aceptar",
                                 confirmButtonColor: "#f59e0b"
                             });
+                        });
+
+                        Livewire.on("open-pdf", (data) => {
+                            if (data.url) {
+                                window.open(data.url, "_blank");
+                            }
                         });
 
                         // Interceptar errores de validación de Livewire

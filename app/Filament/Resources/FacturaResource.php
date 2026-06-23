@@ -100,6 +100,22 @@ class FacturaResource extends Resource
                             ->default(fn () => \App\Models\Timbrado::obtenerTimbradoActivo('FAC')?->cod_timbrado)
                             ->dehydrated(),
 
+                        // Campos ocultos para referencias (OS / Presupuesto)
+                        Forms\Components\Hidden::make('orden_servicio_id')
+                            ->default(fn () => request()->integer('orden_servicio_id'))
+                            ->dehydrated(),
+
+                        Forms\Components\Hidden::make('presupuesto_venta_id')
+                            ->default(fn () => request()->integer('presupuesto_venta_id'))
+                            ->dehydrated(),
+
+                        Forms\Components\TextInput::make('referencia')
+                            ->label('Referencia')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->visible(fn (callable $get) => !empty($get('referencia')))
+                            ->default(fn () => request()->has('orden_servicio_id') ? 'OS #' . request()->integer('orden_servicio_id') : (request()->has('presupuesto_venta_id') ? 'Presupuesto #' . request()->integer('presupuesto_venta_id') : null)),
+
                         // Número de Factura (automático)
                         Forms\Components\TextInput::make('numero_factura')
                             ->label('Número de Factura')

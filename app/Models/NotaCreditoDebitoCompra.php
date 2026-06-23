@@ -138,12 +138,16 @@ class NotaCreditoDebitoCompra extends Model
     }
 
     /**
-     * Actualiza el stock según el tipo de nota
+     * Actualiza el stock según el tipo de nota y sucursal de la compra
      */
     private function actualizarStock()
     {
+        $codSucursal = $this->compraCabecera?->cod_sucursal;
+
         foreach ($this->detalles as $detalle) {
-            $existencia = \App\Models\ExistenciaArticulo::where('cod_articulo', $detalle->cod_articulo)->first();
+            $existencia = \App\Models\ExisteStock::where('cod_articulo', $detalle->cod_articulo)
+                ->when($codSucursal, fn ($q) => $q->where('cod_sucursal', $codSucursal))
+                ->first();
 
             if (!$existencia) {
                 continue;
@@ -157,44 +161,53 @@ class NotaCreditoDebitoCompra extends Model
                 $existencia->stock_actual -= $detalle->cantidad;
             }
 
+            $existencia->usuario_mod = auth()->user()->name ?? 'Sistema';
+            $existencia->fec_mod = now();
             $existencia->save();
         }
     }
 
     /**
-     * Actualiza el saldo de cuentas por pagar
+     * Actualiza el saldo de cuentas por pagar (cp_cuotas)
      */
     private function actualizarSaldo()
     {
-        // Esta lógica dependerá de cómo manejes las cuentas por pagar
-        // Por ahora solo dejo el método preparado
-
-        // Ejemplo: Buscar las cuotas de la compra y ajustar montos
-        $cuotas = $this->compraCabecera->cuotas()->where('estado', 'Pendiente')->get();
+        $cuotas = $this->compraCabecera->cuotas()
+            ->where('estado', 'Pendiente')
+            ->orderBy('nro_cuota')
+            ->get();
 
         if ($cuotas->isEmpty()) {
             return;
         }
 
-        $totalNota = $this->total_nota;
+        $totalNota = (float) $this->total_nota;
 
-        foreach ($cuotas as $cuota) {
-            if ($totalNota <= 0) {
-                break;
-            }
+        if ($this->esNotaCredito()) {
+            // Nota de crédito: REDUCE la deuda cuota por cuota
+            foreach ($cuotas as $cuota) {
+                if ($totalNota <= 0) {
+                    break;
+                }
 
-            if ($this->esNotaCredito()) {
-                // Nota de crédito: REDUCE la deuda
-                $ajuste = min($totalNota, $cuota->monto_cuota - $cuota->monto_pagado);
+                $saldo = max(0, (float) $cuota->monto_cuota - (float) $cuota->monto_pagado);
+                $ajuste = min($totalNota, $saldo);
+
                 $cuota->monto_cuota -= $ajuste;
                 $totalNota -= $ajuste;
-            } elseif ($this->esNotaDebito()) {
-                // Nota de débito: AUMENTA la deuda
-                $cuota->monto_cuota += $totalNota;
-                $totalNota = 0;
-            }
 
-            $cuota->save();
+                // Si quedó saldo cero, marcar como pagada
+                if ($cuota->monto_cuota <= $cuota->monto_pagado) {
+                    $cuota->estado = 'Pagado';
+                }
+
+                $cuota->save();
+            }
+        } elseif ($this->esNotaDebito()) {
+            // Nota de débito: AUMENTA la deuda en la última cuota pendiente
+            $ultimaCuota = $cuotas->last();
+            $ultimaCuota->monto_cuota += $totalNota;
+            $ultimaCuota->save();
         }
     }
 }
